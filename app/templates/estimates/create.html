@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Create Estimate - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Create New Estimate</h5>
+                <small class="text-muted">Project: {{ project.project_name }}</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="estimate_name" class="form-label">Estimate Name *</label>
+                        <input type="text" class="form-control" id="estimate_name" name="estimate_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" 
+                                placeholder="Enter estimate description..."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Estimate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

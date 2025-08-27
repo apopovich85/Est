@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_name }} - Projects{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ project.project_name }}</h1>
+        <p class="text-muted mb-0">Client: {{ project.client_name }}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('projects.edit_project', project_id=project.project_id) }}" 
+           class="btn btn-outline-primary me-2">
+            <i class="fas fa-edit"></i> Edit Project
+        </a>
+        <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
+           class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Estimate
+        </a>
+    </div>
+</div>
+
+<!-- Project Details Card -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Status:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-{{ 'success' if project.status == 'Won' else 'warning' if project.status == 'Sent' else 'secondary' }}">
+                            {{ project.status }}
+                        </span>
+                    </dd>
+                    
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">{{ project.description or 'No description provided' }}</dd>
+                    
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">{{ project.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                    
+                    <dt class="col-sm-3">Last Updated:</dt>
+                    <dd class="col-sm-9">{{ project.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h3 class="text-primary">${{ "{:,.2f}".format(project.total_value()) }}</h3>
+                    <p class="text-muted mb-1">Total Project Value</p>
+                    <hr>
+                    <p class="mb-1"><strong>{{ estimates|length }}</strong> Estimate{{ 's' if estimates|length != 1 else '' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estimates List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Estimates</h5>
+        <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
+           class="btn btn-sm btn-primary">
+            <i class="fas fa-plus"></i> New Estimate
+        </a>
+    </div>
+    <div class="card-body">
+        {% if estimates %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Estimate Number</th>
+                            <th>Name</th>
+                            <th>Total Value</th>
+                            <th>Assemblies</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estimate in estimates %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+                                   class="text-decoration-none">
+                                    {{ estimate.estimate_number }}
+                                </a>
+                            </td>
+                            <td>{{ estimate.estimate_name }}</td>
+                            <td>${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
+                            <td>{{ estimate.assemblies|length }}</td>
+                            <td>{{ estimate.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+                                       class="btn btn-sm btn-outline-primary">View</a>
+                                    <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}" 
+                                       class="btn btn-sm btn-outline-secondary">Copy</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Estimates Yet</h5>
+                <p class="text-muted">Create your first estimate for this project!</p>
+                <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Estimate
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

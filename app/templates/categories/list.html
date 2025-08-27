@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Assembly Categories Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-tags"></i> Assembly Categories</h1>
+        <p class="text-muted mb-0">Manage standard assembly categories</p>
+    </div>
+    <div>
+        <a href="{{ url_for('categories.create_category') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Category
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-list"></i> Categories ({{ categories|length }})
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if categories %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="80">Code</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th width="100">Sort Order</th>
+                            <th width="80">Status</th>
+                            <th width="120">Created</th>
+                            <th width="150">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        <tr class="{{ 'table-secondary' if not category.is_active else '' }}">
+                            <td>
+                                <span class="badge bg-primary">{{ category.code }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ category.name }}</strong>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ category.description or 'No description' }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ category.sort_order }}</span>
+                            </td>
+                            <td>
+                                {% if category.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ category.created_at.strftime('%m/%d/%Y') }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('categories.edit_category', category_id=category.category_id) }}" 
+                                       class="btn btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('categories.toggle_category', category_id=category.category_id) }}" 
+                                          style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-outline-warning" 
+                                                title="{{ 'Deactivate' if category.is_active else 'Activate' }}">
+                                            <i class="fas fa-{{ 'eye-slash' if category.is_active else 'eye' }}"></i>
+                                        </button>
+                                    </form>
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="confirmDelete('{{ category.code }}', {{ category.category_id }})"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Categories Yet</h5>
+                <p class="text-muted">Create your first assembly category to get started.</p>
+                <a href="{{ url_for('categories.create_category') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add First Category
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the category <strong id="deleteCategoryName"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    This action cannot be undone. The category will only be deleted if it's not in use by any assemblies.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Category
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(categoryCode, categoryId) {
+    document.getElementById('deleteCategoryName').textContent = categoryCode;
+    document.getElementById('deleteForm').action = `/categories/${categoryId}/delete`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

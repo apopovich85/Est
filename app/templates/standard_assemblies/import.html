@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Import Standard Assemblies{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-upload"></i> Import Standard Assemblies from CSV
+                </h5>
+                <small class="text-muted">Upload a CSV file to import multiple assemblies at once</small>
+            </div>
+            <div class="card-body">
+                <!-- File Upload Form -->
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-4">
+                        <label for="csv_file" class="form-label">Select CSV File *</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" 
+                               accept=".csv" required>
+                        <div class="form-text">
+                            File must be in CSV format with the required columns
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('standard_assemblies.list_assemblies') }}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload & Preview
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- CSV Format Information -->
+                <hr class="my-4">
+                
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Required CSV Format</h6>
+                    <p class="mb-2">Your CSV file must contain the following columns:</p>
+                    <ul class="mb-2">
+                        <li><strong>AssemblyCat</strong> - Assembly category (e.g., VFD, HS, WW)</li>
+                        <li><strong>Assembly_ID</strong> - Unique assembly identifier</li>
+                        <li><strong>Component_Part_Number</strong> - Part number for each component</li>
+                        <li><strong>Quantity</strong> - Quantity of each component</li>
+                    </ul>
+                    <small class="text-muted">
+                        Optional columns: Assy_#, PanelAssy, ShopAssy (these will be ignored during import)
+                    </small>
+                </div>
+                
+                <!-- Sample Data Display -->
+                <div class="card bg-light">
+                    <div class="card-header">
+                        <h6 class="mb-0">Example CSV Format</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="font-size: 0.85em;">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>AssemblyCat</th>
+                                        <th>Assembly_ID</th>
+                                        <th>Component_Part_Number</th>
+                                        <th>Quantity</th>
+                                        <th>Assy_#</th>
+                                        <th>PanelAssy</th>
+                                        <th>ShopAssy</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>VFD</td>
+                                        <td>PF755TS-005HP</td>
+                                        <td>20G21ND8P0JA0NNNNN</td>
+                                        <td>1</td>
+                                        <td>VFD001</td>
+                                        <td>1</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td>VFD</td>
+                                        <td>PF755TS-005HP</td>
+                                        <td>JLS010</td>
+                                        <td>3</td>
+                                        <td>VFD001</td>
+                                        <td>1</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td>VFD</td>
+                                        <td>PF755TS-007.5HP</td>
+                                        <td>20G21ND011JA0NNNNN</td>
+                                        <td>1</td>
+                                        <td>VFD002</td>
+                                        <td>1</td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Import Notes -->
+                <div class="mt-4">
+                    <h6>Import Process:</h6>
+                    <ol>
+                        <li>Upload your CSV file using the form above</li>
+                        <li>Preview and edit assembly names and categories</li>
+                        <li>Select which assemblies to import</li>
+                        <li>Confirm import to create the assemblies</li>
+                    </ol>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <strong>Note:</strong> If component parts don't exist in the parts database, 
+                        placeholder parts will be created with $0.00 price. You can update these later 
+                        in the Parts Database section.
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <strong>Troubleshooting:</strong> If you get column errors, ensure your CSV file:
+                        <ul class="mb-0">
+                            <li>Uses UTF-8 encoding (save as CSV UTF-8 in Excel)</li>
+                            <li>Has exact column names: AssemblyCat, Assembly_ID, Component_Part_Number, Quantity</li>
+                            <li>Doesn't have extra spaces or quotes around column names</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function() {
+    const fileInput = document.getElementById('csv_file');
+    if (fileInput.files.length === 0) {
+        alert('Please select a CSV file to upload.');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

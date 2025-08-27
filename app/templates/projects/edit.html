@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Edit Project</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('projects.edit_project', project_id=project.project_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="project_name" class="form-label">Project Name *</label>
+                        <input type="text" class="form-control" id="project_name" name="project_name" 
+                               value="{{ project.project_name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">Client Name *</label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" 
+                               value="{{ project.client_name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" 
+                                placeholder="Enter project description...">{{ project.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Draft" {{ 'selected' if project.status == 'Draft' else '' }}>Draft</option>
+                            <option value="Sent" {{ 'selected' if project.status == 'Sent' else '' }}>Sent</option>
+                            <option value="Won" {{ 'selected' if project.status == 'Won' else '' }}>Won</option>
+                            <option value="Lost" {{ 'selected' if project.status == 'Lost' else '' }}>Lost</option>
+                        </select>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.project_id) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this project? This action cannot be undone.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Delete Project
+                            </button>
+                        </form>
+                        
+                        <div>
+                            <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" class="btn btn-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> + total.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+    }
+    
+    // Attach event listeners for price calculation
+    const priceInputs = document.querySelectorAll('.price-input');
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    
+    priceInputs.forEach(input => input.addEventListener('input', calculateTotal));
+    quantityInputs.forEach(input => input.addEventListener('input', calculateTotal));
+    
+    // Initialize calculation on page load
+    calculateTotal();
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // AJAX form submission helper
+    window.submitForm = function(formId, successCallback) {
+        const form = document.getElementById(formId);
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (successCallback) successCallback(data);
+            } else {
+                alert('Error: ' + (data.message || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Network error occurred');
+        });
+    };
+    
+    // Component duplication functionality
+    window.duplicateComponent = function(componentId, targetAssemblyId) {
+        fetch(`/components/${componentId}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                target_assembly_id: targetAssemblyId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error duplicating component: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error duplicating component');
+        });
+    };
+    
+    // Table search functionality
+    const searchInputs = document.querySelectorAll('[data-table-search]');
+    searchInputs.forEach(function(input) {
+        const targetTable = document.querySelector(input.getAttribute('data-table-search'));
+        if (targetTable) {
+            input.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = targetTable.querySelectorAll('tbody tr');
+                
+                rows.forEach(function(row) {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            });
+        }
+    });
+});

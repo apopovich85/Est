@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+
+{% block title %}Version History - {{ assembly.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-history"></i> Version History</h1>
+        <p class="text-muted mb-0">{{ assembly.name }} - All Versions</p>
+    </div>
+    <div>
+        <a href="{{ url_for('standard_assemblies.edit_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+           class="btn btn-primary me-2">
+            <i class="fas fa-edit"></i> Edit Current
+        </a>
+        <a href="{{ url_for('standard_assemblies.list_assemblies') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Current/Template Version -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-star"></i> Current Template Version
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>{{ assembly.name }} <span class="badge bg-primary">v{{ assembly.version }}</span></h5>
+                <p class="text-muted">{{ assembly.description or 'No description provided' }}</p>
+                <div class="small text-muted">
+                    <i class="fas fa-user"></i> Created by: {{ assembly.created_by or 'Unknown' }}<br>
+                    <i class="fas fa-calendar"></i> Created: {{ assembly.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+            </div>
+            <div class="col-md-3 text-center">
+                <h4 class="text-primary">{{ assembly.component_count }}</h4>
+                <small class="text-muted">Components</small>
+            </div>
+            <div class="col-md-3 text-center">
+                <h4 class="text-success">${{ "{:,.2f}".format(assembly.total_cost) }}</h4>
+                <small class="text-muted">Total Cost</small>
+            </div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-{{ 'success' if assembly.is_active else 'secondary' }}">
+                    {{ 'Active' if assembly.is_active else 'Inactive' }}
+                </span>
+                <span class="badge bg-warning text-dark">Template</span>
+            </div>
+            <div>
+                <a href="{{ url_for('standard_assemblies.edit_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <button class="btn btn-sm btn-outline-warning" 
+                        onclick="createNewVersion({{ assembly.standard_assembly_id }}, '{{ assembly.name }}')">
+                    <i class="fas fa-code-branch"></i> New Version
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> All Versions
+        </h5>
+        <small class="text-muted">{{ versions|length }} version(s) total</small>
+    </div>
+    <div class="card-body p-0">
+        {% if versions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="min-width: 1200px;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 120px;">Version</th>
+                            <th style="width: 120px;">Status</th>
+                            <th style="width: 100px;">Components</th>
+                            <th style="width: 120px;">Total Cost</th>
+                            <th style="width: 120px;">Created By</th>
+                            <th style="width: 150px;">Created Date</th>
+                            <th style="width: 200px;">Notes</th>
+                            <th style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in versions %}
+                        <tr class="{% if version.is_template %}table-primary{% endif %}">
+                            <td>
+                                <strong>v{{ version.version }}</strong>
+                                {% if version.is_template %}
+                                    <span class="badge bg-warning text-dark ms-1">Current</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if version.is_active else 'secondary' }}">
+                                    {{ 'Active' if version.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ version.component_count }}</span>
+                            </td>
+                            <td>
+                                <span class="text-success">${{ "{:,.2f}".format(version.total_cost) }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ version.created_by or 'Unknown' }}</small>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ version.created_at.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                            </td>
+                            <td>
+                                {% set version_record = version.versions|first %}
+                                {% if version_record and version_record.notes %}
+                                    <small class="text-muted" title="{{ version_record.notes }}">
+                                        {{ version_record.notes[:50] }}{% if version_record.notes|length > 50 %}...{% endif %}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('standard_assemblies.view_assembly', assembly_id=version.standard_assembly_id) }}" 
+                                       class="btn btn-outline-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if version.is_template %}
+                                        <a href="{{ url_for('standard_assemblies.edit_assembly', assembly_id=version.standard_assembly_id) }}" 
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-outline-warning" 
+                                                onclick="makeTemplate({{ version.standard_assembly_id }}, '{{ version.version }}')"
+                                                title="Make Template">
+                                            <i class="fas fa-star"></i>
+                                        </button>
+                                    {% endif %}
+                                    <button class="btn btn-outline-secondary dropdown-toggle" 
+                                            data-bs-toggle="dropdown" title="More Actions">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('standard_assemblies.view_assembly', assembly_id=version.standard_assembly_id) }}">
+                                                <i class="fas fa-eye"></i> View Details
+                                            </a>
+                                        </li>
+                                        {% if not version.is_template %}
+                                        <li>
+                                            <button class="dropdown-item" 
+                                                    onclick="compareVersions({{ version.standard_assembly_id }}, {{ assembly.standard_assembly_id }})">
+                                                <i class="fas fa-exchange-alt"></i> Compare with Current
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" 
+                                                    onclick="makeTemplate({{ version.standard_assembly_id }}, '{{ version.version }}')">
+                                                <i class="fas fa-star"></i> Make Template
+                                            </button>
+                                        </li>
+                                        {% else %}
+                                        <li>
+                                            <span class="dropdown-item text-muted">
+                                                <i class="fas fa-star"></i> Current Template
+                                            </span>
+                                        </li>
+                                        {% endif %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item" 
+                                                    onclick="duplicateVersion({{ version.standard_assembly_id }})">
+                                                <i class="fas fa-copy"></i> Duplicate
+                                            </button>
+                                        </li>
+                                        {% if not version.is_template %}
+                                        <li>
+                                            <button class="dropdown-item text-danger" 
+                                                    onclick="archiveVersion({{ version.standard_assembly_id }})">
+                                                <i class="fas fa-archive"></i> Archive
+                                            </button>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Version History</h5>
+                <p class="text-muted">This appears to be the first version of this assembly.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create New Version Modal -->
+<div class="modal fade" id="createVersionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Version</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createVersionForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <p>Create a new version of <strong id="versionAssemblyName">{{ assembly.name }}</strong>?</p>
+                    <div class="mb-3">
+                        <label for="versionNotes" class="form-label">Version Notes</label>
+                        <textarea class="form-control" id="versionNotes" name="notes" rows="3"
+                                placeholder="Describe what will change in this version..."></textarea>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> This will create a copy of the current template version that you can then modify.
+                        The current version will be preserved and the new version will become the template.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-code-branch"></i> Create Version
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="comparisonModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Version Comparison</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="comparisonContent">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin"></i> Loading comparison...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+function createNewVersion(assemblyId, assemblyName) {
+    document.getElementById('versionAssemblyName').textContent = assemblyName;
+    document.getElementById('createVersionForm').action = `/standard_assemblies/${assemblyId}/create-version`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('createVersionModal'));
+    modal.show();
+}
+
+function makeTemplate(assemblyId, version) {
+    if (confirm(`Make version ${version} the current template? This will replace the current template version.`)) {
+        fetch(`/standard_assemblies/api/${assemblyId}/make-template`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', 'Success', `Version ${version} is now the template`);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showToast('error', 'Error', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error making template:', error);
+            showToast('error', 'Error', 'Failed to update template version');
+        });
+    }
+}
+
+function compareVersions(versionId1, versionId2) {
+    console.log(`Comparing version ${versionId1} with version ${versionId2}`);
+    
+    if (versionId1 === versionId2) {
+        alert('Cannot compare a version with itself. Please select a different version.');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('comparisonModal'));
+    modal.show();
+    
+    // Load comparison data
+    fetch(`/standard_assemblies/api/compare/${versionId1}/${versionId2}`)
+        .then(response => response.json())
+        .then(data => {
+            renderComparison(data);
+        })
+        .catch(error => {
+            console.error('Error loading comparison:', error);
+            document.getElementById('comparisonContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Failed to load version comparison. Please try again.
+                </div>
+            `;
+        });
+}
+
+function renderComparison(data) {
+    const container = document.getElementById('comparisonContent');
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">Version ${data.version1.version}</h6>
+                        <small>${data.version1.components.length} components • $${data.version1.total_cost.toFixed(2)}</small>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        ${data.version1.components.map(comp => {
+                            const isRemoved = data.comparison.removed && data.comparison.removed.some(c => c.part_number === comp.part_number);
+                            return `
+                            <div class="mb-2 p-2 border rounded ${getComparisonClass(comp, data.comparison, true)}">
+                                <strong>${comp.part_number}</strong>
+                                ${isRemoved ? '<span class="badge bg-danger ms-2">REMOVED</span>' : ''}
+                                <div class="small text-muted">${comp.description}</div>
+                                <div class="small">Qty: ${comp.quantity} ${comp.unit_of_measure} • $${comp.total_price.toFixed(2)}</div>
+                            </div>
+                        `}).join('')}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">Version ${data.version2.version} (Current)</h6>
+                        <small>${data.version2.components.length} components • $${data.version2.total_cost.toFixed(2)}</small>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        ${data.version2.components.map(comp => {
+                            const isAdded = data.comparison.added && data.comparison.added.some(c => c.part_number === comp.part_number);
+                            const isModified = data.comparison.modified && data.comparison.modified.find(c => c.part_number === comp.part_number);
+                            return `
+                            <div class="mb-2 p-2 border rounded ${getComparisonClass(comp, data.comparison, false)}">
+                                <strong>${comp.part_number}</strong>
+                                ${isAdded ? '<span class="badge bg-success ms-2">ADDED</span>' : ''}
+                                ${isModified ? '<span class="badge bg-warning ms-2">MODIFIED</span>' : ''}
+                                <div class="small text-muted">${comp.description}</div>
+                                <div class="small">Qty: ${comp.quantity} ${comp.unit_of_measure} • $${comp.total_price.toFixed(2)}</div>
+                                ${isModified && isModified.changes ? `
+                                    <div class="small text-warning mt-1">
+                                        <strong>Changes:</strong><br>
+                                        ${isModified.changes.map(change => `• ${change}`).join('<br>')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `}).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Summary</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Components:</strong> ${data.version1.components.length} → ${data.version2.components.length}
+                            (${data.version2.components.length - data.version1.components.length >= 0 ? '+' : ''}${data.version2.components.length - data.version1.components.length})
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total Cost:</strong> $${data.version1.total_cost.toFixed(2)} → $${data.version2.total_cost.toFixed(2)}
+                            (${data.version2.total_cost - data.version1.total_cost >= 0 ? '+' : ''}$${(data.version2.total_cost - data.version1.total_cost).toFixed(2)})
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small">
+                                <div class="text-success">● Added components: ${data.comparison.added ? data.comparison.added.length : 0}</div>
+                                <div class="text-danger">● Removed components: ${data.comparison.removed ? data.comparison.removed.length : 0}</div>
+                                <div class="text-warning">● Modified components: ${data.comparison.modified ? data.comparison.modified.length : 0}</div>
+                                <div class="text-muted">● Unchanged: ${data.comparison.unchanged ? data.comparison.unchanged.length : 0}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getComparisonClass(component, comparison, isVersion1 = true) {
+    if (!comparison) return '';
+    
+    const partNumber = component.part_number;
+    
+    // Check if component was added (only in version2)
+    if (comparison.added && comparison.added.some(comp => comp.part_number === partNumber)) {
+        return isVersion1 ? 'bg-light text-muted' : 'bg-success bg-opacity-25 border-success';
+    }
+    
+    // Check if component was removed (only in version1)
+    if (comparison.removed && comparison.removed.some(comp => comp.part_number === partNumber)) {
+        return isVersion1 ? 'bg-danger bg-opacity-25 border-danger' : 'bg-light text-muted';
+    }
+    
+    // Check if component was modified
+    if (comparison.modified && comparison.modified.some(comp => comp.part_number === partNumber)) {
+        return 'bg-warning bg-opacity-25 border-warning';
+    }
+    
+    // Component is unchanged
+    return 'bg-light bg-opacity-50';
+}
+
+function duplicateVersion(assemblyId) {
+    if (confirm('Create a duplicate of this version as a new standard assembly?')) {
+        fetch(`/standard_assemblies/api/${assemblyId}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', 'Success', 'Version duplicated successfully');
+                setTimeout(() => {
+                    window.location.href = `/standard_assemblies/${data.new_assembly_id}/edit`;
+                }, 1500);
+            } else {
+                showToast('error', 'Error', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error duplicating version:', error);
+            showToast('error', 'Error', 'Failed to duplicate version');
+        });
+    }
+}
+
+function archiveVersion(assemblyId) {
+    if (confirm('Archive this version? It will be marked as inactive but preserved for reference.')) {
+        fetch(`/standard_assemblies/api/${assemblyId}/archive`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', 'Success', 'Version archived');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showToast('error', 'Error', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error archiving version:', error);
+            showToast('error', 'Error', 'Failed to archive version');
+        });
+    }
+}
+
+function showToast(type, title, message) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+    toast.style = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    toast.innerHTML = `
+        <strong>${title}!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1307 @@
+{% extends "base.html" %}
+
+{% block title %}Parts Database Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>Parts Database</h1>
+        <p class="text-muted mb-0">Manage all parts in the system</p>
+    </div>
+    <div class="d-flex gap-2">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoSaveToggle" checked>
+            <label class="form-check-label" for="autoSaveToggle">
+                Auto-save <span id="autoSaveStatus" class="badge bg-success">ON</span>
+            </label>
+        </div>
+        <button class="btn btn-outline-secondary" id="refreshBtn">
+            <i class="fas fa-refresh"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" 
+                           placeholder="Search parts..." autocomplete="off">
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <small class="text-muted">Press Ctrl+F to focus search</small>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="manufacturerFilter">
+                    <option value="">All Manufacturers</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="minPrice" placeholder="Min" step="0.01">
+                    <span class="input-group-text">-</span>
+                    <input type="number" class="form-control" id="maxPrice" placeholder="Max" step="0.01">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="btn-toolbar">
+                    <div class="btn-group me-2">
+                        <button class="btn btn-primary" id="addPartBtn">
+                            <i class="fas fa-plus"></i> Add Part
+                        </button>
+                        <button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" 
+                                data-bs-toggle="dropdown">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="bulkDeleteBtn">
+                                <i class="fas fa-trash text-danger"></i> Delete Selected
+                            </a></li>
+                        </ul>
+                    </div>
+                    <button class="btn btn-outline-secondary" id="selectAllBtn">
+                        <input type="checkbox" id="selectAllCheckbox" class="me-1"> Select All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Data Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">All Parts</h5>
+            <small class="text-muted">
+                <span id="totalParts">0</span> parts | 
+                <span id="selectedParts">0</span> selected | 
+                Total: $<span id="totalValue">0.00</span>
+            </small>
+        </div>
+        <div id="savingIndicator" class="text-success" style="display: none;">
+            <i class="fas fa-check-circle"></i> Saved
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="partsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="40px">
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="category">
+                            Category <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="manufacturer">
+                            Manufacturer <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="part_number">
+                            Part Number <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="resizable">
+                            Description
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="model">
+                            Model <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="rating">
+                            Rating <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="price">
+                            Price <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="vendor">
+                            Vendor <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th class="sortable resizable" data-column="effective_date">
+                            Effective Date <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
+                        <th width="120px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="partsTableBody">
+                    <!-- Dynamic content loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" data-action="edit">
+        <i class="fas fa-edit"></i> Edit
+    </div>
+    <div class="context-menu-item" data-action="price-history">
+        <i class="fas fa-chart-line"></i> Price History
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item text-danger" data-action="delete">
+        <i class="fas fa-trash"></i> Delete
+    </div>
+</div>
+
+<!-- Add Part Modal -->
+<div class="modal fade" id="addPartModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Part</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPartForm">
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <input type="text" class="form-control" id="category" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="manufacturer" class="form-label">Manufacturer *</label>
+                        <input type="text" class="form-control" id="manufacturer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="partNumber" class="form-label">Part Number *</label>
+                        <input type="text" class="form-control" id="partNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="model" class="form-label">Model</label>
+                                <input type="text" class="form-control" id="model">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="rating" class="form-label">Rating</label>
+                                <input type="text" class="form-control" id="rating">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="upc" class="form-label">UPC</label>
+                        <input type="text" class="form-control" id="upc">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="price" class="form-label">Price</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="price" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="vendor" class="form-label">Vendor</label>
+                                <input type="text" class="form-control" id="vendor">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="effectiveDate" class="form-label">Effective Date</label>
+                        <input type="date" class="form-control" id="effectiveDate">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePartBtn">Save Part</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price History Modal -->
+<div class="modal fade" id="priceHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Price History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <div class="h4 mb-0">$<span id="currentPrice">0.00</span></div>
+                                <small>Current Price</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <div class="h4 mb-0"><span id="totalChanges">0</span></div>
+                                <small>Total Changes</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white" id="trendCard">
+                            <div class="card-body text-center">
+                                <div class="h4 mb-0">
+                                    <i id="trendIcon" class="fas fa-minus"></i>
+                                    <span id="trendText">Stable</span>
+                                </div>
+                                <small>Trend</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-secondary text-white">
+                            <div class="card-body text-center">
+                                <div class="h4 mb-0">$<span id="avgPrice">0.00</span></div>
+                                <small>Average Price</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Container -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Price Trend Chart</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="priceChart" height="300"></canvas>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Detailed Price History</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Old Price</th>
+                                        <th>New Price</th>
+                                        <th>Change</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+// Master Parts Database Management System
+class DatabasePartsManager {
+    constructor() {
+        this.parts = [];
+        this.filteredParts = [];
+        this.selectedParts = new Set();
+        this.autoSave = true;
+        this.editingCell = null;
+        this.sortColumn = null;
+        this.sortDirection = 'asc';
+        this.chart = null;
+        // No assemblies needed for Parts management
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.loadParts();
+        this.setupKeyboardShortcuts();
+    }
+    
+    bindEvents() {
+        // Search and filters
+        document.getElementById('searchInput').addEventListener('input', () => this.applyFilters());
+        document.getElementById('categoryFilter').addEventListener('change', () => this.applyFilters());
+        document.getElementById('manufacturerFilter').addEventListener('change', () => this.applyFilters());
+        document.getElementById('minPrice').addEventListener('input', () => this.applyFilters());
+        document.getElementById('maxPrice').addEventListener('input', () => this.applyFilters());
+        document.getElementById('clearSearch').addEventListener('click', () => this.clearFilters());
+        
+        // Action buttons
+        document.getElementById('addPartBtn').addEventListener('click', () => this.showAddModal());
+        document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
+        document.getElementById('selectAllBtn').addEventListener('click', () => this.toggleSelectAll());
+        document.getElementById('refreshBtn').addEventListener('click', () => this.loadParts());
+        
+        // Modal actions
+        document.getElementById('savePartBtn').addEventListener('click', () => this.saveNewPart());
+        
+        // Auto-save toggle
+        document.getElementById('autoSaveToggle').addEventListener('change', (e) => {
+            this.autoSave = e.target.checked;
+            const status = document.getElementById('autoSaveStatus');
+            status.textContent = this.autoSave ? 'ON' : 'OFF';
+            status.className = this.autoSave ? 'badge bg-success' : 'badge bg-secondary';
+        });
+        
+        // Table sorting
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.column;
+                this.sortTable(column);
+            });
+        });
+        
+        // Context menu
+        document.addEventListener('contextmenu', (e) => this.showContextMenu(e));
+        document.addEventListener('click', () => this.hideContextMenu());
+        
+        // Context menu actions
+        document.querySelectorAll('.context-menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = item.dataset.action;
+                const partId = parseInt(document.getElementById('contextMenu').dataset.partId);
+                this.handleContextAction(action, partId);
+                this.hideContextMenu();
+            });
+        });
+        
+        // Column resizing
+        this.setupColumnResizing();
+    }
+    
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'a':
+                        e.preventDefault();
+                        this.selectAll();
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('searchInput').focus();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        this.saveAllChanges();
+                        break;
+                }
+            }
+            
+            if (e.key === 'Delete' && this.selectedParts.size > 0) {
+                this.bulkDelete();
+            }
+            
+            if (e.key === 'Escape') {
+                this.cancelEdit();
+                this.hideContextMenu();
+            }
+        });
+    }
+    
+    // No assembly loading needed for Parts management
+    
+    async loadParts() {
+        this.showLoading(true);
+        try {
+            const response = await fetch('/components/api/database/list');
+            const data = await response.json();
+            
+            this.parts = data;
+            this.applyFilters();
+            this.updateCategoryFilter();
+            this.updateManufacturerFilter();
+            this.updateSummary();
+            
+        } catch (error) {
+            console.error('Error loading parts:', error);
+            this.showToast('Error loading parts', 'error');
+        }
+        this.showLoading(false);
+    }
+    
+    updateCategoryFilter() {
+        const select = document.getElementById('categoryFilter');
+        const currentValue = select.value;
+        
+        // Get unique categories
+        const categories = [...new Set(this.parts.map(p => p.category))].sort();
+        
+        select.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            if (category === currentValue) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+    
+    applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const manufacturerFilter = document.getElementById('manufacturerFilter').value;
+        const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
+        const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+        
+        this.filteredParts = this.parts.filter(part => {
+            const matchesSearch = !searchTerm || 
+                (part.category || '').toLowerCase().includes(searchTerm) ||
+                (part.manufacturer || '').toLowerCase().includes(searchTerm) ||
+                (part.part_number || '').toLowerCase().includes(searchTerm) ||
+                (part.description || '').toLowerCase().includes(searchTerm) ||
+                (part.model || '').toLowerCase().includes(searchTerm) ||
+                (part.vendor || '').toLowerCase().includes(searchTerm);
+            
+            const matchesCategory = !categoryFilter || part.category === categoryFilter;
+            const matchesManufacturer = !manufacturerFilter || part.manufacturer === manufacturerFilter;
+            const matchesPrice = (part.price || 0) >= minPrice && (part.price || 0) <= maxPrice;
+            
+            return matchesSearch && matchesCategory && matchesManufacturer && matchesPrice;
+        });
+        
+        this.renderTable();
+        this.updateSummary();
+    }
+    
+    clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('manufacturerFilter').value = '';
+        document.getElementById('minPrice').value = '';
+        document.getElementById('maxPrice').value = '';
+        this.applyFilters();
+    }
+    
+    updateManufacturerFilter() {
+        const select = document.getElementById('manufacturerFilter');
+        const currentValue = select.value;
+        
+        // Get unique manufacturers
+        const manufacturers = [...new Set(this.parts.map(p => p.manufacturer))].sort();
+        
+        select.innerHTML = '<option value="">All Manufacturers</option>';
+        manufacturers.forEach(manufacturer => {
+            const option = document.createElement('option');
+            option.value = manufacturer;
+            option.textContent = manufacturer;
+            if (manufacturer === currentValue) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+    
+    renderTable() {
+        const tbody = document.getElementById('partsTableBody');
+        tbody.innerHTML = '';
+        
+        if (this.filteredParts.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="text-center py-4 text-muted">
+                        <i class="fas fa-search fa-2x mb-2"></i><br>
+                        No parts found matching your criteria
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        this.filteredParts.forEach(part => {
+            const row = this.createTableRow(part);
+            tbody.appendChild(row);
+        });
+        
+        // Restore selections
+        this.selectedParts.forEach(id => {
+            const checkbox = document.querySelector(`input[data-part-id="${id}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+        
+        this.updateSelectAllState();
+    }
+    
+    createTableRow(part) {
+        const row = document.createElement('tr');
+        row.className = 'part-row';
+        row.dataset.partId = part.part_id;
+        
+        const effectiveDate = part.effective_date ? new Date(part.effective_date).toLocaleDateString() : '';
+        const price = part.price ? `$${parseFloat(part.price).toFixed(2)}` : '';
+        
+        row.innerHTML = `
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input part-checkbox" 
+                       data-part-id="${part.part_id}">
+            </td>
+            <td class="editable" data-field="category">${this.escapeHtml(part.category || '')}</td>
+            <td class="editable" data-field="manufacturer">${this.escapeHtml(part.manufacturer || '')}</td>
+            <td class="editable" data-field="part_number">${this.escapeHtml(part.part_number || '')}</td>
+            <td class="editable" data-field="description">${this.escapeHtml(part.description || '')}</td>
+            <td class="editable" data-field="model">${this.escapeHtml(part.model || '')}</td>
+            <td class="editable" data-field="rating">${this.escapeHtml(part.rating || '')}</td>
+            <td class="editable text-end" data-field="price" data-type="currency">${price}</td>
+            <td class="editable" data-field="vendor">${this.escapeHtml(part.vendor || '')}</td>
+            <td class="editable" data-field="effective_date" data-type="date">${effectiveDate}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-info btn-xs price-history-btn" 
+                            data-part-id="${part.part_id}" title="Price History">
+                        <i class="fas fa-chart-line"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-xs delete-btn" 
+                            data-part-id="${part.part_id}" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        // Bind row events
+        this.bindRowEvents(row);
+        
+        return row;
+    }
+    
+    bindRowEvents(row) {
+        // Checkbox selection
+        const checkbox = row.querySelector('.part-checkbox');
+        checkbox.addEventListener('change', (e) => {
+            const partId = parseInt(e.target.dataset.partId);
+            if (e.target.checked) {
+                this.selectedParts.add(partId);
+            } else {
+                this.selectedParts.delete(partId);
+            }
+            this.updateSelectAllState();
+            this.updateSummary();
+        });
+        
+        // Row hover effects
+        row.addEventListener('mouseenter', () => {
+            row.classList.add('table-active');
+            row.querySelectorAll('.btn-group').forEach(group => {
+                group.style.opacity = '1';
+            });
+        });
+        
+        row.addEventListener('mouseleave', () => {
+            row.classList.remove('table-active');
+            if (!this.editingCell || !row.contains(this.editingCell)) {
+                row.querySelectorAll('.btn-group').forEach(group => {
+                    group.style.opacity = '0.7';
+                });
+            }
+        });
+        
+        // Editable cells
+        row.querySelectorAll('.editable').forEach(cell => {
+            cell.addEventListener('click', () => this.startEdit(cell));
+        });
+        
+        // Action buttons
+        row.querySelector('.price-history-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showPriceHistory(parseInt(e.target.closest('.price-history-btn').dataset.partId));
+        });
+        
+        row.querySelector('.delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deletePart(parseInt(e.target.closest('.delete-btn').dataset.partId));
+        });
+    }
+    
+    startEdit(cell) {
+        if (this.editingCell) {
+            this.cancelEdit();
+        }
+        
+        this.editingCell = cell;
+        const originalValue = cell.textContent.replace('$', '');
+        const field = cell.dataset.field;
+        const type = cell.dataset.type || 'text';
+        
+        input = document.createElement('input');
+        input.className = 'form-control form-control-sm';
+        
+        if (type === 'currency' || type === 'number') {
+            input.type = 'number';
+            input.step = type === 'currency' ? '0.01' : 'any';
+        } else if (type === 'date') {
+            input.type = 'date';
+            // Convert date format for input
+            if (originalValue) {
+                const date = new Date(originalValue);
+                input.value = date.toISOString().split('T')[0];
+            }
+        } else {
+            input.type = 'text';
+        }
+        
+        if (type !== 'date') {
+            input.value = originalValue;
+        }
+        
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        
+        const saveEdit = async () => {
+            const newValue = input.value;
+            if (newValue !== originalValue) {
+                await this.updateDatabasePart(cell, field, newValue);
+            } else {
+                this.cancelEdit();
+            }
+        };
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.cancelEdit();
+            }
+        });
+    }
+    
+    cancelEdit() {
+        if (this.editingCell) {
+            const partId = parseInt(this.editingCell.closest('tr').dataset.partId);
+            const part = this.parts.find(p => p.part_id === partId);
+            const field = this.editingCell.dataset.field;
+            
+            let displayValue = part[field] || '';
+            if (this.editingCell.dataset.type === 'currency') {
+                displayValue = displayValue ? '$' + parseFloat(displayValue).toFixed(2) : '';
+            } else if (this.editingCell.dataset.type === 'date' && displayValue) {
+                displayValue = new Date(displayValue).toLocaleDateString();
+            }
+            
+            this.editingCell.textContent = displayValue;
+            this.editingCell = null;
+        }
+    }
+    
+    async updateDatabasePart(cell, field, value) {
+        const row = cell.closest('tr');
+        const partId = parseInt(row.dataset.partId);
+        const part = this.parts.find(p => p.part_id === partId);
+        
+        if (!part) return;
+        
+        const updateData = { [field]: value };
+        
+        try {
+            const response = await fetch(`/components/api/database/update/${partId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                
+                // Update local data
+                Object.assign(part, result.part);
+                
+                // Update display
+                let displayValue = value;
+                if (cell.dataset.type === 'currency') {
+                    displayValue = value ? '$' + parseFloat(value).toFixed(2) : '';
+                } else if (cell.dataset.type === 'date' && value) {
+                    displayValue = new Date(value).toLocaleDateString();
+                }
+                cell.textContent = displayValue;
+                
+                this.editingCell = null;
+                this.updateSummary();
+                
+                if (this.autoSave) {
+                    this.showSaveIndicator();
+                }
+                
+                this.showToast('Part updated successfully', 'success');
+                
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Update failed');
+            }
+            
+        } catch (error) {
+            console.error('Update error:', error);
+            this.showToast('Error updating part: ' + error.message, 'error');
+            this.cancelEdit();
+        }
+    }
+    
+    showAddModal() {
+        new bootstrap.Modal(document.getElementById('addPartModal')).show();
+    }
+    
+    async saveNewPart() {
+        const form = document.getElementById('addPartForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const partData = {
+            category: document.getElementById('category').value,
+            manufacturer: document.getElementById('manufacturer').value,
+            part_number: document.getElementById('partNumber').value,
+            description: document.getElementById('description').value,
+            model: document.getElementById('model').value,
+            rating: document.getElementById('rating').value,
+            upc: document.getElementById('upc').value,
+            price: document.getElementById('price').value ? parseFloat(document.getElementById('price').value) : null,
+            vendor: document.getElementById('vendor').value,
+            effective_date: document.getElementById('effectiveDate').value
+        };
+        
+        try {
+            const response = await fetch('/components/api/database/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(partData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                this.parts.push(result.part);
+                this.applyFilters();
+                this.updateCategoryFilter();
+                this.updateManufacturerFilter();
+                
+                // Close modal and reset form
+                bootstrap.Modal.getInstance(document.getElementById('addPartModal')).hide();
+                form.reset();
+                
+                this.showToast('Part added successfully', 'success');
+                
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Add failed');
+            }
+            
+        } catch (error) {
+            console.error('Add error:', error);
+            this.showToast('Error adding part: ' + error.message, 'error');
+        }
+    }
+    
+    async deletePart(partId) {
+        if (!confirm('Are you sure you want to delete this part?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/components/api/database/delete/${partId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.parts = this.parts.filter(p => p.part_id !== partId);
+                this.selectedParts.delete(partId);
+                this.applyFilters();
+                this.updateCategoryFilter();
+                this.updateManufacturerFilter();
+                this.showToast('Part deleted successfully', 'success');
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Delete failed');
+            }
+            
+        } catch (error) {
+            console.error('Delete error:', error);
+            this.showToast('Error deleting part: ' + error.message, 'error');
+        }
+    }
+    
+    async bulkDelete() {
+        if (this.selectedParts.size === 0) {
+            this.showToast('No parts selected', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${this.selectedParts.size} part(s)?`)) {
+            return;
+        }
+        
+        const partIds = Array.from(this.selectedParts);
+        
+        try {
+            const response = await fetch('/components/api/database/bulk-delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ part_ids: partIds })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                
+                // Remove deleted parts
+                this.parts = this.parts.filter(p => !partIds.includes(p.part_id));
+                this.selectedParts.clear();
+                
+                this.applyFilters();
+                this.updateCategoryFilter();
+                this.updateManufacturerFilter();
+                this.showToast(`${result.deleted_count} part(s) deleted successfully`, 'success');
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Bulk delete failed');
+            }
+            
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            this.showToast('Error deleting parts: ' + error.message, 'error');
+        }
+    }
+    
+    toggleSelectAll() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const isChecked = selectAllCheckbox.checked;
+        
+        if (isChecked) {
+            this.selectAll();
+        } else {
+            this.deselectAll();
+        }
+    }
+    
+    selectAll() {
+        this.selectedParts.clear();
+        this.filteredParts.forEach(part => {
+            this.selectedParts.add(part.part_id);
+        });
+        
+        document.querySelectorAll('.part-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        
+        this.updateSelectAllState();
+        this.updateSummary();
+    }
+    
+    deselectAll() {
+        this.selectedParts.clear();
+        
+        document.querySelectorAll('.part-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        this.updateSelectAllState();
+        this.updateSummary();
+    }
+    
+    updateSelectAllState() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const visibleParts = this.filteredParts.length;
+        const selectedVisible = this.filteredParts.filter(p => 
+            this.selectedParts.has(p.part_id)
+        ).length;
+        
+        if (selectedVisible === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (selectedVisible === visibleParts) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+    
+    updateSummary() {
+        const totalParts = this.filteredParts.length;
+        const selectedCount = this.selectedParts.size;
+        const totalValue = this.filteredParts.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+        
+        document.getElementById('totalParts').textContent = totalParts;
+        document.getElementById('selectedParts').textContent = selectedCount;
+        document.getElementById('totalValue').textContent = totalValue.toFixed(2);
+    }
+    
+    sortTable(column) {
+        if (this.sortColumn === column) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortColumn = column;
+            this.sortDirection = 'asc';
+        }
+        
+        this.filteredParts.sort((a, b) => {
+            let valueA = a[column];
+            let valueB = b[column];
+            
+            // Handle null/undefined values
+            if (valueA == null) valueA = '';
+            if (valueB == null) valueB = '';
+            
+            // Convert to numbers if needed
+            if (typeof valueA === 'string' && !isNaN(parseFloat(valueA))) {
+                valueA = parseFloat(valueA);
+                valueB = parseFloat(valueB);
+            }
+            
+            let result = 0;
+            if (valueA < valueB) result = -1;
+            if (valueA > valueB) result = 1;
+            
+            return this.sortDirection === 'desc' ? -result : result;
+        });
+        
+        this.renderTable();
+        this.updateSortIcons();
+    }
+    
+    updateSortIcons() {
+        // Reset all sort icons
+        document.querySelectorAll('.sortable i').forEach(icon => {
+            icon.className = 'fas fa-sort text-muted';
+        });
+        
+        // Set active sort icon
+        if (this.sortColumn) {
+            const activeHeader = document.querySelector(`[data-column="${this.sortColumn}"] i`);
+            if (activeHeader) {
+                const iconClass = this.sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+                activeHeader.className = `fas ${iconClass} text-primary`;
+            }
+        }
+    }
+    
+    showContextMenu(e) {
+        const row = e.target.closest('.part-row');
+        if (!row) return;
+        
+        e.preventDefault();
+        
+        const contextMenu = document.getElementById('contextMenu');
+        const partId = parseInt(row.dataset.partId);
+        
+        contextMenu.dataset.partId = partId;
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = e.pageX + 'px';
+        contextMenu.style.top = e.pageY + 'px';
+        
+        // Ensure menu stays within viewport
+        const rect = contextMenu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        if (rect.right > viewportWidth) {
+            contextMenu.style.left = (e.pageX - rect.width) + 'px';
+        }
+        if (rect.bottom > viewportHeight) {
+            contextMenu.style.top = (e.pageY - rect.height) + 'px';
+        }
+    }
+    
+    hideContextMenu() {
+        document.getElementById('contextMenu').style.display = 'none';
+    }
+    
+    handleContextAction(action, partId) {
+        switch (action) {
+            case 'edit':
+                const row = document.querySelector(`tr[data-part-id="${partId}"]`);
+                if (row) {
+                    const categoryCell = row.querySelector('[data-field="category"]');
+                    this.startEdit(categoryCell);
+                }
+                break;
+            case 'price-history':
+                this.showPriceHistory(partId);
+                break;
+            case 'delete':
+                this.deletePart(partId);
+                break;
+        }
+    }
+    
+    async showPriceHistory(partId) {
+        try {
+            const response = await fetch(`/parts/${partId}/price-history-data`);
+            const data = await response.json();
+            
+            // Update statistics
+            document.getElementById('currentPrice').textContent = data.statistics.current_price.toFixed(2);
+            document.getElementById('totalChanges').textContent = data.statistics.total_changes;
+            document.getElementById('avgPrice').textContent = data.statistics.avg_price.toFixed(2);
+            
+            // Update trend
+            const trendCard = document.getElementById('trendCard');
+            const trendIcon = document.getElementById('trendIcon');
+            const trendText = document.getElementById('trendText');
+            
+            trendCard.className = 'card text-white';
+            switch (data.statistics.trend) {
+                case 'rising':
+                    trendCard.classList.add('bg-success');
+                    trendIcon.className = 'fas fa-arrow-up';
+                    trendText.textContent = 'Rising';
+                    break;
+                case 'falling':
+                    trendCard.classList.add('bg-danger');
+                    trendIcon.className = 'fas fa-arrow-down';
+                    trendText.textContent = 'Falling';
+                    break;
+                default:
+                    trendCard.classList.add('bg-secondary');
+                    trendIcon.className = 'fas fa-minus';
+                    trendText.textContent = 'Stable';
+            }
+            
+            // Create chart
+            this.createPriceChart(data.chart_data);
+            
+            // Update history table
+            this.updateHistoryTable(data.detailed_history);
+            
+            // Update modal title
+            document.querySelector('#priceHistoryModal .modal-title').textContent = 
+                `Price History - ${data.part.part_number} (${data.part.description})`;
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('priceHistoryModal')).show();
+            
+        } catch (error) {
+            console.error('Error loading price history:', error);
+            this.showToast('Error loading price history', 'error');
+        }
+    }
+    
+    createPriceChart(chartData) {
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        
+        if (this.chart) {
+            this.chart.destroy();
+        }
+        
+        this.chart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': $' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    updateHistoryTable(history) {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+        
+        if (history.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">
+                        No price history available
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        history.forEach(entry => {
+            const row = document.createElement('tr');
+            const changeClass = entry.change_amount > 0 ? 'text-success' : 
+                               entry.change_amount < 0 ? 'text-danger' : 'text-muted';
+            const changeIcon = entry.change_amount > 0 ? 'fa-arrow-up' : 
+                              entry.change_amount < 0 ? 'fa-arrow-down' : 'fa-minus';
+            
+            row.innerHTML = `
+                <td>${entry.date}</td>
+                <td>$${entry.old_price.toFixed(2)}</td>
+                <td>$${entry.new_price.toFixed(2)}</td>
+                <td class="${changeClass}">
+                    <i class="fas ${changeIcon}"></i>
+                    $${Math.abs(entry.change_amount).toFixed(2)}
+                </td>
+                <td>${this.escapeHtml(entry.reason)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    setupColumnResizing() {
+        const resizeHandles = document.querySelectorAll('.resize-handle');
+        let isResizing = false;
+        let currentHandle = null;
+        let startX = 0;
+        let startWidth = 0;
+        
+        resizeHandles.forEach(handle => {
+            handle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentHandle = handle;
+                startX = e.clientX;
+                startWidth = handle.parentElement.offsetWidth;
+                
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
+                
+                e.preventDefault();
+            });
+        });
+        
+        function handleResize(e) {
+            if (!isResizing || !currentHandle) return;
+            
+            const diff = e.clientX - startX;
+            const newWidth = Math.max(50, startWidth + diff);
+            currentHandle.parentElement.style.width = newWidth + 'px';
+        }
+        
+        function stopResize() {
+            isResizing = false;
+            currentHandle = null;
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', stopResize);
+        }
+    }
+    
+    showLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.style.display = show ? 'flex' : 'none';
+    }
+    
+    showSaveIndicator() {
+        const indicator = document.getElementById('savingIndicator');
+        indicator.style.display = 'block';
+        
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 2000);
+    }
+    
+    showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        const toastId = 'toast_' + Date.now();
+        
+        const bgClass = {
+            'success': 'bg-success',
+            'error': 'bg-danger',
+            'warning': 'bg-warning',
+            'info': 'bg-info'
+        }[type] || 'bg-info';
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${bgClass} text-white`;
+        toast.id = toastId;
+        toast.setAttribute('role', 'alert');
+        
+        toast.innerHTML = `
+            <div class="toast-header">
+                <strong class="me-auto">Parts Database</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${this.escapeHtml(message)}
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    }
+    
+    escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return (text || '').replace(/[&<>"']/g, m => map[m]);
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.databaseManager = new DatabasePartsManager();
+});
+</script>
+{% endblock %}

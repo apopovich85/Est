@@ -1,0 +1,775 @@
+{% extends "base.html" %}
+
+{% block title %}Apply Standard Assemblies{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-download"></i> Apply Standard Assemblies</h1>
+        <p class="text-muted mb-0">Add standard assemblies to your project estimates</p>
+    </div>
+    <div>
+        <a href="{{ url_for('standard_assemblies.list_assemblies') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Assemblies
+        </a>
+    </div>
+</div>
+
+<!-- Selection Panel -->
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-crosshairs"></i> Target Selection
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="projectSelect" class="form-label">Project</label>
+                    <select class="form-select" id="projectSelect">
+                        <option value="">Select a project...</option>
+                        {% for project in projects %}
+                            <option value="{{ project.project_id }}" 
+                                    {% if project.project_id == selected_project_id %}selected{% endif %}>
+                                {{ project.project_name }} ({{ project.client_name }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="estimateSelect" class="form-label">Estimate</label>
+                    <select class="form-select" id="estimateSelect" disabled>
+                        {% if selected_estimate_id %}
+                            {% for estimate in estimates %}
+                                <option value="{{ estimate.estimate_id }}" 
+                                        {% if estimate.estimate_id == selected_estimate_id %}selected{% endif %}>
+                                    {{ estimate.estimate_name }} ({{ estimate.estimate_number }})
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">Select a project first</option>
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div id="estimateInfo" class="alert alert-info d-none">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong id="selectedEstimateName">-</strong>
+                            <div class="small text-muted" id="selectedEstimateDetails">-</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">Current Total</div>
+                            <strong id="selectedEstimateTotal">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Applied Assemblies -->
+                <div id="appliedAssemblies">
+                    <h6 class="text-muted">Applied Assemblies</h6>
+                    <div id="appliedAssembliesList" class="small">
+                        <div class="text-muted text-center py-2">
+                            No assemblies applied yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Standard Assemblies Grid -->
+    <div class="col-lg-8">
+        <!-- Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="searchAssemblies" 
+                               placeholder="Search assemblies...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">All Categories</option>
+                            {% set categories = assemblies | map(attribute='category') | list | unique | sort %}
+                            {% for category in categories %}
+                                <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="sortBy">
+                            <option value="name">Sort by Name</option>
+                            <option value="category">Sort by Category</option>
+                            <option value="cost">Sort by Cost</option>
+                            <option value="components">Sort by Components</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Assemblies Grid -->
+        <div id="assembliesGrid" class="row">
+            {% for assembly in assemblies %}
+            <div class="col-lg-6 col-xl-4 mb-4 assembly-card" 
+                 data-category="{{ assembly.category }}" 
+                 data-name="{{ assembly.name.lower() }}"
+                 data-cost="{{ assembly.total_cost }}"
+                 data-components="{{ assembly.component_count }}">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">{{ assembly.name }}</h6>
+                            <small class="text-muted">{{ assembly.category }}</small>
+                        </div>
+                        <span class="badge bg-primary">v{{ assembly.version }}</span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <p class="card-text small text-muted mb-3">
+                            {{ assembly.description[:80] }}{% if assembly.description and assembly.description|length > 80 %}...{% endif %}
+                        </p>
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <div class="h6 text-primary mb-0">{{ assembly.component_count }}</div>
+                                    <small class="text-muted">Components</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="h6 text-success mb-0">${{ "{:,.2f}".format(assembly.total_cost) }}</div>
+                                <small class="text-muted">Total Cost</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Preview Components -->
+                        <div class="mb-3">
+                            <div class="small text-muted mb-1">Key Components:</div>
+                            {% for component in assembly.components[:3] %}
+                                <div class="small text-truncate">
+                                    • {{ component.part_number }} ({{ component.quantity }} {{ component.unit_of_measure }})
+                                </div>
+                            {% endfor %}
+                            {% if assembly.components|length > 3 %}
+                                <div class="small text-muted">... and {{ assembly.components|length - 3 }} more</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success apply-assembly-btn" 
+                                    data-assembly-id="{{ assembly.standard_assembly_id }}"
+                                    data-assembly-name="{{ assembly.name }}"
+                                    data-assembly-cost="{{ assembly.total_cost }}"
+                                    disabled>
+                                <i class="fas fa-download"></i> Apply Assembly
+                            </button>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('standard_assemblies.view_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+                                   class="btn btn-outline-info" target="_blank">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                <button class="btn btn-outline-secondary" 
+                                        onclick="previewAssembly({{ assembly.standard_assembly_id }})">
+                                    <i class="fas fa-list"></i> Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not assemblies %}
+            <div class="text-center py-5">
+                <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No Standard Assemblies Available</h4>
+                <p class="text-muted">Create standard assemblies first before applying them to estimates.</p>
+                <a href="{{ url_for('standard_assemblies.create_assembly') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Standard Assembly
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assembly Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin"></i> Loading preview...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="applyFromPreviewBtn" disabled>
+                    <i class="fas fa-download"></i> Apply Assembly
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Apply Assembly:</strong> <span id="confirmAssemblyName">-</span><br>
+                    <strong>To Estimate:</strong> <span id="confirmEstimateName">-</span><br>
+                    <strong>Components to Add:</strong> <span id="confirmComponentCount">0</span><br>
+                    <strong>Additional Cost:</strong> <span id="confirmAssemblyCost">$0.00</span>
+                </div>
+                
+                <p>This will add all components from the standard assembly to your estimate. You can modify quantities and details after application.</p>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="confirmUnderstand">
+                    <label class="form-check-label" for="confirmUnderstand">
+                        I understand this will add components to the estimate
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="finalApplyBtn" disabled>
+                    <i class="fas fa-download"></i> Apply Assembly
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global variables
+let selectedProjectId = {{ selected_project_id or 'null' }};
+let selectedEstimateId = {{ selected_estimate_id or 'null' }};
+let currentAssemblyForApply = null;
+let appliedAssemblies = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Apply assemblies page loaded');
+    console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+    
+    // Verify critical elements exist
+    const criticalElements = [
+        'projectSelect', 'estimateSelect', 'confirmationModal',
+        'confirmAssemblyName', 'confirmEstimateName', 
+        'confirmComponentCount', 'confirmAssemblyCost',
+        'finalApplyBtn', 'confirmUnderstand'
+    ];
+    
+    const missingElements = criticalElements.filter(id => !document.getElementById(id));
+    if (missingElements.length > 0) {
+        console.error('Missing critical elements:', missingElements);
+    }
+    
+    setupEventHandlers();
+    
+    // Initialize based on URL parameters
+    if (selectedProjectId) {
+        loadEstimatesForProject(selectedProjectId);
+    }
+    
+    if (selectedEstimateId) {
+        enableApplyButtons();
+        loadEstimateInfo(selectedEstimateId);
+    }
+    
+    setupFiltering();
+});
+
+function setupEventHandlers() {
+    // Project selection
+    document.getElementById('projectSelect').addEventListener('change', function() {
+        selectedProjectId = this.value ? parseInt(this.value) : null;
+        selectedEstimateId = null;
+        
+        if (selectedProjectId) {
+            loadEstimatesForProject(selectedProjectId);
+        } else {
+            const estimateSelect = document.getElementById('estimateSelect');
+            estimateSelect.innerHTML = '<option value="">Select a project first</option>';
+            estimateSelect.disabled = true;
+            disableApplyButtons();
+            hideEstimateInfo();
+        }
+    });
+    
+    // Estimate selection
+    document.getElementById('estimateSelect').addEventListener('change', function() {
+        selectedEstimateId = this.value ? parseInt(this.value) : null;
+        
+        if (selectedEstimateId) {
+            enableApplyButtons();
+            loadEstimateInfo(selectedEstimateId);
+        } else {
+            disableApplyButtons();
+            hideEstimateInfo();
+        }
+    });
+    
+    // Apply buttons
+    document.querySelectorAll('.apply-assembly-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const assemblyId = parseInt(this.dataset.assemblyId);
+            const assemblyName = this.dataset.assemblyName;
+            const assemblyCost = parseFloat(this.dataset.assemblyCost);
+            
+            showConfirmationModal(assemblyId, assemblyName, assemblyCost);
+        });
+    });
+    
+    // Confirmation modal
+    document.getElementById('confirmUnderstand').addEventListener('change', function() {
+        document.getElementById('finalApplyBtn').disabled = !this.checked;
+    });
+    
+    document.getElementById('finalApplyBtn').addEventListener('click', applyAssemblyToEstimate);
+    
+    // Modal close buttons
+    document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.closest('.modal').id;
+            if (modalId === 'confirmationModal') {
+                closeConfirmationModal();
+            }
+        });
+    });
+    
+    // Search and filters
+    document.getElementById('searchAssemblies').addEventListener('input', applyFilters);
+    document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+    document.getElementById('sortBy').addEventListener('change', applySorting);
+}
+
+function loadEstimatesForProject(projectId) {
+    fetch(`/standard_assemblies/api/estimates/${projectId}`)
+        .then(response => response.json())
+        .then(estimates => {
+            const select = document.getElementById('estimateSelect');
+            select.innerHTML = '<option value="">Select an estimate...</option>';
+            
+            if (estimates.length === 0) {
+                select.innerHTML = '<option value="">No estimates found</option>';
+                select.disabled = true;
+                disableApplyButtons();
+            } else {
+                estimates.forEach(estimate => {
+                    const option = document.createElement('option');
+                    option.value = estimate.estimate_id;
+                    option.textContent = `${estimate.estimate_name} (${estimate.estimate_number})`;
+                    if (estimate.estimate_id === selectedEstimateId) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+                select.disabled = false;
+                
+                // If there's a pre-selected estimate, load its info
+                if (selectedEstimateId) {
+                    enableApplyButtons();
+                    loadEstimateInfo(selectedEstimateId);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading estimates:', error);
+            showToast('error', 'Error', 'Failed to load estimates');
+        });
+}
+
+function loadEstimateInfo(estimateId) {
+    // This would typically load estimate details
+    // For now, just show the info panel
+    const estimateSelect = document.getElementById('estimateSelect');
+    const selectedOption = estimateSelect.options[estimateSelect.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        document.getElementById('selectedEstimateName').textContent = selectedOption.textContent;
+        document.getElementById('selectedEstimateDetails').textContent = 'Click apply to add assemblies';
+        document.getElementById('selectedEstimateTotal').textContent = '$0.00'; // Would load actual total
+        document.getElementById('estimateInfo').classList.remove('d-none');
+    }
+}
+
+function hideEstimateInfo() {
+    document.getElementById('estimateInfo').classList.add('d-none');
+}
+
+function enableApplyButtons() {
+    document.querySelectorAll('.apply-assembly-btn').forEach(btn => {
+        btn.disabled = false;
+    });
+}
+
+function disableApplyButtons() {
+    document.querySelectorAll('.apply-assembly-btn').forEach(btn => {
+        btn.disabled = true;
+    });
+}
+
+function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
+    currentAssemblyForApply = {
+        id: assemblyId,
+        name: assemblyName,
+        cost: assemblyCost
+    };
+    
+    const estimateSelect = document.getElementById('estimateSelect');
+    const selectedOption = estimateSelect.options[estimateSelect.selectedIndex];
+    
+    // Check if elements exist before setting content
+    const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
+    const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
+    const confirmComponentCountEl = document.getElementById('confirmComponentCount');
+    const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
+    
+    if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || !confirmAssemblyCostEl) {
+        console.error('Confirmation modal elements not found');
+        showToast('error', 'Error', 'Modal elements not found. Please refresh the page.');
+        return;
+    }
+    
+    if (!selectedOption || !selectedOption.textContent) {
+        showToast('error', 'Error', 'Please select a valid estimate first.');
+        return;
+    }
+    
+    confirmAssemblyNameEl.textContent = assemblyName;
+    confirmEstimateNameEl.textContent = selectedOption.textContent;
+    confirmComponentCountEl.textContent = 'Loading...';
+    confirmAssemblyCostEl.textContent = `$${assemblyCost.toFixed(2)}`;
+    
+    // Reset confirmation checkbox
+    const confirmCheckbox = document.getElementById('confirmUnderstand');
+    if (confirmCheckbox) {
+        confirmCheckbox.checked = false;
+    }
+    
+    const finalApplyBtn = document.getElementById('finalApplyBtn');
+    if (finalApplyBtn) {
+        finalApplyBtn.disabled = true;
+    }
+    
+    // Load component count
+    fetch(`/standard_assemblies/api/${assemblyId}/components`)
+        .then(response => response.json())
+        .then(components => {
+            if (confirmComponentCountEl) {
+                confirmComponentCountEl.textContent = components.length;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading component count:', error);
+            if (confirmComponentCountEl) {
+                confirmComponentCountEl.textContent = 'Error loading';
+            }
+        });
+    
+    // Show modal
+    try {
+        const modalElement = document.getElementById('confirmationModal');
+        if (!modalElement) {
+            throw new Error('Confirmation modal element not found');
+        }
+        
+        // Check if bootstrap is available
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap is not loaded');
+            // Fallback - show modal manually
+            modalElement.style.display = 'block';
+            modalElement.classList.add('show');
+            modalElement.setAttribute('aria-modal', 'true');
+            modalElement.setAttribute('role', 'dialog');
+            
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.id = 'modal-backdrop-fallback';
+            document.body.appendChild(backdrop);
+            
+            return;
+        }
+        
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        showToast('error', 'Error', 'Failed to open confirmation modal. Please try again.');
+    }
+}
+
+function closeConfirmationModal() {
+    try {
+        const modalElement = document.getElementById('confirmationModal');
+        
+        if (typeof bootstrap !== 'undefined') {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        } else {
+            // Fallback manual close
+            modalElement.style.display = 'none';
+            modalElement.classList.remove('show');
+            modalElement.removeAttribute('aria-modal');
+            modalElement.removeAttribute('role');
+            
+            // Remove backdrop
+            const backdrop = document.getElementById('modal-backdrop-fallback');
+            if (backdrop) {
+                backdrop.remove();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing modal:', error);
+    }
+}
+
+function applyAssemblyToEstimate() {
+    if (!currentAssemblyForApply || !selectedEstimateId) return;
+    
+    const btn = document.getElementById('finalApplyBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    btn.disabled = true;
+    
+    fetch(`/standard_assemblies/apply/${currentAssemblyForApply.id}/to/${selectedEstimateId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            closeConfirmationModal();
+            
+            // Add to applied list
+            addToAppliedList(currentAssemblyForApply);
+            
+            // Show success message
+            showToast('success', 'Success', data.message);
+            
+            // Ask if user wants to view the estimate
+            setTimeout(() => {
+                if (confirm('Assembly applied successfully! Would you like to view the estimate?')) {
+                    window.open(data.estimate_url, '_blank');
+                }
+            }, 1000);
+            
+        } else {
+            showToast('error', 'Error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error applying assembly:', error);
+        showToast('error', 'Error', 'Failed to apply assembly');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        document.getElementById('confirmUnderstand').checked = false;
+    });
+}
+
+function addToAppliedList(assembly) {
+    appliedAssemblies.push(assembly);
+    updateAppliedList();
+}
+
+function updateAppliedList() {
+    const container = document.getElementById('appliedAssembliesList');
+    
+    if (appliedAssemblies.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center py-2">No assemblies applied yet</div>';
+        return;
+    }
+    
+    const totalCost = appliedAssemblies.reduce((sum, assembly) => sum + assembly.cost, 0);
+    
+    container.innerHTML = `
+        ${appliedAssemblies.map(assembly => `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="text-truncate">
+                    <i class="fas fa-check text-success"></i> ${assembly.name}
+                </div>
+                <div class="text-success">$${assembly.cost.toFixed(2)}</div>
+            </div>
+        `).join('')}
+        <hr class="my-2">
+        <div class="d-flex justify-content-between">
+            <strong>Total Applied:</strong>
+            <strong class="text-success">$${totalCost.toFixed(2)}</strong>
+        </div>
+    `;
+}
+
+function previewAssembly(assemblyId) {
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+    
+    document.getElementById('applyFromPreviewBtn').dataset.assemblyId = assemblyId;
+    document.getElementById('applyFromPreviewBtn').disabled = !selectedEstimateId;
+    
+    fetch(`/standard_assemblies/api/${assemblyId}/components`)
+        .then(response => response.json())
+        .then(components => {
+            renderPreview(components, assemblyId);
+        })
+        .catch(error => {
+            console.error('Error loading preview:', error);
+            document.getElementById('previewContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Failed to load assembly preview.
+                </div>
+            `;
+        });
+}
+
+function renderPreview(components, assemblyId) {
+    const total = components.reduce((sum, comp) => sum + comp.total_price, 0);
+    
+    document.getElementById('previewContent').innerHTML = `
+        <div class="mb-3">
+            <h6>Components (${components.length}):</h6>
+        </div>
+        <div class="table-responsive" style="max-height: 400px;">
+            <table class="table table-sm">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>UOM</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${components.map(comp => `
+                        <tr>
+                            <td><strong>${comp.part_number}</strong></td>
+                            <td>
+                                ${comp.component_name}
+                                ${comp.notes ? `<br><small class="text-muted">${comp.notes}</small>` : ''}
+                            </td>
+                            <td>${comp.quantity}</td>
+                            <td>${comp.unit_of_measure}</td>
+                            <td class="text-success">$${comp.unit_price.toFixed(2)}</td>
+                            <td><strong class="text-success">$${comp.total_price.toFixed(2)}</strong></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="5">Total:</th>
+                        <th class="text-success">$${total.toFixed(2)}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+}
+
+function setupFiltering() {
+    // Initial state
+    applyFilters();
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById('searchAssemblies').value.toLowerCase();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    
+    document.querySelectorAll('.assembly-card').forEach(card => {
+        const name = card.dataset.name;
+        const category = card.dataset.category;
+        
+        const matchesSearch = !searchTerm || name.includes(searchTerm);
+        const matchesCategory = !categoryFilter || category === categoryFilter;
+        
+        if (matchesSearch && matchesCategory) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function applySorting() {
+    const sortBy = document.getElementById('sortBy').value;
+    const container = document.getElementById('assembliesGrid');
+    const cards = Array.from(container.children);
+    
+    cards.sort((a, b) => {
+        switch (sortBy) {
+            case 'name':
+                return a.dataset.name.localeCompare(b.dataset.name);
+            case 'category':
+                return a.dataset.category.localeCompare(b.dataset.category);
+            case 'cost':
+                return parseFloat(b.dataset.cost) - parseFloat(a.dataset.cost);
+            case 'components':
+                return parseInt(b.dataset.components) - parseInt(a.dataset.components);
+            default:
+                return 0;
+        }
+    });
+    
+    cards.forEach(card => container.appendChild(card));
+}
+
+function clearFilters() {
+    document.getElementById('searchAssemblies').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('sortBy').value = 'name';
+    applyFilters();
+    applySorting();
+}
+
+function showToast(type, title, message) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+    toast.style = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    toast.innerHTML = `
+        <strong>${title}!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+{% endblock %}

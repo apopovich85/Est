@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Copy Estimate - {{ estimate.estimate_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Copy Estimate</h5>
+                <small class="text-muted">Source: {{ estimate.estimate_name }} ({{ estimate.estimate_number }})</small>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This will create a complete copy of the estimate including all assemblies and components.
+                </div>
+                
+                <form method="POST" action="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="target_project_id" class="form-label">Target Project *</label>
+                        <select class="form-select" id="target_project_id" name="target_project_id" required>
+                            <option value="">Select a project...</option>
+                            {% for project in projects %}
+                                <option value="{{ project.project_id }}">
+                                    {{ project.project_name }} ({{ project.client_name }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Source Estimate Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Assemblies:</small>
+                                    <strong>{{ estimate.assemblies|length }}</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Total Value:</small>
+                                    <strong>${{ "{:,.2f}".format(estimate.calculated_total) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-3">
+                        <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-copy"></i> Copy Estimate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

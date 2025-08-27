@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+
+{% block title %}Add Component - {{ assembly.assembly_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-plus me-2"></i>Add Component to Assembly</h1>
+        <p class="text-muted mb-0">
+            Assembly: <strong>{{ assembly.assembly_name }}</strong> • 
+            Estimate: <strong>{{ assembly.estimate.estimate_name }}</strong> • 
+            Project: <strong>{{ assembly.estimate.project.project_name }}</strong>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('estimates.detail_estimate', estimate_id=assembly.estimate_id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Estimate
+        </a>
+    </div>
+</div>
+
+<!-- Main Layout -->
+<div class="d-flex gap-3">
+    <!-- Left Panel - Parts Browser -->
+    <div style="width: 350px; flex-shrink: 0;">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-database"></i> Parts Browser
+                </h6>
+                <small class="text-muted">Drag parts to add to estimate</small>
+            </div>
+            <div class="card-body">
+                <!-- Search and Filter -->
+                <div class="mb-3">
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control form-control-sm" id="partsSearch" 
+                               placeholder="Search parts..." style="font-size: 0.8rem;">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="searchBtn" style="font-size: 0.8rem;">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <select class="form-select form-select-sm" id="categoryFilter" style="font-size: 0.8rem;">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <select class="form-select form-select-sm" id="manufacturerFilter" style="font-size: 0.8rem;">
+                            <option value="">All Manufacturers</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Parts List -->
+                <div id="partsContainer" class="border rounded p-2" style="height: 400px; overflow-y: auto;">
+                    <div id="partsLoader" class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin"></i> Loading parts...
+                    </div>
+                    <div id="partsList"></div>
+                </div>
+                
+                <!-- Quick Add Section -->
+                <div class="mt-3">
+                    <small class="text-muted" style="font-size: 0.7rem;">
+                        <i class="fas fa-info-circle"></i>
+                        Drag and drop parts or double-click to add
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Panel - Component Builder -->
+    <div class="flex-fill">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-cogs"></i> Component Details
+                </h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="clearFormBtn">
+                        <i class="fas fa-eraser"></i> Clear Form
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Drop Zone -->
+                <div id="componentDropZone" class="p-3 border-2 border-dashed rounded bg-light mb-4">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                        <p class="mb-0">Drop a part here to auto-fill component details</p>
+                        <small>Or use the form below to manually enter component information</small>
+                    </div>
+                </div>
+                
+                <!-- Component Form -->
+                <form method="POST" action="{{ url_for('components.create_component', assembly_id=assembly.assembly_id) }}" id="componentForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="part_id" id="selectedPartId" value=""/>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="componentName" class="form-label">Component Name *</label>
+                                <input type="text" class="form-control" id="componentName" name="component_name" required>
+                                <div class="form-text">Enter a descriptive name for this component</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="partNumber" class="form-label">Part Number</label>
+                                <input type="text" class="form-control" id="partNumber" name="part_number">
+                                <div class="form-text">Manufacturer part number</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" 
+                                placeholder="Enter detailed component description..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="unitPrice" class="form-label">Unit Price *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="unitPrice" 
+                                           name="unit_price" step="0.01" min="0" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity *</label>
+                                <input type="number" class="form-control" id="quantity" 
+                                       name="quantity" step="0.001" min="0.001" value="1.000" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="unitOfMeasure" class="form-label">Unit of Measure</label>
+                                <select class="form-select" id="unitOfMeasure" name="unit_of_measure">
+                                    <option value="EA" selected>Each (EA)</option>
+                                    <option value="FT">Feet (FT)</option>
+                                    <option value="LB">Pounds (LB)</option>
+                                    <option value="HR">Hours (HR)</option>
+                                    <option value="SQ FT">Square Feet (SQ FT)</option>
+                                    <option value="GAL">Gallons (GAL)</option>
+                                    <option value="LOT">Lot (LOT)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Total Cost</label>
+                                <div class="form-control bg-light" id="totalCost">$0.00</div>
+                                <div class="form-text">Calculated: Price × Quantity</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Selected Part Info -->
+                    <div id="selectedPartInfo" class="alert alert-success d-none">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="alert-heading mb-1">
+                                    <i class="fas fa-check-circle"></i> Part Selected from Catalog
+                                </h6>
+                                <div id="partInfoDisplay"></div>
+                            </div>
+                            <button type="button" class="btn-close" id="clearSelectedPart"></button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div class="text-muted">
+                            <small><i class="fas fa-info-circle"></i> Fields marked with * are required</small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('estimates.detail_estimate', estimate_id=assembly.estimate_id) }}" 
+                               class="btn btn-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Component
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include Sortable.js for drag and drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script>
+// Global variables
+let assemblyId = {{ assembly.assembly_id }};
+let parts = [];
+let selectedPart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadInitialParts();
+    setupEventHandlers();
+    setupDragAndDrop();
+    updateTotalCost();
+});
+
+function setupEventHandlers() {
+    // Search functionality
+    document.getElementById('searchBtn').addEventListener('click', searchParts);
+    document.getElementById('partsSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') searchParts();
+    });
+    
+    // Filter changes
+    document.getElementById('categoryFilter').addEventListener('change', searchParts);
+    document.getElementById('manufacturerFilter').addEventListener('change', searchParts);
+    
+    // Live calculation
+    document.getElementById('unitPrice').addEventListener('input', updateTotalCost);
+    document.getElementById('quantity').addEventListener('input', updateTotalCost);
+    
+    // Clear form
+    document.getElementById('clearFormBtn').addEventListener('click', clearForm);
+    document.getElementById('clearSelectedPart').addEventListener('click', clearSelectedPart);
+    
+    // Form validation
+    document.getElementById('componentForm').addEventListener('submit', validateForm);
+}
+
+function setupDragAndDrop() {
+    const dropZone = document.getElementById('componentDropZone');
+    
+    // Setup drop zone
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('border-success', 'bg-success', 'bg-opacity-10');
+    });
+    
+    dropZone.addEventListener('dragleave', function(e) {
+        if (!dropZone.contains(e.relatedTarget)) {
+            dropZone.classList.remove('border-success', 'bg-success', 'bg-opacity-10');
+        }
+    });
+    
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('border-success', 'bg-success', 'bg-opacity-10');
+        
+        const partId = e.dataTransfer.getData('text/plain');
+        if (partId) {
+            selectPartFromDrop(parseInt(partId));
+        }
+    });
+}
+
+function loadInitialParts() {
+    // Load categories and manufacturers
+    loadCategories();
+    loadManufacturers();
+    
+    // Load initial parts
+    searchParts();
+}
+
+function loadCategories() {
+    fetch('/parts/api/categories')
+        .then(response => response.json())
+        .then(categories => {
+            const select = document.getElementById('categoryFilter');
+            categories.sort().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading categories:', error));
+}
+
+function loadManufacturers() {
+    fetch('/parts/api/manufacturers')
+        .then(response => response.json())
+        .then(manufacturers => {
+            const select = document.getElementById('manufacturerFilter');
+            manufacturers.sort().forEach(manufacturer => {
+                const option = document.createElement('option');
+                option.value = manufacturer;
+                option.textContent = manufacturer;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading manufacturers:', error));
+}
+
+function searchParts() {
+    const query = document.getElementById('partsSearch').value;
+    const category = document.getElementById('categoryFilter').value;
+    const manufacturer = document.getElementById('manufacturerFilter').value;
+    
+    const params = new URLSearchParams({
+        q: query,
+        category: category,
+        manufacturer: manufacturer,
+        limit: 100
+    });
+    
+    document.getElementById('partsLoader').style.display = 'block';
+    document.getElementById('partsList').innerHTML = '';
+    
+    fetch('/parts/api/search?' + params)
+        .then(response => response.json())
+        .then(data => {
+            parts = data;
+            renderParts();
+        })
+        .catch(error => {
+            console.error('Error loading parts:', error);
+            showToast('error', 'Error', 'Failed to load parts');
+        })
+        .finally(() => {
+            document.getElementById('partsLoader').style.display = 'none';
+        });
+}
+
+function renderParts() {
+    const container = document.getElementById('partsList');
+    container.innerHTML = '';
+    
+    if (parts.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">No parts found</div>';
+        return;
+    }
+    
+    parts.forEach(part => {
+        const item = document.createElement('div');
+        item.className = 'part-item border rounded p-2 mb-2 cursor-pointer';
+        item.draggable = true;
+        item.dataset.partId = part.part_id;
+        item.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <div class="flex-grow-1" style="min-width: 0;">
+                    <strong class="d-block text-truncate" style="font-size: 0.8rem;">${part.part_number || 'N/A'}</strong>
+                    <small class="text-muted text-truncate d-block" style="font-size: 0.75rem; line-height: 1.2;">${part.description || 'No description'}</small>
+                    <div class="small text-secondary" style="font-size: 0.7rem;">
+                        ${part.manufacturer || 'Unknown'} • $${part.price.toFixed(2)}
+                    </div>
+                </div>
+                <div class="text-end flex-shrink-0">
+                    <small class="badge bg-secondary" style="font-size: 0.65rem;">${part.category || 'N/A'}</small>
+                </div>
+            </div>
+        `;
+        
+        // Enable dragging
+        item.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', part.part_id);
+        });
+        
+        // Double-click to select
+        item.addEventListener('dblclick', () => selectPartFromDrop(part.part_id));
+        
+        container.appendChild(item);
+    });
+}
+
+function selectPartFromDrop(partId) {
+    const part = parts.find(p => p.part_id === partId);
+    if (!part) return;
+    
+    selectedPart = part;
+    
+    // Update form fields
+    document.getElementById('selectedPartId').value = partId;
+    document.getElementById('componentName').value = part.description || part.part_number || '';
+    document.getElementById('partNumber').value = part.part_number || '';
+    document.getElementById('description').value = part.description || '';
+    document.getElementById('unitPrice').value = part.price || '';
+    
+    // Show selected part info
+    const infoDisplay = document.getElementById('partInfoDisplay');
+    infoDisplay.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Part:</strong> ${part.part_number || 'N/A'}<br>
+                <strong>Description:</strong> ${part.description || 'N/A'}
+            </div>
+            <div class="col-md-6">
+                <strong>Manufacturer:</strong> ${part.manufacturer || 'Unknown'}<br>
+                <strong>Price:</strong> $${part.price.toFixed(2)} • <strong>Category:</strong> ${part.category || 'N/A'}
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('selectedPartInfo').classList.remove('d-none');
+    
+    // Update total cost
+    updateTotalCost();
+    
+    // Show success toast
+    showToast('success', 'Part Selected', `${part.part_number} has been added to the form`);
+}
+
+function clearSelectedPart() {
+    selectedPart = null;
+    document.getElementById('selectedPartId').value = '';
+    document.getElementById('selectedPartInfo').classList.add('d-none');
+    
+    // Don't clear the form fields, just remove the selected part indicator
+    showToast('info', 'Part Cleared', 'Form fields retained, part selection cleared');
+}
+
+function clearForm() {
+    selectedPart = null;
+    document.getElementById('componentForm').reset();
+    document.getElementById('selectedPartId').value = '';
+    document.getElementById('selectedPartInfo').classList.add('d-none');
+    document.getElementById('quantity').value = '1.000';
+    updateTotalCost();
+    
+    showToast('info', 'Form Cleared', 'All form fields have been reset');
+}
+
+function updateTotalCost() {
+    const price = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const total = price * quantity;
+    document.getElementById('totalCost').textContent = '$' + total.toFixed(2);
+}
+
+function validateForm(e) {
+    const componentName = document.getElementById('componentName').value.trim();
+    const unitPrice = document.getElementById('unitPrice').value;
+    const quantity = document.getElementById('quantity').value;
+    
+    if (!componentName) {
+        e.preventDefault();
+        showToast('error', 'Validation Error', 'Component name is required');
+        return false;
+    }
+    
+    if (!unitPrice || parseFloat(unitPrice) <= 0) {
+        e.preventDefault();
+        showToast('error', 'Validation Error', 'Valid unit price is required');
+        return false;
+    }
+    
+    if (!quantity || parseFloat(quantity) <= 0) {
+        e.preventDefault();
+        showToast('error', 'Validation Error', 'Valid quantity is required');
+        return false;
+    }
+    
+    return true;
+}
+
+function showToast(type, title, message) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+    toast.style = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    toast.innerHTML = `
+        <strong>${title}!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+
+<style>
+.part-item {
+    cursor: grab;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.part-item:hover {
+    background-color: #f8f9fa !important;
+    border-color: #007bff !important;
+}
+
+.part-item:active {
+    cursor: grabbing;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+#componentDropZone {
+    transition: all 0.3s ease;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Better text truncation with tooltips */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}{{ estimate.estimate_name }} - Estimates{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ estimate.estimate_name }}</h1>
+        <p class="text-muted mb-0">
+            Estimate #{{ estimate.estimate_number }} | 
+            Project: <a href="{{ url_for('projects.detail_project', project_id=estimate.project_id) }}">
+                {{ estimate.project.project_name }}
+            </a>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('assemblies.create_assembly', estimate_id=estimate.estimate_id) }}" 
+           class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Assembly
+        </a>
+    </div>
+</div>
+
+<!-- Estimate Summary -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Estimate Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">{{ estimate.description or 'No description provided' }}</dd>
+                    
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">{{ estimate.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                    
+                    <dt class="col-sm-3">Total Assemblies:</dt>
+                    <dd class="col-sm-9">{{ assemblies|length }}</dd>
+                    
+                    <dt class="col-sm-3">Total Components:</dt>
+                    <dd class="col-sm-9">
+                        {{ (assemblies|map(attribute='components')|map('length')|sum if assemblies else 0) + (individual_components|length if individual_components else 0) }}
+                        <small class="text-muted">
+                            ({{ assemblies|map(attribute='components')|map('length')|sum if assemblies else 0 }} in assemblies, 
+                            {{ individual_components|length if individual_components else 0 }} individual)
+                        </small>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Estimate Total</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h2 class="text-success mb-0">${{ "{:,.2f}".format(estimate.calculated_total) }}</h2>
+                    <p class="text-muted">Grand Total</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assemblies Breakdown -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Assembly Breakdown</h5>
+        <div class="btn-group">
+            <a href="{{ url_for('standard_assemblies.apply_interface', estimate_id=estimate.estimate_id) }}" 
+               class="btn btn-sm btn-success">
+                <i class="fas fa-download"></i> Apply Standard Assembly
+            </a>
+            <a href="{{ url_for('assemblies.create_assembly', estimate_id=estimate.estimate_id) }}" 
+               class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> Add Custom Assembly
+            </a>
+            <a href="{{ url_for('estimates.add_individual_component', estimate_id=estimate.estimate_id) }}" 
+               class="btn btn-sm btn-info">
+                <i class="fas fa-microchip"></i> Add Individual Component
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if assemblies %}
+            {% for assembly in assemblies %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        {{ assembly.assembly_name }}
+                        <span class="text-muted">- ${{ "{:,.2f}".format(assembly.calculated_total) }}</span>
+                    </h6>
+                    <div class="btn-group">
+                        <a href="{{ url_for('components.manage_components', assembly_id=assembly.assembly_id) }}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="fas fa-table"></i> Manage Components
+                        </a>
+                        <a href="{{ url_for('components.create_component', assembly_id=assembly.assembly_id) }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus"></i> Add Component
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if assembly.description %}
+                        <p class="text-muted">{{ assembly.description }}</p>
+                    {% endif %}
+                    
+                    {% if assembly.assembly_parts %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Part</th>
+                                        <th>Part #</th>
+                                        <th>Manufacturer</th>
+                                        <th>Unit Price</th>
+                                        <th>Quantity</th>
+                                        <th>UOM</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for assembly_part in assembly.assembly_parts %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ assembly_part.component_name }}</strong>
+                                            {% if assembly_part.notes %}
+                                                <br><small class="text-muted">{{ assembly_part.notes }}</small>
+                                            {% elif assembly_part.part.description %}
+                                                <br><small class="text-muted">{{ assembly_part.part.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ assembly_part.part_number or '-' }}</td>
+                                        <td>{{ assembly_part.part.manufacturer or '-' }}</td>
+                                        <td>${{ "{:,.2f}".format(assembly_part.unit_price) }}</td>
+                                        <td>{{ assembly_part.quantity }}</td>
+                                        <td>{{ assembly_part.unit_of_measure }}</td>
+                                        <td><strong>${{ "{:,.2f}".format(assembly_part.total_price) }}</strong></td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('components.edit_component', component_id=assembly_part.assembly_part_id) }}" 
+                                                   class="btn btn-xs btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{{ url_for('components.price_history', component_id=assembly_part.part_id) }}" 
+                                                   class="btn btn-xs btn-outline-info" title="Part Price History">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <p class="text-muted mb-2">No parts in this assembly</p>
+                            <div class="btn-group">
+                                <a href="{{ url_for('components.manage_components', assembly_id=assembly.assembly_id) }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-table"></i> Manage Parts
+                                </a>
+                                <a href="{{ url_for('components.create_component', assembly_id=assembly.assembly_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-plus"></i> Add First Part
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-cubes fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Assemblies Yet</h5>
+                <p class="text-muted">Add your first assembly to start building this estimate!</p>
+                <a href="{{ url_for('assemblies.create_assembly', estimate_id=estimate.estimate_id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Assembly
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Individual Components Section -->
+{% if individual_components %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-microchip"></i> Individual Components
+        </h5>
+        <div class="text-muted">
+            <small>{{ individual_components|length }} component{{ 's' if individual_components|length != 1 else '' }} • 
+            ${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}</small>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Component</th>
+                        <th>Part #</th>
+                        <th>Manufacturer</th>
+                        <th>Category</th>
+                        <th>Unit Price</th>
+                        <th>Quantity</th>
+                        <th>UOM</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for component in individual_components %}
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>{{ component.component_name }}</strong>
+                                {% if component.description %}
+                                    <br><small class="text-muted">{{ component.description }}</small>
+                                {% endif %}
+                                {% if component.notes %}
+                                    <br><small class="text-info"><i class="fas fa-sticky-note"></i> {{ component.notes }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ component.part_number or '-' }}</td>
+                        <td>{{ component.manufacturer or '-' }}</td>
+                        <td>
+                            {% if component.category %}
+                                <span class="badge bg-secondary">{{ component.category }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="text-end">${{ "{:,.2f}".format(component.unit_price) }}</td>
+                        <td class="text-center">{{ component.quantity }}</td>
+                        <td class="text-center">{{ component.unit_of_measure }}</td>
+                        <td class="text-end"><strong class="text-success">${{ "{:,.2f}".format(component.total_price) }}</strong></td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('estimates.edit_individual_component', component_id=component.estimate_component_id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Edit Component">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('estimates.delete_individual_component', component_id=component.estimate_component_id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this component?')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Component">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="7">Individual Components Total:</th>
+                        <th class="text-end text-success">${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Add Individual Component -->
+{% if not individual_components %}
+<div class="card mt-4">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-microchip fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No Individual Components</h5>
+        <p class="text-muted mb-4">Add components directly to this estimate without creating assemblies.</p>
+        <a href="{{ url_for('estimates.add_individual_component', estimate_id=estimate.estimate_id) }}" 
+           class="btn btn-info">
+            <i class="fas fa-plus"></i> Add Individual Component
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

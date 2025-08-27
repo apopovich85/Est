@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Assembly Category - {{ category.code }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit"></i> Edit Assembly Category - {{ category.code }}
+                </h5>
+                <small class="text-muted">Modify category details and settings</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('categories.edit_category', category_id=category.category_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <label for="code" class="form-label">Category Code *</label>
+                            <input type="text" class="form-control" id="code" name="code" required
+                                   value="{{ category.code }}" maxlength="20" style="text-transform: uppercase;">
+                            <small class="form-text text-muted">
+                                Short code (max 20 chars). Will be converted to uppercase.
+                            </small>
+                        </div>
+                        
+                        <div class="col-md-8 mb-4">
+                            <label for="name" class="form-label">Category Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                   value="{{ category.name }}" maxlength="100">
+                            <small class="form-text text-muted">
+                                Descriptive name for the category (max 100 chars)
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                placeholder="Describe what types of assemblies belong in this category...">{{ category.description or '' }}</textarea>
+                        <small class="form-text text-muted">
+                            Optional description to help users understand this category
+                        </small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="sort_order" class="form-label">Sort Order</label>
+                            <input type="number" class="form-control" id="sort_order" name="sort_order" 
+                                   value="{{ category.sort_order }}" min="0" max="9999">
+                            <small class="form-text text-muted">
+                                Lower numbers appear first in lists (0-9999)
+                            </small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Status</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                       {{ 'checked' if category.is_active else '' }}>
+                                <label class="form-check-label" for="is_active">
+                                    Active (visible in category lists)
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Inactive categories are hidden from selection lists
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Category Information:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Created:</strong> {{ category.created_at.strftime('%B %d, %Y at %I:%M %p') }}</li>
+                            <li><strong>Last Updated:</strong> {{ category.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</li>
+                            <li><strong>Status:</strong> {{ 'Active' if category.is_active else 'Inactive' }}</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('categories.list_categories') }}" 
+                           class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-uppercase the code field
+    document.getElementById('code').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const code = document.getElementById('code').value.trim();
+        const name = document.getElementById('name').value.trim();
+        
+        if (!code) {
+            e.preventDefault();
+            alert('Category code is required.');
+            document.getElementById('code').focus();
+            return false;
+        }
+        
+        if (!name) {
+            e.preventDefault();
+            alert('Category name is required.');
+            document.getElementById('name').focus();
+            return false;
+        }
+        
+        if (code.length > 20) {
+            e.preventDefault();
+            alert('Category code must be 20 characters or less.');
+            document.getElementById('code').focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

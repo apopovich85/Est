@@ -1,0 +1,438 @@
+﻿Category,Model,Rating,master_item_number,manu,part_number,upc,Description,price,vendor,effective_date
+VFD,755TS,5,,AB,20G21ND8P0JA0NNNNN,,"AC Drive, PowerFlex 755TS, 8A, 5HP/ND, 3HP/HD, Open, 480VAC","2,413.21",Rexel,6/24/2025
+VFD,755TS,7.5,,AB,20G21ND011JA0NNNNN,,"AC Drive, PowerFlex 755TS, 11A, 7.5HP/ND, 5HP/HD, Open, 480VAC","2,723.72",Rexel,6/24/2025
+VFD,755TS,10,,AB,20G21ND014JA0NNNNN,,"AC Drive, PowerFlex 755TS, 14A, 10HP/ND, 7.5HP/HD, Open, 480VAC","2,772.53",Rexel,6/24/2025
+VFD,755TS,15,,AB,20G21ND022JA0NNNNN,,"AC Drive, PowerFlex 755TS, 22A, 15HP/ND, 10HP/HD, Open, 480VAC","3,211.69",Rexel,6/24/2025
+VFD,755TS,20,,AB,20G21ND027JA0NNNNN,,"AC Drive, PowerFlex 755TS, 27A, 20HP/ND, 15HP/HD, Open, 480VAC","3,704.11",Rexel,6/24/2025
+VFD,755TS,25,,AB,20G21ND034JA0NNNNN,,"AC Drive, PowerFlex 755TS, 34A, 25HP/ND, 20HP/HD, Open, 480VAC","4,444.93",Rexel,6/24/2025
+VFD,755TS,30,,AB,20G21ND040JA0NNNNN,,"AC Drive, PowerFlex 755TS, 40A, 30HP/ND, 25HP/HD, Open, 480VAC","5,358.75",Rexel,6/24/2025
+VFD,755TS,40,,AB,20G21ND052JA0NNNNN,,"AC Drive, PowerFlex 755TS, 50A, 40HP/ND, 30HP/HD, Open, 480VAC","6,272.57",Rexel,6/24/2025
+VFD,755TS,50,,AB,20G21ND065JA0NNNNN,,"AC Drive, PowerFlex 755TS, 65A, 50HP/ND, 40HP/HD, Open, 480VAC","7,696.56",Rexel,6/24/2025
+VFD,755TS,60,,AB,20G21ND077JA0NNNNN,,"AC Drive, PowerFlex 755TS, 77A, 60HP/ND, 50HP/HD, Open, 480VAC","9,076.16",Rexel,6/24/2025
+VFD,755TS,75,,AB,20G21ND096JA0NNNNN,,"AC Drive, PowerFlex 755TS, 96A, 75HP/ND, 60HP/HD, Open, 480VAC","10,398.12",Rexel,6/24/2025
+VFD,755TS,100,,AB,20G2AND125JA0NNNNN,,"AC Drive, PowerFlex 755TS, 125A, 100HP/ND, 75HP/HD, Open, 480VAC","12,909.16",Rexel,6/24/2025
+VFD,755TS,125,,AB,20G2AND156JA0NNNNN,,"AC Drive, PowerFlex 755TS, 156A, 125HP/ND, 100HP/HD, Open, 480VAC","14,227.05",Rexel,6/24/2025
+VFD,755TS,150,,AB,20G2AND186JA0NNNNN,,"AC Drive, PowerFlex 755TS, 186A, 150HP/ND, 125HP/HD, Open, 480VAC","16,152.17",Rexel,6/24/2025
+VFD,755TS,200,,AB,20G2AND248JA0NNNNN,,"AC Drive, PowerFlex 755TS, 248A, 200HP/ND, 150HP/HD, Open, 480VAC","20,582.67",Rexel,6/24/2025
+VFD,755TS,250,,AB,20G2AND302JA0NNNNN,,"AC Drive, PowerFlex 755TS, 302A, 250HP/ND, 200HP/HD, Open, 480VAC","25,789.16",Rexel,6/24/2025
+VFD,755TS,300,,AB,20G2AND361JA0NNNNN,,"AC Drive, PowerFlex 755TS, 361A, 300HP/ND, 250HP/HD, Open, 480VAC","30,428.41",Rexel,6/24/2025
+VFD,755TS,350,,AB,20G2AND361JN0NNNNN,,"AC Drive, PowerFlex 755TS, 361A, 300HP/ND, 250HP/HD, Open, 480VAC","29,305.83",Rexel,6/24/2025
+VFD,755TS,350,,AB,20G2AND415JA0NNNNN,,"AC Drive, PowerFlex 755TS, 415A, 350HP/ND, 300HP/HD, Open, 480VAC","35,891.62",Rexel,6/24/2025
+VFD-AUX.,700,,206-1501,AB,20-750-S3,,"AC Drive, Safety Option, integrated Safe Torque Off, PowerFlex 750",365.82,Rexel,6/24/2025
+VFD-AUX.,700,,207-7517,AB,20-750-ENC-1,,"AC Drive, Feedback Option, Incremental Encoder, PowerFlex 750",186.28,Rexel,6/24/2025
+VFD-AUX.,700,,204-5112,AB,20-HIM-C6S,,"Human Interface Module, Enchanced LCD, Full Numeric Keypad,",282.32,Rexel,6/24/2025
+FU,J-FastActing,10, 206-7416,LITTLEFUSE,JLS010,,"Fuse, 10A, 600V, 200kAIC, Class J, Fast-Acting",15.77,Rexel,6/24/2025
+FU,J-FastActing,20,,LITTLEFUSE,JLS020,,"Fuse, 20A, 600V, 200kAIC, Class J, Fast-Acting",15.77,Rexel,6/24/2025
+FU,J-FastActing,30,206-2073,LITTLEFUSE,JLS030,,"Fuse, 30A, 600V, 200kAIC, Class J, Fast-Acting",14.7,Rexel,6/24/2025
+FU,J-FastActing,35,206-1444,LITTLEFUSE,JLS035,,"Fuse, 35A, 600V, 200kAIC, Class J, Fast-Acting",28.01,Rexel,6/24/2025
+FU,J-FastActing,45,206-1735,LITTLEFUSE,JLS045,,"Fuse, 45A, 600V, 200kAIC, Class J, Fast-Acting",28.01,Rexel,6/24/2025
+FU,J-FastActing,50,207-3213,LITTLEFUSE,JLS050,,"Fuse, 50A, 600V, 200kAIC, Class J, Fast-Acting",25.72,Rexel,6/24/2025
+FU,J-FastActing,70,207-0657,LITTLEFUSE,JLS070,,"Fuse, 70A, 600V, 200kAIC, Class J, Fast-Acting",41.89,Rexel,6/24/2025
+FU,J-FastActing,90,n/a,LITTLEFUSE,JLS090,,"Fuse, 90A, 600V, 200kAIC, Class J, Fast-Acting",45.33,Rexel,6/24/2025
+FU,J-FastActing,100,207-3119,LITTLEFUSE,JLS100,,"Fuse, 100A, 600V, 200kAIC, Class J, Fast-Acting",37.39,Rexel,6/24/2025
+FU,J-FastActing,125,206-4429,LITTLEFUSE,JLS125,,"Fuse, 125A, 600V, 200kAIC, Class J, Fast-Acting",80.92,Rexel,6/24/2025
+FU,J-FastActing,175,206-1727,LITTLEFUSE,JLS175,,"Fuse, 175A, 600V, 200kAIC, Class J, Fast-Acting",79.19,Rexel,6/24/2025
+FU,J-FastActing,200,207-0662,LITTLEFUSE,JLS200,,"Fuse, 200A, 600V, 200kAIC, Class J, Fast-Acting",70.54,Rexel,6/24/2025
+FU,J-FastActing,300,-,LITTLEFUSE,JLS300,,"Fuse, 300A, 600V, 200kAIC, Class J, Fast-Acting",164.29,Rexel,6/24/2025
+FU,J-FastActing,350,-,LITTLEFUSE,JLS350,,"Fuse, 350A, 600V, 200kAIC, Class J, Fast-Acting",179.75,Rexel,6/24/2025
+FU,J-FastActing,400,207-0641,LITTLEFUSE,JLS400,,"Fuse, 400A, 600V, 200kAIC, Class J, Fast-Acting",155.2,Rexel,6/24/2025
+FU,J-FastActing,500,207-0639,LITTLEFUSE,JLS500,,"Fuse, 500A, 600V, 200kAIC, Class J, Fast-Acting",254.23,Rexel,6/24/2025
+FU,J-FastActing,600,,LITTLEFUSE,JLS600,,"Fuse, 600A, 600V, 200kAIC, Class J, Fast-Acting",223.6,Rexel,6/24/2025
+FU,J-TimeDelay,35,,LITTLEFUSE,JTD035,,"35 Amp Fuse, Time Delay, Brand or Series: Class J, Indicator, Interrupting Rating: 200000 Amp",20.56,Rexel,6/24/2025
+FU,J-TimeDelay,60,,LITTLEFUSE,JTD060,,"60 Amp Fuse, Time Delay, Brand or Series: Class J, Indicator, Interrupting Rating: 200000 Amp",20.56,Rexel,6/24/2025
+FU,J,30A-3P,206-7413,LITTLEFUSE,LFJ60030-3CID,79458181784,"30A, 600V, Fuse Holder 3 Pole Class J Fuseblock",44.25,Rexel,6/24/2025
+FU,J,60A-3P,207-2548,LITTLEFUSE,LFJ60060-3CID,79458181876,"60A, 600V, Fuse Holder 3 Pole Class J Fuseblock",46.84,Rexel,6/24/2025
+FU,J,100-3P,207-3059,LITTLEFUSE,LFJ60100-3CID,79458181890,"100A, 600V, Fuse Holder 3 Pole Class J Fuseblock",80,Rexel,6/24/2025
+FU,J,200-3P,207-7230,LITTLEFUSE,LFJ60200-3C,79458181944,"200A, 600V, Fuse Holder 3 Pole Class J Fuseblock",341.89,Rexel,6/30/2025
+FU,J,400-3P,207-3215,LITTLEFUSE,LFJ60400-3C,79458181920,"400A, 600V, Fuse Holder 3 Pole Class J Fuseblock",668.47,Rexel,6/30/2025
+FU,J,600-3P,207-0640,LITTLEFUSE,LFJ60600-3C,79458181906,"600A, 600V, Fuse Holder 3 Pole Class J Fuseblock","1,127.99",Rexel,6/30/2025
+FU,J,30A-1P,,LITTLEFUSE,LFJ60030FBC,,"30A, 600V, Fuse Holder Accessories Class J Fuse Block Cover",18.93,Rexel,6/24/2025
+FU,J,60A-1P,,LITTLEFUSE,LFJ60060FBC,,"60A, 600V, Fuse Holder Accessories Class J Fuse Block Cover",23.46,Rexel,6/24/2025
+FU,J,100A-1P,,LITTLEFUSE,LFJ60100FBC,,"100A, 600V, Fuse Holder Accessories Class J Fuse Block Cover",26.55,Rexel,6/24/2025
+FU,J,400-A,,n/a,Plexiglass,,Custom Plexi-glass shroud,200,n/a,6/24/2025
+FU,CC,3,204-3634,LITTLEFUSE,CCMR003.TXP,,"Class CC Fuse,  600V AC/DC, 3A, Time-Delay",10.11,Rexel,6/24/2025
+FU,CC,5,207-1988,LITTLEFUSE,CCMR005.TXP,,"Class CC Fuse,  600V AC/DC, 5A, Time-Delay",10.11,Rexel,6/24/2025
+FU,CC,7,204-8058,LITTLEFUSE,CCMR007.TXP,,"Class CC Fuse,  600V AC/DC, 7A, Time-Delay",10.11,Rexel,6/24/2025
+FU,CC,10,201-1065,LITTLEFUSE,CCMR010.TXP,,"Class CC Fuse,  600V AC/DC, 10A, Time-Delay",10.21,Rexel,6/24/2025
+FU,CC,12,204-6607,LITTLEFUSE,CCMR012.TXP,,"Class CC Fuse,  600V AC/DC, 12A, Time-Delay",10.21,Rexel,6/24/2025
+FU,CC,15,201-1059,LITTLEFUSE,CCMR015.TXP,,"Class CC Fuse,  600V AC/DC, 15A, Time-Delay",10.21,Rexel,6/24/2025
+FU,CC,25,206-6993,LITTLEFUSE,CCMR025.TXP,,"Class CC Fuse,  600V AC/DC, 25A, Time-Delay",10.21,Rexel,6/24/2025
+FU,CC,30,205-0189,LITTLEFUSE,CCMR030.TXP,,"Class CC Fuse,  600V AC/DC, 30A, Time-Delay",10.21,Rexel,6/24/2025
+FU,CC,30,204-3633,AB,1492-FB2C30-L,,"Fuse Holder, Class CC Type Fuses, 2-Pole, 30 Amp, 110 - 600 Volt, with LED Blown Fuse Indicator",37.48,Rexel,6/24/2025
+FU,CC,30,,AB,1492-FB1C30-D1,,"Fuse Holder, Class CC Type Fuses, 1-Pole, 30 Amp, 12 - 72 Volt, with Led Blown Fuse Indicator",18.23,Rexel,6/24/2025
+FU,J,60,,AB,1492-FB1J60-L,,"Fuse Holder, Class J Type Fuses, 1 Pole, 60 Amp, 110 - 600 Volt, with LED Blown Fuse Indicator",33.73,Rexel,6/24/2025
+XR,1321,8A,206-0393,AB,1321-3R8-B,,"Reactor, Line Input, Line Output, 8 Amp, 3.0 mh, 3 to 5 % Impedance, for 200 thru 690 Volt AC, 3-Phase",178.12,Rexel,6/24/2025
+XR,1321,12A,206-2970,AB,1321-3R12-B,,"Reactor, Line Input, Line Output, 3 - 5 % Impedance, 12 Amp, 2.5 mh, for 200 thru 690 Volt AC, 3-Phase",204.66,Rexel,6/24/2025
+XR,1321,18A,206-0395,AB,1321-3R18-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 18 Amp, 1.2 mh, for 200 thru 690 Volt AC, 3-Phase",252.6,Rexel,6/24/2025
+XR,1321,25A,206-2072,AB,1321-3R25-B,,"Reactor, Line Input, Line Output, 3 - 5 % Impedance, 25 Amp, 1.2 mh, for 200 thru 690 Volt AC, 3-Phase",296.29,Rexel,6/24/2025
+XR,1321,35A,205-8208,AB,1321-3R35-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 35 Amp, 0.8 mh, for 200 thru 690 Volt AC, 3-Phase",309.12,Rexel,6/24/2025
+XR,1321,45A,206-8289,AB,1321-3R45-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 45 Amp, 0.7 mh, for 200 thru 690 Volt AC, 3-Phase, Open",418.19,Rexel,6/24/2025
+XR,1321,55A,206-9379,AB,1321-3R55-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 55 Amp, 0.5 mh, for 200 thru 690 Volt AC, 3-Phase, Open",426.43,Rexel,6/24/2025
+XR,1321,80A,206-4408,AB,1321-3R80-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 80 Amp, 0.4 mh, for 200 thru 690 Volt AC, 3-Phase",560.86,Rexel,6/24/2025
+XR,1321,100A,-,AB,1321-3R100-B,,"Reactor, Line Input, Line Output, 3 - 5 % Impedance, 100 Amp, 0.3 mh, for 200 thru 690 Volt AC, 3-Phase, Open",704.73,Rexel,6/24/2025
+XR,1321,130A,206-3099,AB,1321-3R130-B,,"Reactor, Line Input, Line Output, 3 - 5 % Impedance, 130 Amp, 0.2 mh, for 200 thru 690 Volt AC, 3-Phase, Open",796.35,Rexel,6/24/2025
+XR,1321,160A,-,AB,1321-3R160-B,,"Reactor, Line Input, Line Output, 3 - 5 % Impedance, 160 Amp, 0.15 mh, for 200 thru 690 Volt AC, 3-Phase, Open","1,219.85",Rexel,6/24/2025
+XR,1321,200A,206-6732,AB,1321-3R200-B,,"Reactor, Line Input, Line Output, 3 to 5 % Impedance, 200 Amp, 1.2 mh, for 200 thru 690 Volt AC, 3-Phase",998.2,Rexel,6/24/2025
+XR,1321,250A,206-3094,AB,1321-3RB250-B,,"Reactor, Line Input, Line Output","1,393.09",Rexel,6/24/2025
+XR,1321,320A,207-3214,AB,1321-3RB320-B,,"Line Reactor, Open Style Enclosure, with Flag Terminals, 320 Amps, 0.075 mh","1,554.72",Rexel,6/24/2025
+DBR,,,207-3024,POWEROHM,PF150R800W,,BRAKING RESISTOR 150 OHMS/800 WATTS,248.38,Rexel,6/24/2025
+DBR,,,207-2990,POWEROHM,PF100R800W,,BRAKING RESISTOR 100 OHMS/800 WATTS,248.38,Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF80R1K2,,BRAKING RESISTOR 80 OHMS/1200 WATTS,325.32,Rexel,6/24/2025
+DBR,,,206-2071,POWEROHM,PF40R1K60,,BRAKING RESISTOR 40 OHMS/1600 WATTS,404.22,Rexel,6/24/2025
+DBR,,,206-1499,POWEROHM,PF40R2K00,,BRAKING RESISTOR 40 OHMS/2000 WATTS,481.16,Rexel,6/24/2025
+DBR,,,206-1446,POWEROHM,PF32R2K40,,BRAKING RESISTOR 32 OHMS/2400 WATTS,559.09,Rexel,6/24/2025
+DBR,,,207-1898,POWEROHM,PF28R2K80,,BRAKING RESISTOR 28 OHMS/2800 WATTS,637.97,Rexel,6/24/2025
+DBR,,,205-1743,POWEROHM,PF19R4K86,,BRAKING RESISTOR 19 OHMS/4860 WATTS,768.5,Rexel,6/24/2025
+DBR,,,207-3089,POWEROHM,PF13R5K45,,BRAKING RESISTOR 13 OHMS/5450WATTS,768.5,Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF11F5R7K77,,BRAKING RESISTOR 11.5 OHMS/7770WATTS,"1,147.39",Rexel,6/24/2025
+DBR,,,206-1730,POWEROHM,PF7R9K30,,BRAKING RESISTOR 7.1 OHMS/9300WATTS,"1,477.57",Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF5F1R10K7,,BRAKING RESISTOR 5.1 OHMS/10700WATTS,"1,350.96",Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF5F1R13K7,,BRAKING RESISTOR 5.1 OHMS/13700WATTS,"1,685.04",Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF3F3R21K4,,BRAKING RESISTOR 3.3 OHMS/21400WATTS,"2,131.10",Rexel,6/24/2025
+DBR,,,-,POWEROHM,PF3F3R24K9,,BRAKING RESISTOR 3.3 OHMS/24900WATTS,"3,643.79",Rexel,6/24/2025
+COMM,Cat 6,RJ45,,PANDUIT,FP6X88MTG,,"TX6A, Category 6A UTP Field Terminal RJ45 Plug",21.2,Rexel,6/24/2025
+COMM,CAT6,Cable,,,CAT6,,Ft. of Generic CAT6 Cable,1,-,6/24/2025
+COMM,5200,20-Port,207-7329,AB,1783-CM20DP,,Stratix 5200 20 Port Switch,"3,109.25",Rexel,6/24/2025
+COMM,2000,8-Port,203-9270,AB,1783-US8T,,"Stratix 2000, Unmanaged, 8 Port Switch, RJ45 Copper Ports",206.44,Rexel,6/30/2025
+COMM,N-Tron,16,,RED LION,516TX-A,,,"1,628",?,6/24/2025
+MCCB-MAG,140MG,3A,,AB,140MG-G8P-B30,,"Breaker, Molded Case, 3A, G Frame, 480VAC, 65kAIC, Magnetic Only",527.74,Rexel,6/24/2025
+MCCB-MAG,140MG,7A,,AB,140MG-G8P-B70,,"Breaker, Molded Case, 7A, G Frame, 480VAC, 65kAIC, Magnetic Only",527.74,Rexel,6/24/2025
+MCCB-MAG,140MG,15A,,AB,140MG-G8P-C15,,"Breaker, Molded Case, 15A, G Frame, 480VAC, 65kAIC, Magnetic Only",527.74,Rexel,6/24/2025
+MCCB-MAG,140MG,30A,,AB,140MG-G8P-C30,,"Breaker, Molded Case, 30A, G Frame, 480VAC, 65kAIC, Magnetic Only",527.74,Rexel,6/24/2025
+MCCB-MAG,140MG,50A,,AB,140MG-G8P-C50,,"Breaker, Molded Case, 50A, G Frame, 480VAC, 65kAIC, Magnetic Only",527.74,Rexel,6/24/2025
+MCCB-MAG,140MG,80A,,AB,140MG-G8P-C80,,"Breaker, Molded Case, 80A, G Frame, 480VAC, 65kAIC, Magnetic Only",807.98,Rexel,6/24/2025
+MCCB-MAG,140MG,100A,,AB,140MG-G8P-D10,,"Breaker, Molded Case, 100A, G Frame, 480VAC, 65kAIC, Magnetic Only",807.98,Rexel,6/24/2025
+MCCB-MAG,140MG,125A,,AB,140MG-G8P-D12,,"Breaker, Molded Case, 125A, G Frame, 480VAC, 65kAIC, Magnetic Only",807.98,Rexel,6/24/2025
+CONTACTOR,100-C,30A,207-7757,AB,100-C30D10,,"Contactor, 30 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",165.15,Rexel,6/24/2025
+CONTACTOR,100-C,37A,,AB,100-C37D10,,"Contactor, 37 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",192.79,Rexel,6/24/2025
+CONTACTOR,100-C,43A,,AB,100-C43D10,,"Contactor, 43 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",205.58,Rexel,6/24/2025
+CONTACTOR,100-C,55A,,AB,100-C55D10,,"Contactor, 55 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",233.24,Rexel,6/24/2025
+CONTACTOR,100-C,72A,,AB,100-C72D10,,"Contactor, 72 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",358.94,Rexel,6/24/2025
+CONTACTOR,100-C,85A,,AB,100-C85D10,,"Contactor, 55 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",438.99,Rexel,6/24/2025
+CONTACTOR,100-C,97A,205-7290,AB,100-C97D10,,"Contactor, 97 Amp, 3-Pole, 120 Volt AC Coil, 1 Normally Open Auxiliary Contact",476.91,Rexel,6/24/2025
+CONTACTOR,100-C,,,AB,100-FA20,,"Auxiliary Contact Block Front Mount, with 2 Normally Open Contact",22.02,Rexel,6/24/2025
+OL,,,,AB,193-ESM-I-30A-C55,,"Sensing Module, Current, Overload Relay, 0.5 -30 Amp, for use with 100-C09 - C23",128.41,Rexel,6/24/2025
+OL,,,,AB,193-ESM-I-60A-C55,,"Sensing Module, Current, Overload Relay, 6 - 60 Amp, for use with 100-C30 - C55",204.33,Rexel,6/24/2025
+OL,,,,AB,193-ESM-I-100A-C97,,"Sensing Module, Current, Overload Relay, 10 - 100 Amp, for use with 100-C60 - C97",281.2,Rexel,6/24/2025
+OL,,,206-3111,AB,193-ECM-ETR,,"Overload Relay, Electronic, Communications Module, EtherNet/IP",234.52,Rexel,6/24/2025
+OL,,,,AB,193-EIO-22-120,,"E300 Overload Relays (193/592 IEC/NEMA), 2 IN / 2 Out Control Module, 120 Volt AC",162.5,Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X4024BLP,,"1Dr, 84x40x24 BothSideOpen","1,900.36",Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X4024LLP,,"1Dr, 84x40x24 LeftSideOpen","1,931.51",Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X4024RLP,,"1Dr, 84x40x24 RightSideOpen","1,900.36",Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X7824BLP,,"2Dr, 84x40x24 BothSideOpen","3,325.05",Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X7824LLP,,"2Dr, 84x78x24 LeftSideOpen","3,353.41",Rexel,6/24/2025
+CAB,,,,HOFFMAN,AU84X7824RLP,,"2Dr, 84x40x24 RightSideOpen","3,325.05",Rexel,6/24/2025
+CAB,,,206-5845,HOFFMAN,A84PM40,,"Panel For Large Multi-Door Enclosure, 72 Inch x 33.75 Inch, Material: Steel, White Powder Coat",239.67,Rexel,6/24/2025
+CAB,,,206-1772,HOFFMAN,A84PM78,,"Panel For Enclosure, 72 x 72 Inch, Fits Enclosure Height of 84 Inch, Steel, With White Powder Coat Finish",471.08,Rexel,6/24/2025
+CAB,,,,HOFFMAN,A84PM40G,,"Panel For Enclosure, 72 x 34 Inch, Steel, Conductive Finish, For Use With Large Multi-Door Enclosures",251.66,Rexel,6/24/2025
+CAB,,,,HOFFMAN,A84PM78G,,"Panels for Large Bulletin A27, A28, A28S4 and A34 Multi-Door Enclosures, fits 84x Dbl Bay, Steel",909.52,Rexel,6/24/2025
+CAB,,,207-0680,HOFFMAN,AEK115,,"Electrical Interlock, 120 Volt/60Hz, Used With Door Latching Mechanisms on All Two Door Type 4/12 Enclosures",215.16,Rexel,6/24/2025
+CAB,,,207-3034,HOFFMAN,LEDA2M35,,LED Light Kit,184.51,Rexel,6/24/2025
+CAB,,,201-1611,HOFFMAN,ATEMNO,,"Thermostat with N.O. contacts,",61.59,Rexel,6/24/2025
+CAB,,,207-4789,HOFFMAN,AU8424FGK,,Baying Kit is used to bay multiple Universal Free-Stand Enclosures together,95.32,Rexel,6/24/2025
+CAB,,,207-4788,HOFFMAN,AU8424FEP,,"Universal Free-Stand Flat End Plate, Gray, Steel",437.08,Rexel,6/24/2025
+CAB,,,201-1799,HOFFMAN,A363612LP,,"Wall Mount Enclosure, NEMA 12/13, Continuous Hinge Cover With Clamps, 36 x 36 x 12 Inch, Steel With Gray Powder Coat Finish",572.97,Rexel,6/30/2025
+CAB,,,201-1790,HOFFMAN,A36P36,,"Panel For Enclosure, 33"" x 33"", Type 3R, 4, 4X, 12/13, Steel, White Powder Coat Finish",124.98,Rexel,6/30/2025
+CAB,,,206-4516,HOFFMAN,CSD243010LG,,"Wall-Mount Type 4/12 Enclosure, Bulletin Cw1 (concept? Wall-mount Enclosure), Size/dims: 24.00x30.00x10.00, Material/finish: Steel/ltgray",308.2,Rexel,6/30/2025
+CAB,,,204-3230,HOFFMAN,CP3024,,"Panel For Concept Enclosure, 30"" x 24"", Steel",66.53,Rexel,6/30/2025
+CAB,,,204-0724,HOFFMAN,A303008LP,,"Wall Mount Enclosure, NEMA 12/13, Continuous Hinge Cover With Clamps, 30 x 30 x 8 Inch, Steel With Gray Powder Coat Finish",420.29,Rexel,7/1/2025
+CAB,,,201-1792,HOFFMAN,A30P30,,"Panel For Enclosure, 30"" x 30"", Type 3R, 4, 4X, 12/13, Steel, White Powder Coat Finish",93.84,Rexel,7/1/2025
+MPCB,140MT,,207-6940,AB,140MT-C3E-A16-KY-BX,,"Motor Protection Breaker, Standard Magnetic Trip, 0.1 - 0.16A, Standard. Performance, Frame Size C",128.57,Rexel,6/24/2025
+MPCB,140MT,,207-3075,AB,140MT-C3E-A63-KY-BX,,"Motor Protection Breaker, Standard Magnetic Trip, 0.4 - 0.63A, Standard. Performance, Frame Size C",171.81,Rexel,6/24/2025
+COOLING,,,205-6474,HOFFMAN,HF1316424,,"HF Side Mount Filter Fans, 115V, 484 CFM, NEMA 12, ABS/Light Gray Finish",295.87,Rexel,6/24/2025
+COOLING,,,207-4332,HOFFMAN,HG1300404,,"Exhaust Grille, IP54, Diameter: 13"", Material: Thermoplastic",53.79,Rexel,6/24/2025
+COOLING,,,201-1598,HOFFMAN,TFP41,,"Cooling Fan Package, 4 inch, 115V, 50/60Hz, Material/Finish: ABS/LtGray.",169.39,Rexel,6/30/2025
+COOLING,,,201-1700,HOFFMAN,TEP4,,"Exhaust Grille, Size/Dims: fits 4 in",76.44,Rexel,6/30/2025
+MCCB,,,207-0642,EATON,PDG63M2000E2NN,,"SERIES PD, FRAME SIZE 6 CIRCUIT BREAKER, 2000 AMP, ADJUSTABLE TRIP, 1000A-2000A","5,233.15",BRENNER,10/7/2024
+MCCB,,,207-0643,EATON,PDG6XFS06,,FLEX CABLE DISCONNECT,399.7,BRENNER,5/8/2025
+MCCB,,,207-0644,EATON,PDG6X3TA2000,,LINE / LOAD LUGS FOR FRAME 6 CIRCUIT BREAKER,"2,034.78",GALCO,1/8/2025
+PDB,,,206-3115,AB,1492-PD3287,,"1492 POWER DISTRIBUTION BLOCK, 3-POLE, ALUMINUM, 2 INCOMMING, 8 OUTGOING, 760A",223.48,Rexel,6/24/2025
+PDB,,,205-5450,AB,1492-PBC3,,"Distribution Block, Cover, 1P, for 380 - 760 Amp",11.02,Rexel,6/24/2025
+XFMR-Ctrl,,1000,201-4200,SOLA HD,HZ1000,,"HSZ Series Industrial Control Transformers 1kVA, 480/240 x 120/115v, 50/60 Hz",568.74,Rexel,6/24/2025
+XFMR-Ctrl,,1500,,SOLA HD,HZ1500,,"HSZ Series Industrial Control Transformers 1.5kVA, 480/240 x 120/115v, 50/60 Hz",935.37,Rexel,6/24/2025
+XFMR-Ctrl,,2000,,SOLA HD,HZ2000,,"HSZ Series Industrial Control Transformers 2kVA, 480/240 x 120/115v, 50/60 Hz","1,234",Rexel,6/24/2025
+XFMR-Ctrl,,3000,,SOLA HD,HZ3000,,"HSZ Series Industrial Control Transformers 3kVA, 480/240 x 120/115v, 50/60 Hz","1,680.79",Rexel,6/24/2025
+XFMR-Ctrl,,5000,,SOLA HD,HZ5000,,"HSZ Series Industrial Control Transformers 5kVA, 480/240 x 120/115v, 50/60 Hz","1,573.91",Rexel,6/24/2025
+CAB,1492,15A,205-6661,AB,1492-REC15,,"DIN Rail, Mounted Duplex Receptacle, 15 Amp, 125 Volt AC",26.7,Rexel,6/30/2025
+MISC,,,,,MISC250,,Misc Components,250,-,6/24/2025
+MISC,,,,,MISC500,,Misc Components,500,-,6/24/2025
+MISC,,,,,MISC750,,Misc Components,750,-,6/24/2025
+MISC,,,,,MISC1000,,Misc Components,"1,000",-,6/24/2025
+MCCB,,M Frame,207-3517,AB,140G-M6F3-D60,,"Breaker, Molded Case, 600 Amp, 3-Pole, 600 Volt AC, 65 kAIC, M Frame, Thermal Magnetic, Adjustable, ","5,015.41",,6/24/2025
+MCCB,,M Frame,205-8335,AB,140G-M-FMX04,,"Breaker, Molded Case, 4 Foot, Flange Cable, Operating Mechanism, Plastic Actuator, Painted Metal Handle",528.76,,6/24/2025
+MCCB,,M Frame,206-3117,AB,140G-M-TLA23,,"Breaker, Molded Case, M Frame, Terminal Lugs, 2 x 250 - 500 MCM, AL/CU, 3 Per Package",166.64,,6/24/2025
+Assy-Labor,,,,,LaborVFD,,Panel Shop Assembly Per Door Estimated,"3,500",,6/24/2025
+Assy-Labor,,,,,LaborIO,,Panel Shop Assembly Per Door Estimated,"4,500",,6/24/2025
+Assy-Labor,,,,,LaborIOWall_Mt,,Panel Shop Assembly Per Door Estimated,"2,500",,6/24/2025
+Assy-Labor,,,,,LaborJBX,,Panel Shop Assembly Per Door Estimated,250,,6/24/2025
+Assy-Mtl,,,,,MtlVFD,,Panel Shop Material Per Door Estimated,"1,000",,6/24/2025
+Assy-Mtl,,,,,MtI/OWall_Mt,,Panel Shop Material Per Door Estimated,750,,6/24/2025
+Assy-Mtl,,,,,MtI/O,,Panel Shop Material Per Door Estimated,"1,500",,6/24/2025
+Assy-Mtl,,,,,MtlJBX,,Panel Shop Material Per Door Estimated,250,,6/24/2025
+RIO,1734,,"207-7111,201-0842",AB,1734-AENTR,,"Communication Adapter, 2 Ethernet/IP Ports",726.34453,Rexel,6/30/2025
+RIO,1734,,201-1787,AB,1734-EP24DC,,"Expansion Power Supply, 24VDC Input, 400mA, Horizontal Mounting",226.51141,Rexel,6/30/2025
+RIO,1734,,201-1063,AB,1734-FPD,,"Field Power Distributor, 10 - 28.8VDC, 120/240VAC Operating Range",127.79816,Rexel,6/30/2025
+RIO,1734,,201-0838,AB,1734-IA4,,"I/O Module, Series C Digital AC Input, 4 Non-Isolated Channel",163.14282,Rexel,6/30/2025
+RIO,1734,,201-1589,AB,1734-IB4,,"I/O Module, Digital DC Input, 4 Channel, DIN Rail, 24VDC",82.92592,Rexel,6/30/2025
+RIO,1734,,201-1713,AB,1734-IB8,,"I/O Module, Digital DC Input, 8 Channel, DIN Rail, 24VDC",138.20987,Rexel,6/30/2025
+RIO,1734,,"201-2760,207-7122",AB,1734-IB8S,,"I/O Module, Safety, 8 Point Input",582.92172,Rexel,6/30/2025
+RIO,1734,,201-1587,AB,1734-IE2C,,"I/O Module, Analog, 2 Inputs, Single Ended, 75mA",364.72129,Rexel,6/30/2025
+RIO,1734,,201-1588,AB,1734-IE2V,,"I/O Module, Analog, 2 Inputs, Single Ended, 75mA",348.09932,Rexel,6/30/2025
+RIO,1734,,201-1789,AB,1734-IE4C,,"I/O Module, Analog, 4 Inputs, Single Ended, 75mA",578.80513,Rexel,6/30/2025
+RIO,1734,,201-3246,AB,1734-OA4,,"I/O Module, Series C Digital AC Output, 4 Non-Isolated Channel",207.82408,Rexel,6/30/2025
+RIO,1734,,201-1613,AB,1734-OB4,,"I/O Module, Digital DC Output, 4 Channel, Current Sourcing, 24VDC",95.50203,Rexel,6/30/2025
+RIO,1734,,201-1628,AB,1734-OB8,,"I/O Module, 24VDC, 8 Current Sourcing, 75mA, Pointbus Current",155.88574,Rexel,6/30/2025
+RIO,1734,,201-4181,AB,1734-OB8S,,"I/O Module, Safety, Digital DC Output, 8 Channel, Current Sourcing",677.61741,Rexel,6/30/2025
+RIO,1734,,205-3146,AB,1734-OE2C,,"I/O Module, Analog, 2 Single Ended Outputs, 75mA, Pointbus Current",375.11886,Rexel,6/30/2025
+RIO,1734,,201-1586,AB,1734-OE2V,,"I/O Module, Analog, 2 Single Ended Outputs, 75mA, Pointbus Current",362.64885,Rexel,6/30/2025
+RIO,1734,,"207-7121,201-0837",AB,1734-OW4,,"I/O Module, Digital Contact Output, 4 Channel",200.55285,Rexel,6/30/2025
+RIO,1734,,"204-9425,201-1064",AB,1734-TB,,"Terminal Base, 8 Screw, 10A, 24VDC, 120/240VAC, DIN Rail",26.91344,Rexel,6/30/2025
+RIO,1734,,206-3100,AB,1734-VTM,,"Terminal Module, Voltage, 8 Channel, High Density",40.40906,Rexel,6/30/2025
+PB,800T,,203-8659,AB,800T-D6A,,30mm Momentary Push Button 800T PB,90.24328,Rexel,6/30/2025
+PB,800T,,203-3473,AB,800T-A2A,,"Push Button, Flush Head, Black, 30mm, Momentary, NEMA 4/13",59.10335,Rexel,6/30/2025
+PB,800T,,"201-1813, 207-7209",AB,800T-A6D2,,"Push Button, Flush Head, Red, Momentary, 30 mm, NEMA 4/13, 1 Normally Closed, Contact Block",43.32,Rexel,6/30/2025
+PB,800T,,203-8659,AB,800T-B6A,,"Push Button, Extended Head, 30mm, Red, NEMA 4/13",59.10335,Rexel,6/30/2025
+PB,800T,,"201-1736,201-4392",AB,800T-QBH2W,,"Push Button, Extended White Head, 12-130V AC/DC, LED, 30mm",147.06333,Rexel,6/30/2025
+PB,800T,,204-8029,AB,800T-N310J,,"Push Button, Jumbo Protective Guard, 60mm, Push-Pull, 30mm",54.09572,Rexel,6/30/2025
+PB,800T,,204-0636,AB,800T-FX6A1,,"Push Button, Push-Pull, Red, 30mm, 1NO/1NCLB, NEMA 4/13",121.3888,Rexel,6/30/2025
+PB,800T,,201-1606,AB,800T-FXQH2RA1,,"Push Button, Push-Pull, 30mm, Illuminated, Mushroom Head, Red",178.37632,Rexel,6/30/2025
+PB,800T,,201-4385,AB,800T-FXQH2RA5,,"Push Button, Push-Pull, 30mm, Maintained, Illuminated, LED, Red, 12 - 130 Volt AC/DC, 2 Normally Closed, Late Break, Contact Blocks, NEMA 4/13",178.38,Rexel,6/30/2025
+PB,800T,,207-7131,AB,800T-D9D2,,"Push Button, Mushroom Head, Momentary, 30 mm, Yellow, 1 Normally Closed, Contact Block, NEMA 4/13",74.46,Rexel,6/30/2025
+PB,800T,,"205-1523,203-0164",nVent Hoffman,ASPB,,"Hole Seal, for 30.5mm Pushbutton Enclosures",8.6747,Rexel,6/30/2025
+PB,800T,,207-6037,AB,800T-XD2,,"Contact Block, 1NC, Type 4/13, 30mm, Shallow",15.77652,Rexel,6/30/2025
+PB,800T,,201-2759,AB,800T-XA1,,"Contact Block, 1NO/1NCLB, Shallow Type 4/13, 30mm, Screw Attachment",31.56421,Rexel,6/30/2025
+PB,800T,,201-1600,AB,800T-X559JE,,"Custom Engraved Nameplate, 30.5mm, Gray Background, Metal, Jumbo Size, ",17.04,Rexel,6/30/2025
+PB,800T,,"204-9199,201-1605",AB,800T-X646EM,,Legend Plate,6.82,Rexel,6/30/2025
+SS,800T,,"205-2421,204-6927,204-9316",AB,800T-2JGH91KB7AX,,30MM SELECTOR,185.28763,Rexel,6/30/2025
+SS,800T,,"201-1738,205-8678,207-7132",AB,800T-J20A,,30mm Selector Switch 800T PB,90.30469,Rexel,6/30/2025
+SS,800T,,203-4091,AB,800T-H2A,,"Selector Switch, 2-Position, Maintained, 30mm, Knob",69.54846,Rexel,6/30/2025
+SS,800T,,203-8501,AB,800T-H31D1,,"Selector Switch, 2-Position, Keyed, 30mm, Key Removal from Left",116.15787,Rexel,6/30/2025
+SS,800T,,207-1829,AB,800T-N17KF4C,,"Selector Switch, 4 Position, Maintained, 4NO/4NC, Contacts, 30mm",164.22435,Rexel,6/30/2025
+SS,800T,,207-3044,AB,800TC-H32A,,30MM SELECTOR SWITCH 800T PB,134.99926,Rexel,6/30/2025
+SS,800T,,201-1715,AB,800T-T2H3EEXX,,"Toggle Switch, 2 Way, Spring Return, 30mm, 1NO/NC Contact",217.7339,Rexel,6/30/2025
+POT,800T,,"201-4835,206-2347",AB,800T-U29,,"Potentiometer, 30mm, 10,000 Ohms, Type 4/13",220.19584,Rexel,6/30/2025
+PL,800T,,"201-4384,207-7524,202-9402,205-1369",AB,800T-QH2G,,"Pilot Light, Green, LED, 12-130V AC/DC, 30 mm, Type 4/13",115.80058,Rexel,6/30/2025
+FU,1492,15,204-7735,AB,1492-H5,,"Terminal Block, Fuse Holder, 15 Amp, 10 - 57 Volt AC/DC, Black, with LED Blown Fuse Indicator",10.95,Rexel,6/30/2025
+FU,,2,207-7281,FERRAZ SHAWMUT,GDL2,,TIME DELAY GLASS FUSE,0.89,Rexel,6/30/2025
+DCPS,,,206-7072,SOLA HD,SDN40-24-100C,,24VDC Power Supply 40AMPS,"1,155.02",Rexel,4/10/2025
+DCPS,,,206-7279,SOLA HD,SDN5-24-100C,,24VDC POWER SUPPLY 5AMP,209.61,Rexel,1/6/2025
+DCPS,1606,10A,204-7736,AB,1606-XLB240E,,"Power Supply, 240 Watt, 24 - 28 Volt DC Output, 90 - 264 Volt Input, 1-Phase, 10 Amp Output, DIN Rail Mount",223.88,Rexel,6/30/2025
+FU,,,206-4472,SCHNEIDER,M9L11120,,"MULTI-9 SURGE ARRESTER, 1-POLE W/ REMOTE SIGNALING",65.33,Cresent,4/13/2025
+CB,1492,,207-7117,AB,1492-SP1C200,," CIRCUIT BREAKER, MINIATURE SUPPLEMENTARY PROTECTOR, BULLETIN 1492-SP SERIES C",37.32,Rexel,12/4/2024
+,,,,AB,1492-SP1C100,,"Breaker, 10 Amp, 1-Pole, 277 Volt, Miniature, Inductive Loads",46.3,Rexel,6/30/2025
+CR-Sfty,,,205-8843,PILZ,774150,,Safety Relay - 24VDC 8N/O 1N/C,459.54,RS-AMERICAS,4/13/2025
+TB,1492,,"201-3242, 204-4630, 207-7120, 205-0245, 201-1581",AB,1492-EAJ35,,"Terminal Block, End Anchor, Normal Duty, for DIN Rail",1.32,Rexel,6/30/2025
+HMI,,,,HOPE INDUSTRIAL,HIS-ML23.8-FTVA,,"23.8"" RESISTIVE SINGLE TOUCH INDUSTRIAL SCREEN, PANEL MOUNT","1,178","Hope Industrial Systems, INC.",5/12/2025
+PC,,,206-1926,ONLOGIC SUPPLY,HX500,,"LOGIC SUPPLY HX500 COMPUTER, 16GB WT RAM, 512GB SSD, CORE I7, WINDOWS 11 PRO 64, TB PWR, AUTO ON, WALL BRKTS, PORT BLK","2,047","Logic Supply, INC",4/15/2025
+INST-LAS,,,201-2808,IFM EFECTOR,E21079,,MOUNTING BLOCK F,58.75,,6/30/2025
+INST-LAS,,,201-1749,IFM EFECTOR,O1D100,,Laser Distance Sensor,393.99,,6/30/2025
+CONN,,,205-4340,MENCOM,MDE45-4MP-FW07,,"Ethernet, Field Wireable, 4 Pole, M12 D-Coded Male Straight, PG07 3-6.5mm",10.56,SEAGATE CONTROL SYSTEMS,9/24/2024
+CONN,,,206-8402,PHOENIX CONTACT,_1521355,,"4 POSITION, STRAIGHT,FEMALE, SCREW CONNECTION 10MM-12MM",30.71,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+CONN,,,206-8401,PHOENIX CONTACT,_1521339,,"4 POSITION, STRAIGHT, MALE, SCREW CONNECTION 10MM-12MM",32.63,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+CONN,,,206-6823,PHOENIX CONTACT,_1542952,,"Connector, Universal, 4-position, Plug straight M12 SPEEDCON, Coding: A, Screw connection, cable gland Pg7, external cable diameter 4 mm ... 6 mm",8.93,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+IOL,,,207-5949,BALLUFF,BNI00H2,,"I/O LINK MODULE, 2A/CHANNEL, 8 PORT MASTER",488.47,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+CONN,,,206-6822,PHOENIX CONTACT,_1543058,,"Connector, Universal, 4-position, Socket angled M12 SPEEDCON, Coding: A, Screw connection, cable gland Pg7, external cable diameter 4 mm ... 6 mm",8.93,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+CONN,,,205-8299,IFM EFECTOR,EBC113,,Y SPLITTER M12-PLUG/2 X M12 SOCKET,23.63,IFM EFECTOR INC.,9/24/2024
+IOL,,,206-1998,IFM EFECTOR,IGC260,,"7.5MM SENSING RANGE, M18 THREAD, N.O./N.C. CONFIGURABLE, IO-LINK, FLUSH MOUNTABLE",66.38,IFM EFECTOR INC.,9/24/2024
+IOL,,,206-8403,Balluff,BNI00CP,,"I/O LINK MODULE, 2A/CHANNEL, 16-PORT, INPUT/OUTPUT SLAVE, SPLITTER REQUIRED",316.3,"NEFF GROUP DISTRIBUTORS, INC",9/24/2024
+CAB,,,201-1592,GRACE,P-R2-K3RF3,,DOOR MOUNTED ETHERNET PORT WITH DUAL GFCI RECEPTACLE,235.26,Rexel,6/30/2025
+CONTACTOR,300 NEMA,Size 3,,AB,300-DOD930,,"Contactor, AC, Size 3, 90 Amp, 600 Volt AC, 25 - 50 Horse Power, 120 Volt Coil, Open Type, No Enclosure","1,228.70",Rexel,7/9/2025
+CONTACTOR,300 NEMA,Size 4,,AB,300-EOD9311,,"Contactor, AC, Size 4, 100-250V 50-60 Hz/100-250V DC, 3 NO Poles, 1 N.O, 1 N.C. Auxiliary Contact, Screw Terminals","2,580.63",Rexel,7/9/2025
+OL,,,,AB,193-ESM-I-200A-D180,,SENSING MODULE CURRENT 20-200 AMP MOUNTS TO 100-D115 - 100-D180 CONTACTOR,366.3,Rexel,7/9/2025
+CAB,,,,HOFFMAN,A90PM78G,,"Panel For Enclosure, Size: 78 x 72 Inch, Material/Finish: Conductive Steel,",904.97,Rexel,7/9/2025
+CAB,,,,HOFFMAN,AU90X7824RLP,,"2Dr, 90x78x24 RightSideOpen","3,562.19",Rexel,7/9/2025
+CAB,,,,HOFFMAN,AU90X4024RLP,,"1Dr, 90x40x24 RightSideOpen","2,069.61",Rexel,7/14/2025
+SW,FT SE,,,,9701*-VWSVBDL05T3*,,FactoryTalk View SE Small Bundle: Unlimited Display Server with 5 Clients,"17,462.52",REXEL,2/11/2025
+PC,HX500,,,OnLogic,HX500-I7-512SSD-16GB-WIN10LTSC,,"LOGIC SUPPLY - HX500 COMPUTER, 16GB WT RAM, 512GB SSD, CORE I7, WIN10 LTSC, TB PWR, AUTO ON, WALL BRKTS, PORT BLK","1,911",LOGIC SUPPLY INC.,11/14/2024
+HMI,,,,HOPE INDUSTRIAL,VESA-RADARM2-BLK,,Radial Arm Mount For Industrial Monitor,332,"Hope Industrial Systems, INC.",2/18/2025
+PC,,,,HP,Generic Server PC,,Server,"3,500",,11/14/2024
+HMI,,,,HOPE INDUSTRIAL,HISML19-CTBH,,"19"" TOUCH SCREEN MONITOR","1,031","Hope Industrial Systems, INC.",11/20/2024
+CAB,,,,HOFFMAN,A90PM40G,,"Panels for Large Bulletin A27, A28, A28S4 and A34 Multi-Door Enclosures, fits 84x 1 Bay, Steel",280.58,Rexel,7/15/2025
+CAB,,,,HOFFMAN,AU9024EPT,,END PLATE 90X24,775.93,Rexel,7/15/2025
+CAB,,,,HOFFMAN,AU9024FGK,,GASKET KIT 90X24,131.51,Rexel,7/15/2025
+MCCB,140G,250,,AB,140G-J6H3-D25,,"Breaker, Molded Case, 250 Amp, 3-Pole, 600 Volt AC, 65 kAIC, J Frame","1,822.05",Rexel,7/15/2025
+MCCB,140G,125,,AB,140G-G6C3-D12-KJ,,"Breaker, Molded Case, G Frame, 65 kAIC, T/M - Thermal Magnetic, 3 Poles, Rated Current 125 Amp, 600 Volt AC, 1 Normally Open/Normally Closed Auxiliary Contact, 24 Volt AC","1,563.75",Rexel,7/15/2025
+INST-LAS,,,206-0464,WENGLOR,WP-Mount,,MOUNTING SYSTEM FOR  50 X 50 X 20-40MM,9.3,,8/2/2023
+INST-LAS,,,206-0307,WENGLOR,OY1P303P0102,,"DISTANCE LASER SENSOR, 3M RANGE, 0-10VDC / 4-20MA ANALOG OUTPUT, I/O LINK INTERFACE",241.01,,2/12/2024
+CBL,,,,IFM,EVC086,,M12- 15M FEMALE CORDSET,38,IFM,7/15/2025
+Labor,,,,,EngHR,,,145,,7/15/2025
+Labor,,,,,Weld,,,125,,7/15/2025
+Labor,,,,,Mach,,,125,,7/15/2025
+Labor,,,,,Assy,,,125,,7/15/2025
+SW,,,,IBA,30.771.024,,"DATA LOGGING PACKAGE WITH IBAPDA-V7-1024 SOFTWARE LICENSE, FOR WINDOWS 10","6,200","iba America, LLC",6/2/2025
+PLC,1756,,201-1624,AB,1756-A10,,"Chassis, Mounting, 10 Slots, 20"" x 30"" x 8""",696.53,Rexel,7/16/2025
+PLC,1756,,206-8795,AB,1756-A17,,"Chassis, Mounting, 17 Slots, 30"" x 36"" x 8""",983.44,Rexel,7/16/2025
+PLC,1756,,201-1711,AB,1756-A7,,"Chassis, Mounting,7 Slots, 20"" x 24"" x 8""",572.01,Rexel,7/16/2025
+PLC,1756,,201-1623,AB,1756-EN2TR,,"Module, Communications, EtherNet/IP Bridge, 10 - 100Mbps","3,240.20",Rexel,7/16/2025
+PLC,1756,,206-2469,AB,1756-EN4TR,,"Module, Communications, EtherNet/IP, 10M/100M1G 512 TCP Connections","3,730.32",Rexel,7/16/2025
+PLC,1756,,205-2571,AB,1756-HSC,,"I/O Module, High Speed Counter, 2 Counter w/3 Input and 4 Output","1,199.98",Rexel,7/16/2025
+PLC,1756,,201-1817,AB,1756-IA16,,"I/O Module, Digital AC Input, 16 Channel, Current Sinking, 120VAC",520.58,Rexel,7/16/2025
+PLC,1756,,207-2585,AB,1756-IA16I,,"I/O Module, Digital AC Input, 16 Channel, Current Sinking, 120VAC",655.94,Rexel,7/16/2025
+PLC,1756,,204-7411,AB,1756-IB16,,"I/O Module, Digital DC Input, 16 Channel, 24VDC",406.01,Rexel,7/16/2025
+PLC,1756,,206-5830,AB,1756-IB16S,,"I/O Module, ControlLogix, Digital DC Input, 16 Channel, Sinking Safety Input Module",783.13,Rexel,7/16/2025
+PLC,1756,,204-7828,AB,1756-IB32,,"I/O Module, Digital DC Input, 32 Channel, 24VDC",534.13,Rexel,7/16/2025
+PLC,1756,,204-4436,AB,1756-IF16,,"I/O Module, Analog Input, 16 Channel","1,756.47",Rexel,7/16/2025
+PLC,1756,,204-7830,AB,1756-IF4FXOF2F,,"I/O Module, Analog, High Speed, Input/Output, 4 Channel","2,653",Rexel,7/16/2025
+PLC,1756,,204-7832,AB,1756-IF8,,"I/O Module, Analog Input, 8 Channel","1,216.72",Rexel,7/16/2025
+PLC,1756,,205-1047,AB,1756-IF8I,,"I/O Module, Analog Individually Isolated, Input, 8 Channel","2,497.47",Rexel,7/16/2025
+PLC,1756,,207-2860,AB,1756-L81ES,,"Controller, GuardLogix, 3/1.5 MB, USB, 1GB Ethernet, 100 EtherNet/IP","6,781.20",Rexel,7/16/2025
+PLC,1756,,205-1697,AB,1756-L82E,,"Controller, ControlLogix, 5 MB, USB, 1GB Ethernet, 175 EtherNet/IP","9,731.96",Rexel,7/16/2025
+PLC,1756,,205-8689,AB,1756-L82ES,,"Controller, GuardLogix, 5/2.5 MB, USB, 1GB Ethernet, 175 EtherNet/IP, Safety","9,713.15",Rexel,7/16/2025
+PLC,1756,,205-4638,AB,1756-L83ES,,"Controller, GuardLogix, 10/5 MB, USB, 1GB Ethernet, 250 EtherNet/IP","13,895.75",Rexel,7/16/2025
+PLC,1756,,206-2870,AB,1756-L84ES,,"Controller, GuardLogix, 20/6 MB, USB, 1GB Ethernet, 250 EtherNet/IP","16,993.37",Rexel,7/16/2025
+PLC,1756,,205-4639,AB,1756-L8SP,,"Controller, GuardlLogix, Safety Partner, for SIL3/Ple with Primary","1,691.01",Rexel,7/16/2025
+PLC,1756,,201-1712,AB,1756-N2,,Slot Filler for ControlLogix Chassis,32.02,Rexel,7/16/2025
+PLC,1756,,206-8796,AB,1756-OA16,,"I/O Module, Digital AC Output, 16 Channel, 120/240VAC",736.22,Rexel,7/16/2025
+PLC,1756,,206-5835,AB,1756-OBV8S,,"I/O Module, Digital DC, Safety Outputs, 8 Points, (20 Pin) 10-30VDC",944.63,Rexel,7/16/2025
+PLC,1756,,205-1376,AB,1756-OF8,,"I/O Module, Analog Output, 8 Channel","2,287.06",Rexel,7/16/2025
+PLC,1756,,204-4438,AB,1756-OW16I,,"I/O Module, Digital Output, 16 Channel, 125VDC, 125/240VAC",707.34,Rexel,7/16/2025
+PLC,1756,,201-1621,AB,1756-PA75,,"Power Supply, 85 - 265VAC, 20A, 25W","1,254.11",Rexel,7/16/2025
+PLC,1756,,205-1377,AB,1756-TBCH,,"Terminal Block, Removable, 36 Pin, Cage Clamp, Standard Housing",96.53,Rexel,7/16/2025
+PLC,1756,,206-5833,AB,1756-TBCHS,,CONTROLLOGIX 36 PIN SCREW TERMINAL BLOCK,96.53,Rexel,7/16/2025
+PLC,1756,,207-5816,AB,1756-TBE,,"Terminal Block, Housing, Extended Depth",39.51,Rexel,7/16/2025
+PLC,1756,,201-3817,AB,1756-TBNH,,"Terminal Block, Removable, 20 Position, NEMA Screw Clamp",78.12,Rexel,7/16/2025
+PLC,1756,,206-5838,AB,1756-TBNHS,,CONTROLLOGIX 20 PIN SCREW TRM BLOCK,78.12,Rexel,7/16/2025
+CR-Sfty,,,,AB,700S-P710A1,,"NEMA 600 V Safety Relay AC coil, 7 NO & 1 NC, 120 V 60 Hz, Open Type Rail Mounting, Safety Control Relay",290.04,Rexel,7/16/2025
+DISC,1494U,,,AB,1494U-J60-C4-M-PC,,"Disconnect Switch, Fusible, Class J Fuse Clips, 60 Amp, 600 Volt AC, Flange Operated, 4 Foot Cable, Painted Metal Handle, Line and Load Lugs Protective Cover","1,016.60",Rexel,7/16/2025
+WIRE,VFD,Feb-00,206-1420,BELDEN,29530F,,FT. MULTI-CONDUCTOR - 1000V UL FLEXIBLE MOTOR SUPPLY CABLE 3C2/0 133STR VFD 600V BLACK,44.27,"Tanner, Inc. Wire and Cable Specialists",5/19/2025
+WIRE,ENCODER,20,205-5312,BELDEN,9873,,"FT. 20 AWG stranded (7x28) tinned copper conductors, polypropylene insulation, 3 twisted pairs, individually shielded with Beldfoil® (100% coverage)",4.34,"Tanner, Inc. Wire and Cable Specialists",5/28/2025
+WIRE,,12,204-2645,ANIXTER,2A-1204,,"FT. Cable, 12 AWG, 4 Conductor, VNTC stranded bare copper PVC Nylon PVC jacket 600V type TC E2",1.38,"Tanner, Inc. Wire and Cable Specialists",5/19/2025
+CONN,COMPRESSION LUG,,207-8487,,110-3-8-1-LUG,,"SHORT BARREL FLEX CABLE, COMPRESSION LUG, COPPER, 1/0, WIRE RANGE, 3/8 STUD",12,"Tanner, Inc. Wire and Cable Specialists",11/14/2024
+PDB,STUD,240A,,,MPDB62203,,Open-Style PDB UL 1953 1000V Tin-plated Copper - 240A 3-Pole 1 - 1 openings; 1/4-20 x 5/8 --- 1/4-20 x 5/8 Stud to Stud,75.71,Rexel,7/16/2025
+WW,Lay-in  WireWay,"12""x6""",,Nvent,F126L##,,"FT. Wireway,straight Section, Bulletin F10 (lay-in Type 12 Wireway), Size/dims: 12.00x6.00x120.00, Material/finish: Steel/gray",144,Rexel,7/16/2025
+WW,Lay-in  WireWay,"12""x6""",,Nvent,F126LTA,,"Wireway Tee Fitting, Top Opening, 12 Inch x 6 Inch, Steel, Gray",299.14,Rexel,7/16/2025
+WW,Lay-in  WireWay,"12""x6""",,Nvent,F126LE9A,,"Wireway 90 Degree Elbow, Lay-In, Top Opening, 12 x 6 Inch",283.72,Rexel,7/16/2025
+WW,Lay-in  WireWay,"12""x6""",,Nvent,F126LB,,"Wireway Box Connector, Type 12, Lay-in, 12 x 6 Inch ",104.85,Rexel,7/16/2025
+WW,Lay-in  WireWay,"12""x6""",,Nvent,F126LP,,"Wireway Closure End Plate for Type 12 Lay-In Wireway, 12"" x 6""",51.91,Rexel,7/16/2025
+CAB,,,,Nvent,A302416LP,,"Wall Mount Enclosure, NEMA 12/13, Continuous Hinge Cover With Clamps, 30 x 24 x 16 Inch, Steel With Gray",491.42,Rexel,7/16/2025
+CAB,,,,Nvent,A30P24G,,"Panel For Enclosure, 30"" x 24"", Type 3R, 4, 4X, 12/13, Conductive Steel",66.91,Rexel,7/16/2025
+WW,LiquidTight,"1""",,ANAMET,39438,,"FT. Anaconda SEALTITE® - 1"" Type EF Liquidtight Metallic Conduit, Gray",1.92,Rexel,7/16/2025
+PLC,1492-IFM,,207-4250,AB,1492-IFM40F-FS120-2,,Connection Products,283.51,Rexel,7/16/2025
+PLC,1492-IFM,,207-4251,AB,1492-CABLE010X,,"Cable, Pre-Wired, 20 Conductor, 22 AWG, 1.0 m, (3.28 ft)",148.61,Rexel,7/16/2025
+PLC,1492-IFM,,"205-1051,207-4252",AB,1492-CABLE010Y,,"Cable, Pre-Wired, 40 Conductor, 22 AWG, 1.0m, (3.28')",283.45,Rexel,7/16/2025
+PLC,1492-IFM,,207-4249,AB,1492-IFM20F-F120-2,,"Interface Module, Fusible, Digital, 20 Point, 120V AC/DC, BFI",271.41,Rexel,7/16/2025
+PLC,1492-IFM,,205-4801,AB,1492-CABLE025Y,,"Cable, Pre-Wired, 40 Conductor, 22 AWG, 2.5m, (8.2')",341.09,Rexel,7/16/2025
+PLC,1492-IFM,,,AB,1492-CABLE025X,,"Cable, Pre-Wired, 20 Conductor, 22 AWG, 2.5m, (8.2')",163.62,Rexel,7/16/2025
+PLC,1492-IFM,,,AB,1492-IFM40F-FS-4,,"Interface Module, Digital, Fusible, 40 Point Isolated, Fuse Clips",371.32,Rexel,7/16/2025
+MTR,,100HP,207-8387,BALDOR,"100HP, 1750/3550RPM, 460VAC, 124A, FL2898Z FRAME. TEAO-BC, HS35M ENC.",,"BALDOR, AC 100HP, 1750/3550RPM, 460VAC/3PH/60, 124A, FL2898Z FRAME, FOOT MOUNTED, STD 1 MI O. 200% BELOW/125% ABOVE BASE SPEED, TEAO-BC ENCLOSURE, F2 CONDBOX, CLASS H, 40°C AMB, 1.0SF, (3) N.C. THERMOSTATS, AVTRON HS35M ENCODER, 2048PPR, EPIC CONN","12,756",TORQUE DRIVES,11/14/2024
+MTR,,75HP,207-6730,BALDOR,"75HP AC MOTOR, 1150/2300RPM, 460VAC, 96A, FL2898Z FRAME, TEAO-BC, HS35M ENC.",,"BALDOR 75HP RPM-AC MOTOR, 1150/2300RPM, 460VAC/3PH/60, 96A, FL2898Z FRAME, COUPLED DUTY, FOOT MOUNTED, WK²=11.1 LB-FT², 200% BELOW/125% ABOVE BASE SPEED, TEBC, CLASS H, 40°C AMB, 1.0SF, (3) N.C. THERMOSTATS, HS35M AVTRON ENCODER, 2048PPR, EPIC CONN","11,795",TORQUE DRIVES,11/14/2024
+MTR,,25HP,207-5253,BALDOR,"25HP AC MOTOR, 1750/3500 RPM, 460V, 34A, FL2162CZ FRAME, TEAO-BC,HS35M ENC.",,"BALDOR 25HP AC MOTOR, 1750/3500 RPM, 460V/3PH/60HZ, 34A, FL2162CZ FRAME, FOOT/C-FACE, 1MIN O/L, 200%/125% TORQUE, TEAO-BC, F3 BOX, CLASS H, 40C, 1.0SF, 3 N.C. THERMOSTATS, AVTRON HS35M ENCODER, 2048 PPR, EPIC CONNECTOR","6,250",TORQUE DRIVES,2/12/2025
+RIO,1794,,204-7110,AB,1794-AENTR,,"Communications Adaptors, Dual Port, Flex I/O, Ethernet/IP, 8 Modules, 24 Volt DC, 640 mA, 7.3 Watt","1,062.81",Rexel,7/16/2025
+PL,,,,AB,800T-PL-LED-12-130V AC/DC,,"Pilot Light, LED, 12-130V AC/DC, 30 mm, Type 4/13",115.80058,Rexel,6/30/2025
+FU,CC,,,,CC<=30A,,"Class CC Fuse, ## Amp, LOW-PEAK, Time-Delay",21.44,Rexel,7/17/2025
+FU,J,,,,J<=30,,Class J Fuse ≤ 30A,29.1,Rexel,7/17/2025
+FU,J,,,,J<=60,,Class J Fuse ≤ 60A,44.68,Rexel,7/17/2025
+FU,J,,,,J<=100,,Class J Fuse ≤ 100A,79.14,Rexel,7/17/2025
+FU,J,,,,J<=200,,Class J Fuse ≤ 200A,160.17,Rexel,7/17/2025
+FU,Glass,,,,"Glass Fuse 1/4""",,"Fuse, # Amp, 250 Volt AC, Time Delay",2.5,Rexel,7/17/2025
+MCCB,140G,,204-5938,AB,140G-G6C3-C40,,"Breaker, Molded Case, 40A, 3P, 600Y/347VAC, G6 Frame, 65kAIC",539.44,Rexel,7/17/2025
+MCCB,140G,,204-6131,AB,140G-G-FCX03,,"Breaker, Flex Cable Operator, Non-Metallic Handle, 3' Length",435.36,Rexel,7/17/2025
+MCCB,140G,,205-9395,AB,140G-G-MTL63,,"Breaker, Molded Case, G Frame, Terminal Lugs, 6 x 14-2AWG",56.38,Rexel,7/17/2025
+MCCB,MCCB,,"205-9396,204-3637",AB,140G-G-TLC13,,"Breaker, Molded Case, G Frame, Terminal Lugs, 14-1/0AWG, CU Only",19.66,Rexel,7/17/2025
+RIO,1734,,"206-0401,206-1822",AB,1734-4IOL,,"Interface Module, POINT 4 Channel, IO-Link Master",385.5,Rexel,7/17/2025
+CR-SFTY,,,204-7917,AB,700-HN123,,"Socket, 8-Pin, Miniature, Coil and Contact Separation, for 700-HP",12.41,Rexel,7/17/2025
+CR-SFTY,,,205-3726,AB,700-HPS2Z24,,"Relay, Safety, Control, 8-Blade, 24VDC, 2PDT, 8A",23.07,Rexel,7/17/2025
+CAB,,,201-1068,HOFFMAN,A36P30,,"Panel For Enclosure, 36"" x 30"", Type 3R, 4, 4X, 12/13, Steel",106.88,Rexel,7/17/2025
+CAB,,,201-4196,HOFFMAN,A36SA3210LPPL,,"Disconnect Enclosure, 36 x 32 x 10"", Steel/Gray",652.92,Rexel,7/17/2025
+GND,,,201-4197,ILSCO,D167-8,,"Neutral/Ground Bar Kit, 8 Circuit",55.02,Rexel,7/17/2025
+RF,,,,Prosoft Technology,A2404NJ-OC-B,,2.4GHZ BASE STATION ANTENNA OMNIDIRECTIONAL,220.74,Rexel,7/17/2025
+RF,,,,Prosoft Technology,C19M10-30-002,,"Extension Cable, LMR-195, RP SMA Connector, 2', 2.5KW, 1000VDC",98.75,Rexel,7/17/2025
+RF,,,,Prosoft Technology,C19M10-40-002,,"Conversion Cable, LMR-195, RP SMA Male to N Male Plug, 2', 2.5KW",71.16,Rexel,7/17/2025
+RF,,,,Prosoft Technology,RLX2-IHNF-A,,"Wireless Hotspot, 802.11abgn, Fast Industrial, DIN Rail","1,959.07",Rexel,7/17/2025
+BEACON,,,,AB,854K-BPM10C,,"Mounting Base, 60mm, Blk Housing",76.81,Rexel,7/17/2025
+BEACON,,,206-1025,AB,856T-BB4,,"Light Modules, 70mm, Black, Red LED",198.66,Rexel,7/17/2025
+BEACON,,,"206-1026,206-2244",AB,856T-BP1,,"Sound Modules, 70mm, 8 Tones, Black",107.57,Rexel,7/17/2025
+MPCB,,,,AB,140MT-C3E-B63,,"MPCB, Standard Magnetic Trip (Fixed at 14 x le), 4.0 - 6.3 A, Std. Performance, Frame Size C",295.15,Rexel,7/17/2025
+CONTACTOR,100-C,23A,,AB,100-C23D10,,"100-C IEC Contactor, 120V 60Hz, Screw Terminals, Line Side, 23A, 1 N.O.  0 N.C. Auxiliary Contact Configuration",249.42,Rexel,7/17/2025
+OL,,,,AB,193-1EECB,,"E100 Overload Relay, Trip Class 10 or 20, Basic Overload Relay, 1.0...5.0A, IEC 100-C C09...C23",90.31,Rexel,7/17/2025
+MPCB,,,,AB,140MT-F9N-C45,,"MPCB,Fixed Magnetic (15 x In) MCP, 45 A, High Performance, Frame Size F",722.59,Rexel,7/17/2025
+OL,,,,AB,193-1EEFD,,"E100 Overload Relay, Trip Class 10 or 20, Basic Overload Relay, 11...55A, NEMA 300 Size 0...2, Standard",138.49,Rexel,7/17/2025
+DCPS,1606,10A,"201-1596
+
+",AB,1606-XLE240EN,,"Power Supply, 240W, 24 - 28VDC, Output, 120 AC Input",277.29,Rexel,7/17/2025
+COMM,CAT6,,205-6598,PHOENIX CONTACT,_2703015,,"PATCH PANEL, TWO RJ45 SOCKETS, 10/100/1000 MBPS, DIN RAIL MOUNTING, IP20",56.02,"NEFF GROUP DISTRIBUTORS, INC",12/5/2024
+FU,,,,AB,1492-H4,,"Terminal Block, Fuse Holder, 15A, 100 - 300V AC/DC, Neon BFI",10.94,Rexel,7/17/2025
+FU,,,,AB,1492-FB2J30,,"Fuse Holder, Class J Type Fuses, 2 Pole, 30 Amp, 110 - 600 Volt",55.04,Rexel,7/17/2025
+CAB,,,"205-3879,201-1769",HOFFMAN,A808CH,,"Junction Box, NEMA 12, Hinged Cover, 8"" x 8"" x 4""",53.9,Rexel,7/17/2025
+CAB,,,"205-3880,201-2142,201-2412",HOFFMAN,A8P8,,"Panel For Junction Box, 8"" x 8"", Steel/White Powder Coat Finish",5.37,Rexel,7/17/2025
+INST-PRS,,,,IFM EFECTOR,IGC258,,Inductive sensor; M18 x 1 / L = 45 mm; Sensing range 8 mm flush mountable; normally open; DC; PNP; M12 Connector,90.72,,7/17/2025
+INST-PRS,,,,IFM EFECTOR,U20302,,Angle bracket; M18 x 1 mm,8,,7/17/2025
+MCCB,140G,,,AB,140G-G6C3-D10-KJ,,"Molded Case Circuit Breaker, G Frame, 65 kA Interrupt Rating, T/M - Thermal Magnetic, 3 Poles, Rated Current 100 Amp, 1 Normally Open/Normally Close Auxiliary, 24 Volt DC","1,028.51",Rexel,7/21/2025
+Surge,,,201-1620,SOLA HD,STV25K-10S,,SURGE SUPPRESSOR DIN RAIL MOUNT,343.14,Rexel,7/21/2025
+SW,FT SE,,,,9701*-VWSTNBDLT4*,,FactoryTalk View SE Station Bundle: Unlimited Displays - 1 Client,"5,069.34",REXEL,7/21/2025
+MTR,,30HP,207-4036,BALDOR,"30HP AC MOTOR, 1750/3500RP, 460V, 40 FLA, FL2162CZ FRAME, TEBC, HS35M ENC.",,"BALDOR RPM/AC MOTOR, 30HP, 1750/3550RPM, 460V 3PH 60HZ 40A, FL2162CZ FRAME, FOOT MOUNTED W/ 250TC C-FACE, TEBC, AVTRON HS35M ENCODER W/ EPIC CONNECTOR, F-3 CONDUIT BOX, INCLUDES BALDOR ENCODER KIT P/N 417077-302.","6,929",TORQUE DRIVES,7/21/2023
+OSMNT,,,,SAGINAW,SCE-SA360C,,"Coupling, 360 Swivel",190.79,SAGINAW,7/21/2025
+OSMNT,,,,SAGINAW,SCE-SA90A,,"Angle, 90 deg",180.02,SAGINAW,7/21/2025
+OSMNT,,,,SAGINAW,SCE-SA230WH,,"Wall Hinge, 230 Swivel",507.63,SAGINAW,7/21/2025
+OSMNT,,,,SAGINAW,SCE-SA20TC,,"20"" Closed Tube Suspension Profile",138.28,SAGINAW,7/21/2025
+OSMNT,,,,SAGINAW,SCE-SA39TC,,"39"" Closed Tube Suspension Profile",224.64,SAGINAW,7/21/2025
+OSMNT,,,,SAGINAW,SCE-SA79TC,,"79"" Closed Tube Suspension Profile",298.93,SAGINAW,7/21/2025
+MCP,140MG,250A,,AB,140MG-J8P-D25,,"140MG - Motor Circuit Protectors, J frame, 35..65 kA at 480V, MCP (magnetic only), Rated Current 250 A","1,629.45",Rexel,7/23/2025
+OL,,,,AB,193-ESM-I-200A-E205,,Current Sensing Module (20...200 A) Mounts to 100-E190...E205 contactor,373.11,Rexel,7/23/2025
+CONTACTOR,100-E,190A,,AB,100-E190ED11,,"Contactor, 190 Amp, AC3 Duty, 100 - 250 Volt AC/DC, Electronic Coil , with PLC Input, 1 Normally Open, 1 Normally Closed","1,537.62",Rexel,7/23/2025
+MCP,140MG,200A,,AB,140MG-J8P-D20,,"Breaker, Molded Case, 200 Amp, 3-Pole, J Frame, 480 Volt AC, 65 kAIC, Magnetic Trip Only","1,629.45",Rexel,7/23/2025
+CONTACTOR,100-E,146A,,AB,100-E146ED11,,"Contactor, 146 Amp, AC3 Duty, 100 - 250 Volt AC/DC, Electronic Coil , 1 Normally Open, 1 Normally Closed",898.7,Rexel,7/23/2025
+OL,,,,AB,193-ESM-I-200A-E146,,Current Sensing Module (20...200 A) Mounts to 100-E146 contactor,380.9,Rexel,7/23/2025
+INST-PRS,,,,IFM EFECTOR,IIS226,,Inductive sensor; M30 x 1.5 / L = 60 mm; Sensing range 15 mm flush mountable; normally open; DC; PNP; M12 Connector; IP 65; IP 66; IP 67; IP 68; IP 69K; 3-wire; Ambient temperature -40...85 °C; Switching frequency 100 Hz,99.9,IFM,7/23/2025
+CONN,,,,CANFIELD CONNECTOR,5J6F4-A11-US0A - 2,,"Universal, 4-position, Socket angled M12 SPEEDCON, Coding: A, Screw connection, cable gland Pg7, external cable diameter 4 mm ... 6 mm",20.6,,7/23/2025
+CONN,,,,MENCOM,MS14SPM-7FP-10M-B-EN01,,CM 7 POLE 10 METER CABLE ASSEMBLY,118.38,,11/14/2024
+CONN,,,,MENCOM,VAN-590-00,,"SOLENOID VALVE CONNECTOR, CORDSET, 4 POLE, FORM A, 5 METERS,  50V",16.89,,11/14/2024
+,,,,,,,,,,11/14/2024
+CONN,,,,IFM,EVC854,,Y connection cable,35.42,IFM,7/25/2025
+CONN,,,,CANFIELD CONNECTOR,P5103-1751000,,CONNECTOR 24 VOLT DS HOODS ONLY,12.08,CANFIELD CONNECTOR,7/25/2025
+CAB,,,,HOFFMAN,A1412CH,,"Junction Box, NEMA 12, Hinged Cover, 14 x 12 x 6 Inch, Steel/Gray",95.46,Rexel,7/25/2025
+CAB,,,,HOFFMAN,A14P12,,"Panel for Junction Box Size: 14"" x 12"", Size/Dims: 12.75x10.88, Material/Finish: Steel/White",10.76,Rexel,7/25/2025
+OS,,,,WIEGMANN,WC1248BD,,"48"" WIDE CONSOLE BODY, OILTIGHT, CARBON STEEL","2,800",MIDWEST FABRICATIONS,9/8/2023
+OS,,,,WIEGMANN,WC1248W,,"48"" WIDE CONSOLE WRITING DESK, CARBON STEEL GRAY","2,600",MIDWEST FABRICATIONS,9/8/2023
+OS,,,,WIEGMANN,WC12B,,"WC12 36"" WIDE CONSOLE BODY, OILTIGHT, CARBON STEEL - GRAY TOP","2,600",MIDWEST FABRICATIONS,1/27/2025
+OS,,,,WIEGMANN,WC12W,,"WC12W - WC12 36"" WIDE CONSOLE WRITING DESK,CARBON STEEL","2,650",MIDWEST FABRICATIONS,10/10/2023
+PB,800T-Generic,,,AB,800T-PB,,"Push Button, Flush Head, Black, Momentary, 30 mm, NEMA 4/13, 1 Normally Open, 1 Normally Closed, Contact Block",60.23,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-SL,,"Pilot Light, LED, 12 - 130 Volt AC/DC, 30 mm, Type 4/13",118.01,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-SS-2POS,,"Selector Switch, 2 Position, Maintained, 30mm, Black Knob, White Insert, 1 Normally Open, 1 Normally Closed, Contact Block, Nema 4/13",70.88,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-SS-3POS,,"Selector Switch, 3 Position, 30mm, Knob Lever, Black with White Insert, Spring Return from Both, KB7 Cam, 2 Normally Open, 2 Normally Closed",92.03,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-PBLT,,"Push Button, Illuminated, Extended Head, with Guard, 12 - 130 Volt AC/DC, LED, 30 mm, Type 4/13, 1 Normally Open, 1 Normally Closed",160.44,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-SS-2POS-KEY,,"Selector Switch, 2 Position, Keyed, 30mm, Key Removal from Left, Key Code D018, 1 Normally Open, Contact Blocks, NEMA 4/13",137.58,Rexel,7/28/2025
+PB,800T-Generic,,,AB,800T-SS-4POS,,"Selector Switch, 4 Position, Lever Knob, Maintained, 4 Normally Open, 4 Normally Closed, Contacts, 4 x 800T-XA, 2 on White Side, 2 on Black Side, F Cam, 30mm",167.39,Rexel,7/28/2025
+PB,800T-Generic,,,AB,440T-MRPSE11BB,,"Switch, ProSafe, Rotary, Panel Mount, Trapped Key, 20 Amp, 2 Normally Open, 2 Normally Closed, Contacts, Code BB",286.22,,7/28/2025
+PB,800T-Generic,,,AB,440T-AKEYE10BB,,"Key, ProSafe, Interlocked Key Switch, Trapped, Key Code Bb",52.39,,7/28/2025
+Labor,,,,,EngHrs-v0.2,,Engineering Hours,0,,7/25/2025
+RIO_K,1734_K,,,AB,1734-IB8K,8.90E+11,"I/O Module, Digital DC Input, 8 Channel, DIN Rail, 24VDC",198.09047,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-OB8K,8.90E+11,POINT I/O 8POINT DIGITAL OUTPUT MODULE-K,223.80274,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-OW4K,8.90E+11,POINT I/O 4 POINT RELAY OUTPUT MODULE-K,288.07199,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-IE2VK,8.90E+11,POINT I/O 2 POINT ANALOG INPUT MODULE-K,502.22406,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-AENTRK,8.90E+11,"Communication Adapter, 2 Ethernet/IP Ports, Conformally Coated","1,050.50",Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-OE2VK,8.90E+11,POINT I/O 2 POINT ANALOG OUTPUT MODULE-K,523.6446,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-IB8SK,1.91E+11,"I/O Module, Safety, 8 Point Input, Conformal Coated",846.88135,Rexel,7/29/2025
+RIO_K,1734_K,,,AB,1734-OB8SK,1.91E+11,"I/O Module, Safety, Digital DC Output, 8 Channel, Current Sourcing, 24VDC",985.68037,Rexel,7/29/2025
+INST-PT,,,,IFM EFECTOR,PN2271,,Pressure sensor with display,505.5,,7/29/2025
+MCCB,PowerPacT,P Frame,,SQD,PJL36100U31A,,"Molded Case Circuit Breaker 480v, 3p
+1000A, Air 65 Ka, 50/60 Hz Ul 489, Line/Load Lugs
+","5,134",Crescent Electric,8/7/2025
+MCCB,PowerPacT,,,SQD,9422CMP40,,"DISCONNECT MECHANISM CIRCUIT
+BREAKER CABLE OPERATED 150/250A 3
+POLE POWERPACT M P BREAKER 48 INCH
+CABLE",484.28,Crescent Electric,8/7/2025
+MCCB,PowerPacT,,,SQD,9422AP1,,"OPERATING MECHANISM FLANGE MOUNTED
+VARIABLE DEPTH 6 INCH DUAL CABLE
+HANDLE MECHANISM NEMA 1 3R 4 SHEET
+STEEL 12",114.82,Crescent Electric,8/7/2025
+MCCB,140G,J Frame,,AB,140G-J6F3-D15,8.86E+11,"Breaker, Molded Case, 150 Amp, 3-Pole, 600 Volt AC, 65 kAIC, J Frame","1,577.17",Rexel,8/18/2025
+MCCB,140G,,,AB,140G-J-FMXB04,1.91E+11,"Handle Accessories/Operating Mechanisms, 140G Flange Cable - Metal Bail, Painted Metal Handle, 4 Foot",449.93,Rexel,8/18/2025
+MCCB,140G,,,AB,140G-J-EZ,1.91E+11,"Breaker, Operating Systems, Mounting Plate, Frame I/J/K",98.55,Rexel,8/18/2025
+MCCB,140G,J Frame,,AB,140G-J-MTL63,8.86E+11,"Breaker, Molded Case, J Frame, Terminal Lugs, 6 x 12 - 2 AWG, CU Only",119.87,Rexel,8/18/2025
+MCCB,140G,J Frame,,AB,140G-J-TLA13,8.86E+11,"Breaker, Molded Case, J Frame, Terminal Lugs, 14 - 1/0 AWG, AL/CU",47.81,Rexel,8/18/2025
+PLC,5069,,206-9700,AB,5069-L310ERS2,8.90E+11,"Controller, Compact GuardLogix, 5380, 1MB Standard & 0.5MB Safety Memory","2,803.01",8/18/2025,8/18/2025
+PLC,5069,,"205-3080,205-1300",AB,5069-RTB64-SCREW,8.87E+11,"Accessory, I/O Power Terminal RTB Kit for Both 4 - 6 Pin Screw Type",37.89,8/18/2025,8/18/2025
+PLC,5069,,205-0188,AB,5069-IB16,8.86E+11,"I/O Module, CompactLogix, 16 Channel, 24VDC, Sink Input, Requires Terminal Kit",294.8,8/18/2025,8/18/2025
+PLC,5069,,205-7336,AB,5069-OB16,8.86E+11,"I/O Module, CompactLogix, 16 Channel, 24VDC, Source Output, Requires Terminal Kit",381.1,8/18/2025,8/18/2025
+PLC,5069,,205-8220,AB,5069-IB8S,8.86E+11,"I/O Module, Safety Input, Compact 5000, 8 Channel, 24VDC",670.3,8/18/2025,8/18/2025
+PLC,5069,,206-9661,AB,5069-IY4,8.86E+11,"I/O Module, Compact, 4 Channel, Voltage/Current/RTD/TC, Input Module",578.38,8/18/2025,8/18/2025
+PLC,5069,,205-8221,AB,5069-OBV8S,8.90E+11,"I/O Module, Compact 5000, 8 Channel, 24VDC Safety Configurable Output",860.84,8/18/2025,8/18/2025
+PLC,5069,,204-7766,AB,5069-RTB18-SPRING,8.86E+11,"Terminal Block, Compact I/O, 18 Pins, Spring Clip Type",69.27,8/18/2025,8/18/2025
+PLC,5069,,205-3777,AB,5069-OF4,8.86E+11,"I/O Module, CompactLogix, 4 Channel, Voltage/Current Analog, Output",923.61,8/18/2025,8/18/2025
+PLC,5069,,"207-7201,205-3958",AB,5069-IF8,8.86E+11,"I/O Module, CompactLogix, 8 Channel, Voltage/Current, Input Module",971.81,8/18/2025,8/18/2025
+PLC,5069,,206-9662,AB,5069-OB8,8.90E+11,"I/O Module, CompactLogix, 8 Channel, 24VDC, Source Output",352.07,8/18/2025,8/18/2025
+PLC,5069,,"205-6639,207-3825",AB,5069-OW16,8.90E+11,"I/O Module, Compact, 16 Channel, Non-Isolated, NO, Relay Output",784.62,8/18/2025,8/18/2025
+PLC,5069,,206-9663,AB,5069-OF8,8.86E+11,"I/O Module, CompactLogix, 8 Channel, Voltage/Current Analog, Output","1,703.75",8/18/2025,8/18/2025
+PLC,5069,,207-3798,AB,5069-RTB14CJC-SCREW,8.86E+11,"Compact 5000 14 Screw RTB With CJC, 14 Pin, Screw Type Terminal Blo",69.27,8/18/2025,8/18/2025
+COMM,5200,10-Port,,AB,1783-CMS10P,,"Stratix 5200 Switch, 8 Copper 100/1000 Ports, 2 Combo 100/1000 Ports, Full FW","1,868.52",Rexel,8/18/2025

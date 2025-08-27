@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Create Standard Assembly{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus"></i> Create Standard Assembly
+                </h5>
+                <small class="text-muted">Create a reusable assembly template</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('standard_assemblies.create_assembly') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-4">
+                        <label for="name" class="form-label">Assembly Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="Enter assembly name...">
+                        <small class="form-text text-muted">
+                            Choose a descriptive name that will help identify this assembly
+                        </small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="category" class="form-label">Category *</label>
+                        <div class="input-group">
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">Select category...</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.code }}" title="{{ category.description or '' }}">
+                                        {{ category.code }} - {{ category.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" id="newCategoryBtn">
+                                <i class="fas fa-plus"></i> New
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Categories help organize and filter your standard assemblies. 
+                            <a href="{{ url_for('categories.list_categories') }}" target="_blank">Manage categories</a> to add new ones.
+                        </small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4"
+                                placeholder="Describe this assembly, its purpose, and when to use it..."></textarea>
+                        <small class="form-text text-muted">
+                            A good description helps others understand when and how to use this assembly
+                        </small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="created_by" class="form-label">Created By</label>
+                        <input type="text" class="form-control" id="created_by" name="created_by"
+                               placeholder="Your name or username" value="System">
+                        <small class="form-text text-muted">
+                            This helps track who created the assembly for future reference
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Next Steps:</strong> After creating the assembly, you'll be taken to the assembly builder 
+                        where you can add components using drag-and-drop or search functionality.
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('standard_assemblies.list_assemblies') }}" 
+                           class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check"></i> Create Assembly
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // New category button handler - redirect to category management
+    document.getElementById('newCategoryBtn').addEventListener('click', function() {
+        window.open('{{ url_for("categories.create_category") }}', '_blank');
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const name = document.getElementById('name').value.trim();
+        const category = document.getElementById('category').value.trim();
+        
+        if (!name) {
+            e.preventDefault();
+            alert('Assembly name is required.');
+            document.getElementById('name').focus();
+            return false;
+        }
+        
+        if (!category) {
+            e.preventDefault();
+            alert('Category is required.');
+            document.getElementById('category').focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

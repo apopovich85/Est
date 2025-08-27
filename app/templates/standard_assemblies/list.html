@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+
+{% block title %}Standard Assemblies{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-cogs"></i> Standard Assemblies</h1>
+        <p class="text-muted mb-0">Manage reusable assembly templates</p>
+    </div>
+    <div>
+        <a href="{{ url_for('standard_assemblies.create_assembly') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Standard Assembly
+        </a>
+        <a href="{{ url_for('standard_assemblies.import_assemblies') }}" class="btn btn-info me-2">
+            <i class="fas fa-upload"></i> Import from CSV
+        </a>
+        <a href="{{ url_for('standard_assemblies.apply_interface') }}" class="btn btn-success">
+            <i class="fas fa-download"></i> Apply to Estimates
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ current_search }}" placeholder="Search assemblies...">
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.code }}" 
+                                {% if category.code == current_category %}selected{% endif %}
+                                title="{{ category.description or '' }}">
+                            {{ category.code }} - {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="active" class="form-label">Status</label>
+                <select class="form-select" id="active" name="active">
+                    <option value="true" {% if active_only %}selected{% endif %}>Active Only</option>
+                    <option value="false" {% if not active_only %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <a href="{{ url_for('standard_assemblies.list_assemblies') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Assembly Table -->
+{% if assemblies %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 300px;">Assembly Name</th>
+                            <th style="width: 100px;">Version</th>
+                            <th style="width: 180px;">Category</th>
+                            <th style="width: 120px;">Components</th>
+                            <th style="width: 130px;">Total Cost</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 120px;">Created</th>
+                            <th style="width: 200px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assembly in assemblies %}
+                        <tr data-assembly-id="{{ assembly.standard_assembly_id }}">
+                            <td>
+                                <div>
+                                    <strong>{{ assembly.name }}</strong>
+                                    {% if assembly.description %}
+                                    <br><small class="text-muted">{{ assembly.description[:60] }}{% if assembly.description|length > 60 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">v{{ assembly.version }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ assembly.category.name if assembly.category else 'No Category' }}</span>
+                            </td>
+                            <td class="text-center">
+                                <strong class="text-primary">{{ assembly.component_count }}</strong>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-success">${{ "{:,.2f}".format(assembly.total_cost or 0) }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if assembly.is_active else 'secondary' }}">
+                                    {{ 'Active' if assembly.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                            <td>
+                                <small>{{ assembly.created_at.strftime('%m/%d/%Y') if assembly.created_at else 'No Date' }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('standard_assemblies.view_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+                                       class="btn btn-outline-info btn-sm" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('standard_assemblies.edit_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+                                       class="btn btn-outline-primary btn-sm" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-outline-success btn-sm apply-assembly-btn"
+                                            data-assembly-id="{{ assembly.standard_assembly_id }}"
+                                            data-assembly-name="{{ assembly.name }}" title="Apply to Estimate">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" 
+                                                id="dropdown{{ assembly.standard_assembly_id }}" data-bs-toggle="dropdown" 
+                                                aria-expanded="false" title="More Actions">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="dropdown{{ assembly.standard_assembly_id }}">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('standard_assemblies.view_versions', assembly_id=assembly.standard_assembly_id) }}">
+                                                    <i class="fas fa-history"></i> Version History
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item text-warning" 
+                                                        onclick="createVersion({{ assembly.standard_assembly_id }}, '{{ assembly.name }}')">
+                                                    <i class="fas fa-code-branch"></i> Create New Version
+                                                </button>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <button class="dropdown-item text-danger" 
+                                                        onclick="toggleAssemblyStatus({{ assembly.standard_assembly_id }}, {{ 'false' if assembly.is_active else 'true' }})">
+                                                    <i class="fas fa-{% if assembly.is_active %}pause{% else %}play{% endif %}"></i> 
+                                                    {% if assembly.is_active %}Deactivate{% else %}Activate{% endif %}
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No Standard Assemblies Found</h4>
+        <p class="text-muted">
+            {% if current_search or current_category %}
+                Try adjusting your filters or 
+                <a href="{{ url_for('standard_assemblies.list_assemblies') }}">clear all filters</a>.
+            {% else %}
+                Create your first standard assembly to get started!
+            {% endif %}
+        </p>
+        <a href="{{ url_for('standard_assemblies.create_assembly') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Standard Assembly
+        </a>
+    </div>
+{% endif %}
+
+<!-- Create Version Modal -->
+<div class="modal fade" id="createVersionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Version</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createVersionForm" method="POST">
+                <div class="modal-body">
+                    <p>Create a new version of <strong id="versionAssemblyName"></strong>?</p>
+                    <div class="mb-3">
+                        <label for="versionNotes" class="form-label">Version Notes</label>
+                        <textarea class="form-control" id="versionNotes" name="notes" rows="3"
+                                placeholder="Describe what changed in this version..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Create Version</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Apply Assembly Modal -->
+<div class="modal fade" id="applyAssemblyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Apply Standard Assembly</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Apply <strong id="applyAssemblyName"></strong> to an estimate:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="applyProject" class="form-label">Project</label>
+                            <select class="form-select" id="applyProject">
+                                <option value="">Loading projects...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="applyEstimate" class="form-label">Estimate</label>
+                            <select class="form-select" id="applyEstimate" disabled>
+                                <option value="">Select a project first</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmApplyBtn" disabled>
+                    <i class="fas fa-download"></i> Apply Assembly
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+<script>
+// Global variables
+let currentAssemblyId = null;
+let projects = [];
+let estimates = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap dropdowns
+    console.log('Bootstrap object:', typeof bootstrap);
+    if (typeof bootstrap !== 'undefined') {
+        console.log('Bootstrap version:', bootstrap.Tooltip.VERSION || 'Unknown');
+        // Initialize all dropdown toggles
+        var dropdownElementList = [].slice.call(document.querySelectorAll('[data-bs-toggle="dropdown"]'));
+        console.log('Found', dropdownElementList.length, 'dropdown elements');
+        if (dropdownElementList.length > 0) {
+            var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+                console.log('Initializing dropdown for element:', dropdownToggleEl);
+                var dropdown = new bootstrap.Dropdown(dropdownToggleEl);
+                
+                // Add click event listener for debugging
+                dropdownToggleEl.addEventListener('click', function(e) {
+                    console.log('Dropdown clicked:', e.target);
+                    console.log('Dropdown instance:', dropdown);
+                    console.log('Menu element:', this.nextElementSibling);
+                    
+                    // Force toggle if Bootstrap isn't working
+                    setTimeout(() => {
+                        var menu = this.nextElementSibling;
+                        if (menu && menu.classList.contains('dropdown-menu')) {
+                            if (!menu.classList.contains('show')) {
+                                console.log('Manually showing dropdown');
+                                menu.classList.add('show');
+                                this.setAttribute('aria-expanded', 'true');
+                            } else {
+                                console.log('Dropdown already showing');
+                            }
+                        }
+                    }, 100);
+                });
+                
+                return dropdown;
+            });
+            console.log('Initialized', dropdownList.length, 'dropdowns');
+        }
+        
+        // Add global click handler to close dropdowns
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                    menu.classList.remove('show');
+                    var button = menu.previousElementSibling;
+                    if (button) {
+                        button.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
+        });
+    } else {
+        console.error('Bootstrap is not loaded - trying fallback');
+        // Fallback: try to enable dropdowns manually
+        document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function(element) {
+            element.addEventListener('click', function(e) {
+                e.preventDefault();
+                var menu = this.nextElementSibling;
+                if (menu && menu.classList.contains('dropdown-menu')) {
+                    menu.classList.toggle('show');
+                }
+            });
+        });
+    }
+    
+    // Load projects for apply modal
+    loadProjects();
+    
+    // Apply assembly button handlers
+    document.querySelectorAll('.apply-assembly-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentAssemblyId = this.dataset.assemblyId;
+            document.getElementById('applyAssemblyName').textContent = this.dataset.assemblyName;
+            
+            try {
+                // Try Bootstrap 5 approach first
+                if (typeof bootstrap !== 'undefined') {
+                    const modal = new bootstrap.Modal(document.getElementById('applyAssemblyModal'));
+                    modal.show();
+                } else {
+                    // Fallback to jQuery/Bootstrap 4 approach
+                    $('#applyAssemblyModal').modal('show');
+                }
+            } catch (error) {
+                console.error('Error opening modal:', error);
+                // Simple fallback - just make the modal visible
+                const modal = document.getElementById('applyAssemblyModal');
+                modal.style.display = 'block';
+                modal.classList.add('show');
+            }
+        });
+    });
+    
+    // Project selection handler
+    document.getElementById('applyProject').addEventListener('change', function() {
+        const projectId = this.value;
+        if (projectId) {
+            loadEstimates(projectId);
+        } else {
+            const estimateSelect = document.getElementById('applyEstimate');
+            estimateSelect.innerHTML = '<option value="">Select a project first</option>';
+            estimateSelect.disabled = true;
+            document.getElementById('confirmApplyBtn').disabled = true;
+        }
+    });
+    
+    // Estimate selection handler
+    document.getElementById('applyEstimate').addEventListener('change', function() {
+        document.getElementById('confirmApplyBtn').disabled = !this.value;
+    });
+    
+    // Confirm apply button
+    document.getElementById('confirmApplyBtn').addEventListener('click', function() {
+        const estimateId = document.getElementById('applyEstimate').value;
+        if (estimateId && currentAssemblyId) {
+            applyAssemblyToEstimate(currentAssemblyId, estimateId);
+        }
+    });
+});
+
+function loadProjects() {
+    fetch('/standard_assemblies/api/projects/list')
+        .then(response => response.json())
+        .then(data => {
+            projects = data;
+            const select = document.getElementById('applyProject');
+            select.innerHTML = '<option value="">Select a project...</option>';
+            
+            data.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.project_id;
+                option.textContent = `${project.project_name} (${project.client_name})`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading projects:', error);
+            document.getElementById('applyProject').innerHTML = '<option value="">Error loading projects</option>';
+        });
+}
+
+function loadEstimates(projectId) {
+    fetch(`/standard_assemblies/api/estimates/${projectId}`)
+        .then(response => response.json())
+        .then(data => {
+            estimates = data;
+            const select = document.getElementById('applyEstimate');
+            select.innerHTML = '<option value="">Select an estimate...</option>';
+            
+            if (data.length === 0) {
+                select.innerHTML = '<option value="">No estimates found</option>';
+                select.disabled = true;
+            } else {
+                data.forEach(estimate => {
+                    const option = document.createElement('option');
+                    option.value = estimate.estimate_id;
+                    option.textContent = `${estimate.estimate_name} (${estimate.estimate_number})`;
+                    select.appendChild(option);
+                });
+                select.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading estimates:', error);
+            document.getElementById('applyEstimate').innerHTML = '<option value="">Error loading estimates</option>';
+        });
+}
+
+function applyAssemblyToEstimate(assemblyId, estimateId) {
+    const btn = document.getElementById('confirmApplyBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    btn.disabled = true;
+    
+    fetch(`/standard_assemblies/apply/${assemblyId}/to/${estimateId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('applyAssemblyModal')).hide();
+            
+            // Show success message
+            showToast('success', 'Assembly Applied', data.message);
+            
+            // Optionally redirect to the estimate
+            if (confirm('Assembly applied successfully! Would you like to view the estimate?')) {
+                window.location.href = data.estimate_url;
+            }
+        } else {
+            showToast('error', 'Error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error applying assembly:', error);
+        showToast('error', 'Error', 'Failed to apply assembly. Please try again.');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function createVersion(assemblyId, assemblyName) {
+    document.getElementById('versionAssemblyName').textContent = assemblyName;
+    document.getElementById('createVersionForm').action = `/standard_assemblies/${assemblyId}/create-version`;
+    
+    try {
+        // Try Bootstrap 5 approach first
+        if (typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(document.getElementById('createVersionModal'));
+            modal.show();
+        } else {
+            // Fallback to jQuery/Bootstrap 4 approach
+            $('#createVersionModal').modal('show');
+        }
+    } catch (error) {
+        console.error('Error opening modal:', error);
+        // Simple fallback - just make the modal visible
+        const modal = document.getElementById('createVersionModal');
+        modal.style.display = 'block';
+        modal.classList.add('show');
+    }
+}
+
+function toggleAssemblyStatus(assemblyId, makeActive) {
+    if (!confirm(`Are you sure you want to ${makeActive === 'true' ? 'activate' : 'deactivate'} this assembly?`)) {
+        return;
+    }
+    
+    fetch(`/standard_assemblies/api/${assemblyId}/toggle-status`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ active: makeActive === 'true' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', data.message || 'Assembly status updated successfully');
+            // Reload the page to reflect changes
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update assembly status');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'Error', 'Failed to update assembly status');
+    });
+}
+
+function showToast(type, title, message) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    toast.innerHTML = `
+        <strong>${title}!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

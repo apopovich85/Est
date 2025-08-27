@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Preview Assembly Import{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="fas fa-eye"></i> Preview Assembly Import</h1>
+            <p class="text-muted mb-0">Review and edit assemblies before importing</p>
+        </div>
+        <div>
+            <a href="{{ url_for('standard_assemblies.import_assemblies') }}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Back to Upload
+            </a>
+            <button type="button" class="btn btn-success" onclick="importSelected()">
+                <i class="fas fa-download"></i> Import Selected
+            </button>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3 id="totalAssemblies">{{ assemblies_data|length }}</h3>
+                    <small>Total Assemblies</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3 id="selectedCount">{{ assemblies_data|length }}</h3>
+                    <small>Selected for Import</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3 id="totalComponents">
+                        {% set total_components = 0 %}
+                        {% for assembly_id, data in assemblies_data.items() %}
+                            {% set total_components = total_components + data.components|length %}
+                        {% endfor %}
+                        {{ total_components }}
+                    </h3>
+                    <small>Total Components</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3 id="categoryCount">
+                        {% set categories = [] %}
+                        {% for assembly_id, data in assemblies_data.items() %}
+                            {% if data.category not in categories %}
+                                {% set _ = categories.append(data.category) %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ categories|length }}
+                    </h3>
+                    <small>Categories</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="selectAll" checked>
+                        <label class="form-check-label" for="selectAll">
+                            <strong>Select All Assemblies</strong>
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="expandAll()">
+                            <i class="fas fa-expand-alt"></i> Expand All
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="collapseAll()">
+                            <i class="fas fa-compress-alt"></i> Collapse All
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assemblies List -->
+    <div id="assembliesList">
+        {% for assembly_id, data in assemblies_data.items() %}
+        <div class="card mb-3 assembly-card" data-assembly-id="{{ assembly_id }}">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-1">
+                        <div class="form-check">
+                            <input class="form-check-input assembly-checkbox" type="checkbox" 
+                                   value="{{ assembly_id }}" id="asm_{{ loop.index }}" checked>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="name_{{ assembly_id }}" class="form-label fw-bold mb-1">Assembly Name:</label>
+                        <input type="text" class="form-control form-control-sm assembly-name" 
+                               id="name_{{ assembly_id }}" value="{{ data.name }}" 
+                               data-assembly-id="{{ assembly_id }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category_{{ assembly_id }}" class="form-label fw-bold mb-1">Category:</label>
+                        <select class="form-select form-select-sm assembly-category" 
+                                id="category_{{ assembly_id }}" data-assembly-id="{{ assembly_id }}">
+                            <option value="VFD" {% if data.category == 'VFD' %}selected{% endif %}>VFD - Variable Frequency Drive</option>
+                            <option value="HS" {% if data.category == 'HS' %}selected{% endif %}>HS - Hydraulic System</option>
+                            <option value="WW" {% if data.category == 'WW' %}selected{% endif %}>WW - Wire Way</option>
+                            <option value="SG" {% if data.category == 'SG' %}selected{% endif %}>SG - Squaring Guide</option>
+                            <option value="OTHER" {% if data.category not in ['VFD', 'HS', 'WW', 'SG'] %}selected{% endif %}>{{ data.category }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold mb-1">Components:</label>
+                        <div class="badge bg-primary">{{ data.components|length }}</div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button class="btn btn-outline-secondary btn-sm toggle-components" 
+                                data-assembly-id="{{ assembly_id }}">
+                            <i class="fas fa-chevron-down"></i> Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body components-section" id="components_{{ assembly_id }}" style="display: none;">
+                <h6>Components:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Part Number</th>
+                                <th style="width: 100px;">Quantity</th>
+                                <th style="width: 120px;">UOM</th>
+                                <th style="width: 200px;">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component in data.components %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           value="{{ component.part_number }}" readonly>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm" 
+                                           value="{{ component.quantity }}" step="0.1" min="0">
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm">
+                                        <option value="EA">EA</option>
+                                        <option value="FT">FT</option>
+                                        <option value="LB">LB</option>
+                                        <option value="SET">SET</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           placeholder="Optional notes...">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Import Form -->
+    <form id="importForm" method="POST" action="{{ url_for('standard_assemblies.process_import') }}" style="display: none;">
+        <input type="hidden" name="assemblies_data" id="assembliesData" value="{{ assemblies_data|tojson }}">
+        <input type="hidden" name="selected_assemblies" id="selectedAssemblies" value="">
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let assembliesData = {{ assemblies_data|tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all checkbox functionality
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.assembly-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectedCount();
+    });
+    
+    // Individual checkbox change
+    document.querySelectorAll('.assembly-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Toggle component details
+    document.querySelectorAll('.toggle-components').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const assemblyId = this.dataset.assemblyId;
+            const componentsSection = document.getElementById(`components_${assemblyId}`);
+            const icon = this.querySelector('i');
+            
+            if (componentsSection.style.display === 'none') {
+                componentsSection.style.display = 'block';
+                icon.className = 'fas fa-chevron-up';
+                this.innerHTML = '<i class="fas fa-chevron-up"></i> Hide';
+            } else {
+                componentsSection.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+                this.innerHTML = '<i class="fas fa-chevron-down"></i> Details';
+            }
+        });
+    });
+    
+    // Update assemblies data when name or category changes
+    document.querySelectorAll('.assembly-name, .assembly-category').forEach(input => {
+        input.addEventListener('change', function() {
+            const assemblyId = this.dataset.assemblyId;
+            if (this.classList.contains('assembly-name')) {
+                assembliesData[assemblyId]['name'] = this.value;
+            } else if (this.classList.contains('assembly-category')) {
+                assembliesData[assemblyId]['category'] = this.value;
+            }
+            updateHiddenData();
+        });
+    });
+});
+
+function updateSelectedCount() {
+    const selectedCheckboxes = document.querySelectorAll('.assembly-checkbox:checked');
+    document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.assembly-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    if (selectedCheckboxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (selectedCheckboxes.length === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function expandAll() {
+    document.querySelectorAll('.components-section').forEach(section => {
+        section.style.display = 'block';
+    });
+    document.querySelectorAll('.toggle-components i').forEach(icon => {
+        icon.className = 'fas fa-chevron-up';
+    });
+    document.querySelectorAll('.toggle-components').forEach(btn => {
+        btn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide';
+    });
+}
+
+function collapseAll() {
+    document.querySelectorAll('.components-section').forEach(section => {
+        section.style.display = 'none';
+    });
+    document.querySelectorAll('.toggle-components i').forEach(icon => {
+        icon.className = 'fas fa-chevron-down';
+    });
+    document.querySelectorAll('.toggle-components').forEach(btn => {
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Details';
+    });
+}
+
+function updateHiddenData() {
+    document.getElementById('assembliesData').value = JSON.stringify(assembliesData);
+}
+
+function importSelected() {
+    const selectedCheckboxes = document.querySelectorAll('.assembly-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select at least one assembly to import.');
+        return;
+    }
+    
+    if (!confirm(`Import ${selectedCheckboxes.length} selected assemblies?`)) {
+        return;
+    }
+    
+    // Collect selected assembly IDs
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    document.getElementById('selectedAssemblies').value = selectedIds.join(',');
+    
+    // Update the assemblies data with current form values
+    updateHiddenData();
+    
+    // Submit the form
+    document.getElementById('importForm').submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ component.component_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Edit Component</h5>
+                <small class="text-muted">
+                    Assembly: {{ component.assembly.assembly_name }} | 
+                    Estimate: {{ component.assembly.estimate.estimate_name }}
+                </small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('components.edit_component', component_id=component.component_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="component_name" class="form-label">Component Name *</label>
+                                <input type="text" class="form-control" id="component_name" name="component_name" 
+                                       value="{{ component.component_name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="part_number" class="form-label">Part Number</label>
+                                <input type="text" class="form-control" id="part_number" name="part_number" 
+                                       value="{{ component.part_number or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" 
+                                placeholder="Enter component description...">{{ component.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="unit_price" class="form-label">Unit Price *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control price-input" id="unit_price" 
+                                           name="unit_price" step="0.01" min="0" value="{{ component.unit_price }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">Quantity *</label>
+                                <input type="number" class="form-control quantity-input" id="quantity" 
+                                       name="quantity" step="0.001" min="0.001" value="{{ component.quantity }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="unit_of_measure" class="form-label">Unit of Measure</label>
+                                <select class="form-select" id="unit_of_measure" name="unit_of_measure">
+                                    <option value="EA" {{ 'selected' if component.unit_of_measure == 'EA' else '' }}>Each (EA)</option>
+                                    <option value="FT" {{ 'selected' if component.unit_of_measure == 'FT' else '' }}>Feet (FT)</option>
+                                    <option value="LB" {{ 'selected' if component.unit_of_measure == 'LB' else '' }}>Pounds (LB)</option>
+                                    <option value="HR" {{ 'selected' if component.unit_of_measure == 'HR' else '' }}>Hours (HR)</option>
+                                    <option value="SQ FT" {{ 'selected' if component.unit_of_measure == 'SQ FT' else '' }}>Square Feet (SQ FT)</option>
+                                    <option value="GAL" {{ 'selected' if component.unit_of_measure == 'GAL' else '' }}>Gallons (GAL)</option>
+                                    <option value="LOT" {{ 'selected' if component.unit_of_measure == 'LOT' else '' }}>Lot (LOT)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Live calculation display -->
+                    <div class="alert alert-info">
+                        <strong>Total: <span id="total-display">${{ "{:,.2f}".format(component.total_price) }}</span></strong>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('estimates.detail_estimate', estimate_id=component.assembly.estimate_id) }}" 
+                           class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Component
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

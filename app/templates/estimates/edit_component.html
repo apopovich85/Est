@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Component - {{ estimate.estimate_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="fas fa-edit me-2"></i>Edit Individual Component</h1>
+            <p class="text-muted mb-0">
+                Estimate: <strong>{{ estimate.estimate_name }}</strong> • 
+                Project: <strong>{{ estimate.project.project_name }}</strong>
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Estimate
+            </a>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-cogs"></i> Component Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('estimates.edit_individual_component', component_id=component.estimate_component_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="componentName" class="form-label">Component Name *</label>
+                                    <input type="text" class="form-control" id="componentName" name="component_name" 
+                                           value="{{ component.component_name }}" required>
+                                    <div class="form-text">Enter a descriptive name for this component</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="partNumber" class="form-label">Part Number</label>
+                                    <input type="text" class="form-control" id="partNumber" name="part_number" 
+                                           value="{{ component.part_number or '' }}">
+                                    <div class="form-text">Manufacturer part number</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="manufacturer" class="form-label">Manufacturer</label>
+                                    <input type="text" class="form-control" id="manufacturer" name="manufacturer" 
+                                           value="{{ component.manufacturer or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">Category</label>
+                                    <select class="form-select" id="category" name="category">
+                                        <option value="">Select Category</option>
+                                        {% for category in part_categories %}
+                                            <option value="{{ category }}" 
+                                                    {% if component.category == category %}selected{% endif %}>
+                                                {{ category }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" 
+                                    placeholder="Enter detailed component description...">{{ component.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="unitPrice" class="form-label">Unit Price *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="unitPrice" 
+                                               name="unit_price" step="0.01" min="0" 
+                                               value="{{ component.unit_price }}" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="quantity" class="form-label">Quantity *</label>
+                                    <input type="number" class="form-control" id="quantity" 
+                                           name="quantity" step="0.001" min="0.001" 
+                                           value="{{ component.quantity }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="unitOfMeasure" class="form-label">Unit of Measure</label>
+                                    <select class="form-select" id="unitOfMeasure" name="unit_of_measure">
+                                        <option value="EA" {% if component.unit_of_measure == 'EA' %}selected{% endif %}>Each (EA)</option>
+                                        <option value="FT" {% if component.unit_of_measure == 'FT' %}selected{% endif %}>Feet (FT)</option>
+                                        <option value="LB" {% if component.unit_of_measure == 'LB' %}selected{% endif %}>Pounds (LB)</option>
+                                        <option value="HR" {% if component.unit_of_measure == 'HR' %}selected{% endif %}>Hours (HR)</option>
+                                        <option value="SQ FT" {% if component.unit_of_measure == 'SQ FT' %}selected{% endif %}>Square Feet (SQ FT)</option>
+                                        <option value="GAL" {% if component.unit_of_measure == 'GAL' %}selected{% endif %}>Gallons (GAL)</option>
+                                        <option value="LOT" {% if component.unit_of_measure == 'LOT' %}selected{% endif %}>Lot (LOT)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Total Cost</label>
+                                    <div class="form-control bg-light" id="totalCost">${{ "{:,.2f}".format(component.total_price) }}</div>
+                                    <div class="form-text">Calculated: Price × Quantity</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                    placeholder="Additional notes or specifications...">{{ component.notes or '' }}</textarea>
+                        </div>
+                        
+                        <!-- Component Info Card -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading mb-2">
+                                <i class="fas fa-info-circle"></i> Current Component Information
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small><strong>Created:</strong> {{ component.created_at.strftime('%B %d, %Y at %I:%M %p') if component.created_at else 'Unknown' }}</small><br>
+                                    <small><strong>Last Updated:</strong> {{ component.updated_at.strftime('%B %d, %Y at %I:%M %p') if component.updated_at else 'Never' }}</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small><strong>Current Total:</strong> ${{ "{:,.2f}".format(component.total_price) }}</small><br>
+                                    {% if component.part %}
+                                        <small><strong>Linked to Part:</strong> {{ component.part.part_number }}</small>
+                                    {% else %}
+                                        <small><strong>Custom Component:</strong> Not linked to parts database</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <div class="text-muted">
+                                <small><i class="fas fa-info-circle"></i> Fields marked with * are required</small>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+                                   class="btn btn-secondary me-2">Cancel</a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Update Component
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Live calculation
+    document.getElementById('unitPrice').addEventListener('input', updateTotalCost);
+    document.getElementById('quantity').addEventListener('input', updateTotalCost);
+    
+    // Initial calculation
+    updateTotalCost();
+});
+
+function updateTotalCost() {
+    const price = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const total = price * quantity;
+    document.getElementById('totalCost').textContent = '$' + total.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+</script>
+{% endblock %}
