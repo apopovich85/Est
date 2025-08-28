@@ -338,7 +338,109 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<style>
+.editable {
+    cursor: pointer !important;
+    position: relative !important;
+    background-color: #f8f9fa !important;
+    transition: background-color 0.2s;
+}
+
+.editable:hover {
+    background-color: #e9ecef !important;
+    box-shadow: inset 0 0 0 1px #007bff !important;
+}
+
+.editable:focus {
+    outline: 2px solid #007bff !important;
+    outline-offset: -2px;
+}
+
+.table .editable {
+    pointer-events: auto !important;
+}
+
+.editable::after {
+    content: '✎';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 10px;
+    color: #6c757d;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.editable:hover::after {
+    opacity: 0.7;
+}
+
+/* Drag and fill functionality */
+.fill-handle {
+    position: absolute !important;
+    bottom: -4px !important;
+    right: -4px !important;
+    width: 8px !important;
+    height: 8px !important;
+    background-color: #007bff !important;
+    border: 2px solid #fff !important;
+    cursor: crosshair !important;
+    display: none;
+    z-index: 1000 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+}
+
+.editable:hover .fill-handle,
+.editable.selected .fill-handle,
+.selected-cell .fill-handle {
+    display: block !important;
+}
+
+.fill-preview {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+    border: 1px dashed #007bff !important;
+}
+
+.selected-cell {
+    background-color: rgba(0, 123, 255, 0.2) !important;
+    border: 2px solid #007bff !important;
+}
+
+.drag-line {
+    position: absolute;
+    background-color: #007bff;
+    z-index: 999;
+    pointer-events: none;
+}
+
+.drag-line.horizontal {
+    height: 2px;
+    width: 100%;
+}
+
+.drag-line.vertical {
+    width: 2px;
+    height: 100%;
+}
+
+/* Force fill handle to show on selected cells */
+td.selected-cell .fill-handle,
+.table td.selected-cell .fill-handle {
+    display: block !important;
+    visibility: visible !important;
+    background-color: #ff0000 !important; /* Temporary red color for debugging */
+    width: 12px !important;
+    height: 12px !important;
+}
+
+/* Fix price column font to match other columns */
+.editable[data-field="price"] {
+    font-family: inherit !important;
+    font-weight: normal !important;
+    font-size: inherit !important;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
 // Master Parts Database Management System
 class DatabasePartsManager {
@@ -351,6 +453,10 @@ class DatabasePartsManager {
         this.sortColumn = null;
         this.sortDirection = 'asc';
         this.chart = null;
+        this.selectedCell = null;
+        this.isDragging = false;
+        this.fillStartCell = null;
+        this.dragLines = [];
         // No assemblies needed for Parts management
         
         this.init();
@@ -579,15 +685,15 @@ class DatabasePartsManager {
                 <input type="checkbox" class="form-check-input part-checkbox" 
                        data-part-id="${part.part_id}">
             </td>
-            <td class="editable" data-field="category">${this.escapeHtml(part.category || '')}</td>
-            <td class="editable" data-field="manufacturer">${this.escapeHtml(part.manufacturer || '')}</td>
-            <td class="editable" data-field="part_number">${this.escapeHtml(part.part_number || '')}</td>
-            <td class="editable" data-field="description">${this.escapeHtml(part.description || '')}</td>
-            <td class="editable" data-field="model">${this.escapeHtml(part.model || '')}</td>
-            <td class="editable" data-field="rating">${this.escapeHtml(part.rating || '')}</td>
-            <td class="editable text-end" data-field="price" data-type="currency">${price}</td>
-            <td class="editable" data-field="vendor">${this.escapeHtml(part.vendor || '')}</td>
-            <td class="editable" data-field="effective_date" data-type="date">${effectiveDate}</td>
+            <td class="editable" data-field="category">${this.escapeHtml(part.category || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="manufacturer">${this.escapeHtml(part.manufacturer || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="part_number">${this.escapeHtml(part.part_number || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="description">${this.escapeHtml(part.description || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="model">${this.escapeHtml(part.model || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="rating">${this.escapeHtml(part.rating || '')}<div class="fill-handle"></div></td>
+            <td class="editable text-end" data-field="price" data-type="currency">${price}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="vendor">${this.escapeHtml(part.vendor || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="effective_date" data-type="date">${effectiveDate}<div class="fill-handle"></div></td>
             <td>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-info btn-xs price-history-btn" 
@@ -641,7 +747,14 @@ class DatabasePartsManager {
         
         // Editable cells
         row.querySelectorAll('.editable').forEach(cell => {
-            cell.addEventListener('click', () => this.startEdit(cell));
+            cell.addEventListener('click', () => this.selectCell(cell));
+            cell.addEventListener('dblclick', () => this.startEdit(cell));
+            
+            // Fill handle drag functionality
+            const fillHandle = cell.querySelector('.fill-handle');
+            if (fillHandle) {
+                fillHandle.addEventListener('mousedown', (e) => this.startDragFill(e, cell));
+            }
         });
         
         // Action buttons
@@ -666,7 +779,7 @@ class DatabasePartsManager {
         const field = cell.dataset.field;
         const type = cell.dataset.type || 'text';
         
-        input = document.createElement('input');
+        const input = document.createElement('input');
         input.className = 'form-control form-control-sm';
         
         if (type === 'currency' || type === 'number') {
@@ -727,6 +840,16 @@ class DatabasePartsManager {
             }
             
             this.editingCell.textContent = displayValue;
+            
+            // Re-add fill handle after canceling edit
+            if (!this.editingCell.querySelector('.fill-handle')) {
+                const fillHandle = document.createElement('div');
+                fillHandle.className = 'fill-handle';
+                const cellRef = this.editingCell; // Store reference before setting to null
+                fillHandle.addEventListener('mousedown', (e) => this.startDragFill(e, cellRef));
+                this.editingCell.appendChild(fillHandle);
+            }
+            
             this.editingCell = null;
         }
     }
@@ -764,6 +887,14 @@ class DatabasePartsManager {
                 }
                 cell.textContent = displayValue;
                 
+                // Re-add fill handle after updating cell content
+                if (!cell.querySelector('.fill-handle')) {
+                    const fillHandle = document.createElement('div');
+                    fillHandle.className = 'fill-handle';
+                    fillHandle.addEventListener('mousedown', (e) => this.startDragFill(e, cell));
+                    cell.appendChild(fillHandle);
+                }
+                
                 this.editingCell = null;
                 this.updateSummary();
                 
@@ -772,6 +903,9 @@ class DatabasePartsManager {
                 }
                 
                 this.showToast('Part updated successfully', 'success');
+                
+                // Keep cell selected after editing to show fill handle
+                this.selectCell(cell);
                 
             } else {
                 const error = await response.json();
@@ -1078,13 +1212,13 @@ class DatabasePartsManager {
     
     async showPriceHistory(partId) {
         try {
-            const response = await fetch(`/parts/${partId}/price-history-data`);
+            const response = await fetch(`/parts/api/part/${partId}/price-history`);
             const data = await response.json();
             
             // Update statistics
-            document.getElementById('currentPrice').textContent = data.statistics.current_price.toFixed(2);
-            document.getElementById('totalChanges').textContent = data.statistics.total_changes;
-            document.getElementById('avgPrice').textContent = data.statistics.avg_price.toFixed(2);
+            document.getElementById('currentPrice').textContent = (data.statistics.current_price || 0).toFixed(2);
+            document.getElementById('totalChanges').textContent = data.statistics.total_changes || 0;
+            document.getElementById('avgPrice').textContent = (data.statistics.avg_price || 0).toFixed(2);
             
             // Update trend
             const trendCard = document.getElementById('trendCard');
@@ -1113,11 +1247,14 @@ class DatabasePartsManager {
             this.createPriceChart(data.chart_data);
             
             // Update history table
-            this.updateHistoryTable(data.detailed_history);
+            this.updateHistoryTable(data.history);
             
-            // Update modal title
-            document.querySelector('#priceHistoryModal .modal-title').textContent = 
-                `Price History - ${data.part.part_number} (${data.part.description})`;
+            // Update modal title - find the part in our data
+            const part = this.parts.find(p => p.part_id == partId);
+            if (part) {
+                document.querySelector('#priceHistoryModal .modal-title').textContent = 
+                    `Price History - ${part.part_number} (${part.description})`;
+            }
             
             // Show modal
             new bootstrap.Modal(document.getElementById('priceHistoryModal')).show();
@@ -1287,6 +1424,168 @@ class DatabasePartsManager {
         });
     }
     
+    selectCell(cell) {
+        // Clear previous selection
+        document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
+        
+        // Select new cell
+        cell.classList.add('selected-cell');
+        this.selectedCell = cell;
+    }
+    
+    startDragFill(e, cell) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.isDragging = true;
+        this.fillStartCell = cell;
+        this.selectCell(cell);
+        
+        // Create drag lines
+        this.createDragLines();
+        
+        // Add global event listeners
+        document.addEventListener('mousemove', (e) => this.handleDragFill(e));
+        document.addEventListener('mouseup', () => this.endDragFill());
+        
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'crosshair';
+    }
+    
+    handleDragFill(e) {
+        if (!this.isDragging || !this.fillStartCell) return;
+        
+        const targetCell = document.elementFromPoint(e.clientX, e.clientY);
+        if (!targetCell || !targetCell.classList.contains('editable')) return;
+        
+        // Clear previous preview
+        document.querySelectorAll('.fill-preview').forEach(c => c.classList.remove('fill-preview'));
+        
+        // Get fill range
+        const fillCells = this.getFillRange(this.fillStartCell, targetCell);
+        fillCells.forEach(cell => cell.classList.add('fill-preview'));
+        
+        this.updateDragLines(this.fillStartCell, targetCell);
+    }
+    
+    endDragFill() {
+        if (!this.isDragging) return;
+        
+        this.isDragging = false;
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        
+        // Remove event listeners
+        document.removeEventListener('mousemove', this.handleDragFill);
+        document.removeEventListener('mouseup', this.endDragFill);
+        
+        // Get all preview cells for filling
+        const fillCells = Array.from(document.querySelectorAll('.fill-preview'));
+        
+        if (fillCells.length > 1) {
+            this.performFill(this.fillStartCell, fillCells);
+        }
+        
+        // Clean up
+        document.querySelectorAll('.fill-preview').forEach(c => c.classList.remove('fill-preview'));
+        this.removeDragLines();
+        this.fillStartCell = null;
+    }
+    
+    getFillRange(startCell, endCell) {
+        const table = document.getElementById('partsTableBody');
+        const rows = Array.from(table.querySelectorAll('tr'));
+        
+        const startRow = startCell.closest('tr');
+        const endRow = endCell.closest('tr');
+        
+        const startRowIndex = rows.indexOf(startRow);
+        const endRowIndex = rows.indexOf(endRow);
+        
+        const startColIndex = Array.from(startRow.children).indexOf(startCell);
+        const endColIndex = Array.from(endRow.children).indexOf(endCell);
+        
+        const cells = [];
+        
+        const minRow = Math.min(startRowIndex, endRowIndex);
+        const maxRow = Math.max(startRowIndex, endRowIndex);
+        const minCol = Math.min(startColIndex, endColIndex);
+        const maxCol = Math.max(startColIndex, endColIndex);
+        
+        for (let r = minRow; r <= maxRow; r++) {
+            for (let c = minCol; c <= maxCol; c++) {
+                const cell = rows[r].children[c];
+                if (cell && cell.classList.contains('editable')) {
+                    cells.push(cell);
+                }
+            }
+        }
+        
+        return cells;
+    }
+    
+    async performFill(sourceCell, targetCells) {
+        const sourceValue = sourceCell.textContent.replace('$', '').trim();
+        const field = sourceCell.dataset.field;
+        const type = sourceCell.dataset.type;
+        
+        for (const cell of targetCells) {
+            if (cell === sourceCell) continue;
+            
+            try {
+                await this.updateDatabasePart(cell, field, sourceValue);
+            } catch (error) {
+                console.error('Fill operation failed for cell:', error);
+                this.showToast(`Fill failed for ${field}: ${error.message}`, 'error');
+                break;
+            }
+        }
+        
+        this.showToast(`Filled ${targetCells.length - 1} cells with "${sourceValue}"`, 'success');
+    }
+    
+    createDragLines() {
+        this.removeDragLines();
+        
+        const horizontalLine = document.createElement('div');
+        horizontalLine.className = 'drag-line horizontal';
+        horizontalLine.style.display = 'none';
+        document.body.appendChild(horizontalLine);
+        
+        const verticalLine = document.createElement('div');
+        verticalLine.className = 'drag-line vertical';
+        verticalLine.style.display = 'none';
+        document.body.appendChild(verticalLine);
+        
+        this.dragLines = [horizontalLine, verticalLine];
+    }
+    
+    updateDragLines(startCell, endCell) {
+        if (!this.dragLines.length) return;
+        
+        const startRect = startCell.getBoundingClientRect();
+        const endRect = endCell.getBoundingClientRect();
+        
+        const [horizontalLine, verticalLine] = this.dragLines;
+        
+        // Horizontal line
+        horizontalLine.style.display = 'block';
+        horizontalLine.style.left = Math.min(startRect.left, endRect.left) + 'px';
+        horizontalLine.style.top = Math.min(startRect.top, endRect.top) + 'px';
+        horizontalLine.style.width = Math.abs(endRect.right - startRect.left) + 'px';
+        
+        // Vertical line
+        verticalLine.style.display = 'block';
+        verticalLine.style.left = Math.min(startRect.left, endRect.left) + 'px';
+        verticalLine.style.top = Math.min(startRect.top, endRect.top) + 'px';
+        verticalLine.style.height = Math.abs(endRect.bottom - startRect.top) + 'px';
+    }
+    
+    removeDragLines() {
+        this.dragLines.forEach(line => line.remove());
+        this.dragLines = [];
+    }
+
     escapeHtml(text) {
         const map = {
             '&': '&amp;',

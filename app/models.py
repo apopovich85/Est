@@ -108,7 +108,7 @@ class AssemblyPart(db.Model):
     @property
     def unit_price(self):
         """Get current price from the part"""
-        return float(self.part.price) if self.part and self.part.price else 0.0
+        return self.part.current_price if self.part else 0.0
     
     @property
     def total_price(self):
@@ -201,7 +201,7 @@ class Parts(db.Model):
     part_number = db.Column(db.String(100), nullable=False, index=True)
     upc = db.Column(db.String(50))
     description = db.Column(db.Text)
-    price = db.Column(db.Numeric(12, 2))  # Keep for backward compatibility during transition
+    # price column removed - now using PartsPriceHistory table
     vendor = db.Column(db.String(100))
     effective_date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -220,8 +220,8 @@ class Parts(db.Model):
         if current_history:
             return float(current_history.new_price) if current_history.new_price else 0.0
         
-        # Fallback to old price column during transition
-        return float(self.price) if self.price else 0.0
+        # No current price found
+        return 0.0
     
     def update_price(self, new_price, reason="Price update", source="manual", effective_date=None):
         """Update part price with automatic history tracking"""
@@ -254,8 +254,7 @@ class Parts(db.Model):
         
         db.session.add(price_history)
         
-        # Update the price column for backward compatibility
-        self.price = new_price_decimal
+        # Update timestamp
         self.updated_at = datetime.utcnow()
         
         return True, f"Price updated from ${old_price:.2f} to ${new_price:.2f}"
@@ -435,7 +434,7 @@ class StandardAssemblyComponent(db.Model):
     @property
     def unit_price(self):
         """Get current price from the part"""
-        return float(self.part.price) if self.part and self.part.price else 0.0
+        return self.part.current_price if self.part else 0.0
     
     @property
     def total_price(self):

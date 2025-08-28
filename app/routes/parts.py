@@ -3,6 +3,7 @@ from app.models import Parts, PartsPriceHistory
 from app import db, csrf
 import csv
 import os
+import pandas as pd
 from datetime import datetime
 from decimal import Decimal
 
@@ -134,6 +135,7 @@ def get_manufacturers():
     return jsonify([mfr[0] for mfr in manufacturers if mfr[0]])
 
 @bp.route('/price-update', methods=['GET', 'POST'])
+@csrf.exempt
 def price_update():
     """Update parts pricing from CSV file"""
     if request.method == 'POST':
@@ -146,55 +148,101 @@ def price_update():
             flash('No file selected', 'error')
             return redirect(request.url)
         
-        if not file.filename.lower().endswith('.csv'):
-            flash('Please select a CSV file', 'error')
+        if not file.filename.lower().endswith(('.csv', '.xlsx', '.xls')):
+            flash('Please select a CSV or Excel file', 'error')
             return redirect(request.url)
         
         try:
-            # Read CSV content
-            content = file.stream.read()
-            
-            # Handle BOM and encoding
-            if content.startswith(b'\xef\xbb\xbf'):
-                content = content[3:]  # Remove BOM
-            
-            decoded_content = content.decode('utf-8-sig')
-            csv_lines = decoded_content.splitlines()
-            
-            if len(csv_lines) < 2:  # Header + at least one data row
-                flash('CSV file appears to be empty or invalid', 'error')
-                return redirect(request.url)
-            
-            # Parse CSV
-            reader = csv.DictReader(csv_lines)
+            # Handle different file types
+            if file.filename.lower().endswith(('.xlsx', '.xls')):
+                # Handle Excel file with proper temp file management
+                import tempfile
+                import pandas as pd
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                    temp_file_path = temp_file.name
+                
+                try:
+                    file.save(temp_file_path)
+                    df = pd.read_excel(temp_file_path)
+                finally:
+                    # Clean up the temporary file
+                    try:
+                        os.unlink(temp_file_path)
+                    except:
+                        pass
+                
+                if df.empty:
+                    flash('Excel file appears to be empty', 'error')
+                    return redirect(request.url)
+                
+                # Convert to CSV-like format for processing
+                rows = df.to_dict('records')
+                headers = list(df.columns)
+                
+                # Create a simple reader-like object
+                class ExcelReader:
+                    def __init__(self, rows, headers):
+                        self.fieldnames = headers
+                        self.rows = rows
+                        self.row_index = 0
+                    
+                    def __iter__(self):
+                        return self
+                    
+                    def __next__(self):
+                        if self.row_index >= len(self.rows):
+                            raise StopIteration
+                        row = self.rows[self.row_index]
+                        self.row_index += 1
+                        return {str(k): str(v) if pd.notna(v) else '' for k, v in row.items()}
+                
+                reader = ExcelReader(rows, headers)
+            else:
+                # Handle CSV file
+                content = file.stream.read()
+                
+                # Handle BOM and encoding
+                if content.startswith(b'\xef\xbb\xbf'):
+                    content = content[3:]  # Remove BOM
+                
+                decoded_content = content.decode('utf-8-sig')
+                csv_lines = decoded_content.splitlines()
+                
+                if len(csv_lines) < 2:  # Header + at least one data row
+                    flash('CSV file appears to be empty or invalid', 'error')
+                    return redirect(request.url)
+                
+                # Parse CSV
+                reader = csv.DictReader(csv_lines)
             
             # Detect columns - flexible header matching
             headers = reader.fieldnames
             identifier_col = None
             price_col = None
             
-            # Find identifier column (part_number, master_item_number, or upc)
+            # Find identifier column (includes VFD Excel format support)
             for header in headers:
-                header_lower = header.lower().strip()
-                if any(field in header_lower for field in ['part_number', 'part_num', 'partnumber']):
+                header_lower = str(header).lower().strip()
+                if any(field in header_lower for field in ['sku', 'part_number', 'part_num', 'partnumber']):
                     identifier_col = header
                     break
-                elif any(field in header_lower for field in ['master_item', 'master_num', 'item_number']):
+                elif any(field in header_lower for field in ['customer part number', 'master_item', 'master_num', 'item_number']):
                     identifier_col = header
                     break
                 elif any(field in header_lower for field in ['upc', 'barcode']):
                     identifier_col = header
                     break
             
-            # Find price column
+            # Find price column (includes VFD Excel format support)
             for header in headers:
-                header_lower = header.lower().strip()
-                if any(field in header_lower for field in ['price', 'cost', 'unit_price', 'unitprice']):
+                header_lower = str(header).lower().strip()
+                if any(field in header_lower for field in ['unit price', 'price', 'cost', 'unit_price', 'unitprice']):
                     price_col = header
                     break
             
             if not identifier_col:
-                flash('Could not find part identifier column (part_number, master_item_number, or upc)', 'error')
+                flash('Could not find part identifier column (SKU, Part Number, Customer Part Number, Master Item Number, or UPC)', 'error')
                 return redirect(request.url)
             
             if not price_col:
@@ -207,8 +255,9 @@ def price_update():
             unchanged_count = 0
             error_count = 0
             
-            source = f"csv_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            reason = request.form.get('reason', 'CSV price update')
+            file_type = "excel" if file.filename.lower().endswith(('.xlsx', '.xls')) else "csv"
+            source = f"{file_type}_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            reason = request.form.get('reason', f'{file_type.upper()} price update')
             
             for row in reader:
                 try:
@@ -260,12 +309,17 @@ def price_update():
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error processing CSV file: {str(e)}', 'error')
+            file_type = "Excel" if file.filename.lower().endswith(('.xlsx', '.xls')) else "CSV"
+            flash(f'Error processing {file_type} file: {str(e)}', 'error')
     
     # Get stats for display
     total_parts = Parts.query.count()
     recent_updates = db.session.query(PartsPriceHistory)\
-        .filter(PartsPriceHistory.source.like('csv_import_%'))\
+        .filter(db.or_(
+            PartsPriceHistory.source.like('csv_import_%'),
+            PartsPriceHistory.source.like('excel_import_%'),
+            PartsPriceHistory.source.like('file_import_%')
+        ))\
         .order_by(PartsPriceHistory.changed_at.desc())\
         .limit(10).all()
     
@@ -279,13 +333,54 @@ def get_part_price_history(part_id):
     part = Parts.query.get_or_404(part_id)
     history = part.get_price_history(limit=20)
     
-    return jsonify([{
-        'history_id': h.history_id,
-        'old_price': float(h.old_price) if h.old_price else None,
-        'new_price': float(h.new_price) if h.new_price else None,
-        'changed_at': h.changed_at.isoformat() if h.changed_at else None,
-        'changed_reason': h.changed_reason,
-        'source': h.source,
-        'is_current': h.is_current,
-        'effective_date': h.effective_date.isoformat() if h.effective_date else None
-    } for h in history])
+    # Calculate statistics
+    current_price = part.current_price or 0.0
+    total_changes = len(history)
+    prices = [float(h.new_price) for h in history if h.new_price is not None]
+    avg_price = sum(prices) / len(prices) if prices else 0.0
+    
+    # Determine trend
+    trend = 'neutral'
+    if len(history) >= 2:
+        latest = history[0]
+        previous = history[1]
+        if latest.new_price is not None and previous.new_price is not None:
+            if float(latest.new_price) > float(previous.new_price):
+                trend = 'up'
+            elif float(latest.new_price) < float(previous.new_price):
+                trend = 'down'
+    
+    # Prepare chart data (last 10 entries)
+    chart_history = history[:10][::-1]  # Reverse to show chronologically
+    chart_data = {
+        'labels': [h.changed_at.strftime('%m/%d/%Y') if h.changed_at else 'N/A' for h in chart_history],
+        'datasets': [{
+            'label': 'Price History',
+            'data': [float(h.new_price) if h.new_price is not None else 0.0 for h in chart_history],
+            'borderColor': 'rgb(75, 192, 192)',
+            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+            'tension': 0.1
+        }]
+    }
+    
+    return jsonify({
+        'statistics': {
+            'current_price': current_price,
+            'total_changes': total_changes,
+            'avg_price': avg_price,
+            'trend': trend
+        },
+        'chart_data': chart_data,
+        'history': [{
+            'history_id': h.history_id,
+            'old_price': float(h.old_price) if h.old_price is not None else 0.0,
+            'new_price': float(h.new_price) if h.new_price is not None else 0.0,
+            'change_amount': (float(h.new_price) if h.new_price is not None else 0.0) - (float(h.old_price) if h.old_price is not None else 0.0),
+            'date': h.changed_at.strftime('%m/%d/%Y %H:%M') if h.changed_at else 'N/A',
+            'reason': h.changed_reason or 'No reason provided',
+            'changed_at': h.changed_at.isoformat() if h.changed_at else None,
+            'source': h.source,
+            'is_current': h.is_current,
+            'effective_date': h.effective_date.isoformat() if h.effective_date else None
+        } for h in history]
+    })

@@ -479,7 +479,7 @@ def api_list_all_parts():
             'part_number': p.part_number or '',
             'upc': p.upc or '',
             'description': p.description or '',
-            'price': float(p.price) if p.price else 0.00,
+            'price': p.current_price,
             'vendor': p.vendor or '',
             'effective_date': p.effective_date.strftime('%Y-%m-%d') if p.effective_date else '',
             'created_at': p.created_at.strftime('%Y-%m-%d %H:%M'),
@@ -525,16 +525,6 @@ def api_update_database_part(part_id):
                 pass  # Keep existing date if format is invalid
         
         part.updated_at = datetime.utcnow()
-        
-        # Track price history if price changed
-        if old_price != new_price:
-            price_history = PartsPriceHistory(
-                part_id=part_id,
-                old_price=old_price,
-                new_price=new_price,
-                changed_reason='Database edit'
-            )
-            db.session.add(price_history)
         
         db.session.commit()
         

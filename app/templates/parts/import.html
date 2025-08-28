@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Import Parts Database{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Import Parts Database</h5>
+                <small class="text-muted">Import parts from partsdb.csv file</small>
+            </div>
+            <div class="card-body">
+                {% if parts_count > 0 %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Current parts database contains <strong>{{ parts_count }}</strong> parts.
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Parts database is empty. Import parts to start using the parts catalog.
+                    </div>
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Upload Parts File</label>
+                        <input class="form-control" type="file" id="file" name="file" accept=".csv,.xlsx,.xls">
+                        <div class="form-text">Upload a CSV or Excel file, or leave blank to import from partsdb.csv</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="clear_existing" name="clear_existing">
+                            <label class="form-check-label" for="clear_existing">
+                                Clear existing parts before import
+                                <small class="text-muted d-block">Warning: This will delete all current parts and price history data</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-file-csv"></i> Import Process</h6>
+                        <ul class="mb-0">
+                            <li><strong>Excel Files (.xlsx, .xls):</strong> VFD parts format with columns: Manufacturer, SKU, Customer Part Number, Description, Unit Price, UPC</li>
+                            <li><strong>CSV Files:</strong> Legacy format with columns: Category, Model, Rating, Manufacturer, Part Number, Description, Price, etc.</li>
+                            <li>Duplicate parts (same manufacturer + part number) will be updated instead of creating duplicates</li>
+                            <li>All pricing information is stored in price history table for tracking</li>
+                            <li>Large files are imported in batches for better performance</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('components.master_parts_database') }}" class="btn btn-secondary me-2">
+                            View Parts Database
+                        </a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="btn btn-secondary me-2">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Import Parts
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
