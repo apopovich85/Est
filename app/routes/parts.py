@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Parts, PartsPriceHistory
+from app.models import Parts, PartsPriceHistory, PartCategory
 from app import db, csrf
 import csv
 import os
@@ -12,69 +12,187 @@ bp = Blueprint('parts', __name__)
 @bp.route('/import', methods=['GET', 'POST'])
 @csrf.exempt
 def import_parts():
-    """Import parts from CSV file"""
+    """Import parts from uploaded file"""
     if request.method == 'POST':
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            flash('No file selected', 'error')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(request.url)
+        
+        if not file.filename.lower().endswith(('.csv', '.xlsx', '.xls')):
+            flash('Please select a CSV or Excel file', 'error')
+            return redirect(request.url)
+        
         try:
-            csv_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'partsdb.csv')
-            
-            if not os.path.exists(csv_file_path):
-                flash('CSV file not found!', 'error')
-                return redirect(url_for('parts.import_parts'))
-            
-            # Clear existing parts
-            if request.form.get('clear_existing'):
-                Parts.query.delete()
-                db.session.commit()
-            
             imported_count = 0
             error_count = 0
+            duplicate_count = 0
+            duplicate_items = []
             
-            with open(csv_file_path, 'r', encoding='utf-8-sig', newline='') as file:
-                csv_reader = csv.DictReader(file)
+            # Handle different file types
+            if file.filename.lower().endswith(('.xlsx', '.xls')):
+                # Handle Excel file
+                import tempfile
+                import pandas as pd
                 
-                for row in csv_reader:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                    temp_file_path = temp_file.name
+                
+                try:
+                    file.save(temp_file_path)
+                    df = pd.read_excel(temp_file_path)
+                finally:
                     try:
-                        # Clean price field (remove commas and quotes)
-                        price_str = row.get('price', '0').replace(',', '').replace('"', '')
-                        
-                        # Parse effective date
-                        effective_date = None
-                        if row.get('effective_date'):
+                        os.unlink(temp_file_path)
+                    except:
+                        pass
+                
+                if df.empty:
+                    flash('Excel file appears to be empty', 'error')
+                    return redirect(request.url)
+                
+                # Convert to dict records for processing
+                rows = df.to_dict('records')
+                
+            else:
+                # Handle CSV file
+                content = file.stream.read()
+                
+                # Handle BOM and encoding
+                if content.startswith(b'\\xef\\xbb\\xbf'):
+                    content = content[3:]  # Remove BOM
+                
+                decoded_content = content.decode('utf-8-sig')
+                csv_lines = decoded_content.splitlines()
+                
+                if len(csv_lines) < 2:  # Header + at least one data row
+                    flash('File appears to be empty or invalid', 'error')
+                    return redirect(request.url)
+                
+                # Parse file
+                reader = csv.DictReader(csv_lines)
+                rows = list(reader)
+            
+            # Process each row
+            for row in rows:
+                try:
+                    # Convert pandas NaN to empty string for Excel files
+                    if file.filename.lower().endswith(('.xlsx', '.xls')):
+                        row = {k: str(v) if pd.notna(v) else '' for k, v in row.items()}
+                    
+                    # Skip empty rows
+                    if not any(str(v).strip() for v in row.values()):
+                        continue
+                    
+                    # Clean price field (remove commas and quotes) - check multiple possible column names
+                    price_str = str(row.get('Unit Price', '') or row.get('price', '') or row.get('Price', '') or '0').replace(',', '').replace('"', '').strip()
+                    
+                    # Parse effective date with multiple formats
+                    effective_date = None
+                    if row.get('effective_date'):
+                        date_str = str(row.get('effective_date')).strip()
+                        if date_str:
                             try:
-                                effective_date = datetime.strptime(row['effective_date'], '%m/%d/%Y').date()
+                                # Try different date formats
+                                for date_format in ['%m/%d/%Y', '%Y-%m-%d', '%d/%m/%Y']:
+                                    try:
+                                        effective_date = datetime.strptime(date_str, date_format).date()
+                                        break
+                                    except ValueError:
+                                        continue
                             except ValueError:
                                 pass  # Skip invalid dates
-                        
-                        part = Parts(
-                            category=row.get('Category', '').strip(),
-                            model=row.get('Model', '').strip() or None,
-                            rating=row.get('Rating', '').strip() or None,
-                            master_item_number=row.get('master_item_number', '').strip() or None,
-                            manufacturer=row.get('manu', '').strip(),
-                            part_number=row.get('part_number', '').strip(),
-                            upc=row.get('upc', '').strip() or None,
-                            description=row.get('Description', '').strip(),
-                            price=float(price_str) if price_str else None,
-                            vendor=row.get('vendor', '').strip() or None,
-                            effective_date=effective_date
-                        )
-                        
-                        db.session.add(part)
-                        imported_count += 1
-                        
-                        # Commit in batches to avoid memory issues
-                        if imported_count % 500 == 0:
-                            db.session.commit()
-                            
-                    except Exception as e:
+                    
+                    # Create part record with flexible column name mapping
+                    part = Parts(
+                        category=str(row.get('Category', '') or row.get('category', '')).strip(),
+                        model=str(row.get('Model', '') or row.get('model', '')).strip() or None,
+                        rating=str(row.get('Rating', '') or row.get('rating', '')).strip() or None,
+                        master_item_number=str(row.get('Customer Part Number', '') or row.get('master_item_number', '') or row.get('Item Number', '')).strip() or None,
+                        manufacturer=str(row.get('Manufacturer', '') or row.get('manu', '') or row.get('manufacturer', '')).strip(),
+                        part_number=str(row.get('SKU', '') or row.get('part_number', '')).strip(),
+                        upc=str(row.get('UPC', '') or row.get('upc', '')).strip() or None,
+                        description=str(row.get('Description', '') or row.get('description', '')).strip(),
+                        vendor=str(row.get('vendor', '')).strip() or None
+                    )
+                    
+                    # Validate required fields
+                    if not part.manufacturer or not part.part_number:
                         error_count += 1
-                        print(f"Error importing row: {e} - Row data: {row}")
                         continue
-                
-                # Final commit
-                db.session.commit()
-                
-            flash(f'Successfully imported {imported_count} parts with {error_count} errors!', 'success')
+                    
+                    # Check for duplicates - prevent duplicate part numbers
+                    existing_part = Parts.query.filter_by(part_number=part.part_number).first()
+                    if existing_part:
+                        duplicate_count += 1
+                        duplicate_items.append({
+                            'part_number': part.part_number,
+                            'manufacturer': part.manufacturer,
+                            'description': part.description,
+                            'existing_manufacturer': existing_part.manufacturer,
+                            'existing_description': existing_part.description
+                        })
+                        continue
+                    
+                    db.session.add(part)
+                    db.session.flush()  # Get the part_id
+                    
+                    # Add price history if price is provided
+                    if price_str and price_str != '0' and price_str != 'nan':
+                        try:
+                            price_value = float(price_str)
+                            if price_value > 0:
+                                price_history = PartsPriceHistory(
+                                    part_id=part.part_id,
+                                    old_price=None,  # No previous price for new part
+                                    new_price=price_value,
+                                    changed_at=datetime.utcnow(),
+                                    changed_reason="Initial import from file",
+                                    effective_date=effective_date or datetime.utcnow().date(),
+                                    is_current=True,
+                                    source="file_import"
+                                )
+                                db.session.add(price_history)
+                        except ValueError:
+                            pass  # Skip invalid prices
+                    
+                    imported_count += 1
+                    
+                    # Commit in batches to avoid memory issues
+                    if imported_count % 500 == 0:
+                        db.session.commit()
+                        
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error importing row: {e} - Row data: {row}")
+                    continue
+            
+            # Final commit
+            db.session.commit()
+            
+            # Create detailed import report
+            if imported_count > 0:
+                flash(f'Successfully imported {imported_count} parts!', 'success')
+            
+            if duplicate_count > 0:
+                duplicate_flash_msg = f'{duplicate_count} items skipped due to duplicate part numbers'
+                flash(duplicate_flash_msg, 'warning')
+            
+            if error_count > 0:
+                flash(f'{error_count} items failed due to missing required fields', 'error')
+            
+            # Store duplicate report in session for display
+            if duplicate_items:
+                from flask import session
+                session['duplicate_report'] = {
+                    'count': duplicate_count,
+                    'duplicates': duplicate_items[:20]  # Show first 20 duplicates
+                }
             
         except Exception as e:
             db.session.rollback()
@@ -122,11 +240,48 @@ def search_parts():
         'rating': part.rating
     } for part in parts])
 
-@bp.route('/api/categories')
-def get_categories():
-    """Get all unique categories"""
-    categories = db.session.query(Parts.category).distinct().filter(Parts.category != '').all()
-    return jsonify([cat[0] for cat in categories if cat[0]])
+@bp.route('/api/categories', methods=['GET', 'POST'])
+def handle_categories():
+    """Get all active categories or create a new category"""
+    if request.method == 'GET':
+        categories = PartCategory.query.filter_by(is_active=True).order_by(PartCategory.name).all()
+        return jsonify([{'id': cat.category_id, 'name': cat.name} for cat in categories])
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Category name is required'}), 400
+        
+        category_name = data['name'].strip()
+        if not category_name:
+            return jsonify({'error': 'Category name cannot be empty'}), 400
+        
+        # Check if category already exists
+        existing_category = PartCategory.query.filter_by(name=category_name).first()
+        if existing_category:
+            if existing_category.is_active:
+                return jsonify({'error': 'Category already exists'}), 409
+            else:
+                # Reactivate existing category
+                existing_category.is_active = True
+                db.session.commit()
+                return jsonify({'id': existing_category.category_id, 'name': existing_category.name})
+        
+        # Create new category
+        try:
+            new_category = PartCategory(
+                name=category_name,
+                description=f"User-created category: {category_name}",
+                is_active=True
+            )
+            db.session.add(new_category)
+            db.session.commit()
+            
+            return jsonify({'id': new_category.category_id, 'name': new_category.name}), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to create category: {str(e)}'}), 500
 
 @bp.route('/api/manufacturers')
 def get_manufacturers():
@@ -383,4 +538,79 @@ def get_part_price_history(part_id):
             'is_current': h.is_current,
             'effective_date': h.effective_date.isoformat() if h.effective_date else None
         } for h in history]
+    })
+
+@bp.route('/clear-duplicate-report', methods=['POST'])
+def clear_duplicate_report():
+    """Clear the duplicate report from session"""
+    from flask import session
+    session.pop('duplicate_report', None)
+    return jsonify({'status': 'success'})
+
+@bp.route('/categories')
+def manage_categories():
+    """Manage part categories with Excel-like interface"""
+    categories = PartCategory.query.order_by(PartCategory.name).all()
+    return render_template('parts/categories.html', categories=categories)
+
+@bp.route('/api/categories/<int:category_id>', methods=['PUT', 'DELETE'])
+def manage_category(category_id):
+    """Update or delete a category"""
+    category = PartCategory.query.get_or_404(category_id)
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        if 'name' in data:
+            # Check if name already exists
+            existing = PartCategory.query.filter(
+                PartCategory.name == data['name'],
+                PartCategory.category_id != category_id
+            ).first()
+            if existing:
+                return jsonify({'error': 'Category name already exists'}), 400
+            
+            category.name = data['name']
+        if 'description' in data:
+            category.description = data['description']
+        
+        db.session.commit()
+        return jsonify({
+            'category_id': category.category_id,
+            'name': category.name,
+            'description': category.description
+        })
+    
+    elif request.method == 'DELETE':
+        # Check if category is in use
+        parts_using_category = Parts.query.filter_by(category_id=category_id).count()
+        if parts_using_category > 0:
+            return jsonify({'error': f'Cannot delete category. {parts_using_category} parts are using this category.'}), 400
+        
+        db.session.delete(category)
+        db.session.commit()
+        return jsonify({'success': True})
+
+@bp.route('/api/categories/new', methods=['POST'])
+def create_category():
+    """Create a new category"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    
+    if not name:
+        return jsonify({'error': 'Category name is required'}), 400
+    
+    # Check if name already exists
+    existing = PartCategory.query.filter_by(name=name).first()
+    if existing:
+        return jsonify({'error': 'Category name already exists'}), 400
+    
+    category = PartCategory(name=name, description=description)
+    db.session.add(category)
+    db.session.commit()
+    
+    return jsonify({
+        'category_id': category.category_id,
+        'name': category.name,
+        'description': category.description
     })

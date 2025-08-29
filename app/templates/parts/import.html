@@ -8,7 +8,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">Import Parts Database</h5>
-                <small class="text-muted">Import parts from partsdb.csv file</small>
+                <small class="text-muted">Import parts from uploaded file</small>
             </div>
             <div class="card-body">
                 {% if parts_count > 0 %}
@@ -23,33 +23,66 @@
                     </div>
                 {% endif %}
 
+                {% if session.get('duplicate_report') %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Duplicate Parts Report</h6>
+                        <p>The following {{ session.duplicate_report.count }} items were not imported because parts with the same part number already exist:</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Part Number</th>
+                                        <th>New Item</th>
+                                        <th>Existing Item</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in session.duplicate_report.duplicates %}
+                                    <tr>
+                                        <td><strong>{{ item.part_number }}</strong></td>
+                                        <td>
+                                            <div>{{ item.manufacturer }}</div>
+                                            <small class="text-muted">{{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}</small>
+                                        </td>
+                                        <td>
+                                            <div>{{ item.existing_manufacturer }}</div>
+                                            <small class="text-muted">{{ item.existing_description[:60] }}{% if item.existing_description|length > 60 %}...{% endif %}</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if session.duplicate_report.count > 20 %}
+                            <p class="mb-0"><small class="text-muted">Showing first 20 of {{ session.duplicate_report.count }} duplicate items.</small></p>
+                        {% endif %}
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDuplicateReport()">
+                                <i class="fas fa-times"></i> Clear Report
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     
                     <div class="mb-3">
-                        <label for="file" class="form-label">Upload Parts File</label>
-                        <input class="form-control" type="file" id="file" name="file" accept=".csv,.xlsx,.xls">
-                        <div class="form-text">Upload a CSV or Excel file, or leave blank to import from partsdb.csv</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="clear_existing" name="clear_existing">
-                            <label class="form-check-label" for="clear_existing">
-                                Clear existing parts before import
-                                <small class="text-muted d-block">Warning: This will delete all current parts and price history data</small>
-                            </label>
-                        </div>
+                        <label for="file" class="form-label">Upload Parts File *</label>
+                        <input class="form-control" type="file" id="file" name="file" accept=".csv,.xlsx,.xls" required>
+                        <div class="form-text">Select a file to import. Supported formats: .csv, .xlsx, .xls</div>
                     </div>
 
                     <div class="alert alert-info">
-                        <h6><i class="fas fa-file-csv"></i> Import Process</h6>
+                        <h6><i class="fas fa-file-import"></i> File Format Requirements</h6>
                         <ul class="mb-0">
-                            <li><strong>Excel Files (.xlsx, .xls):</strong> VFD parts format with columns: Manufacturer, SKU, Customer Part Number, Description, Unit Price, UPC</li>
-                            <li><strong>CSV Files:</strong> Legacy format with columns: Category, Model, Rating, Manufacturer, Part Number, Description, Price, etc.</li>
-                            <li>Duplicate parts (same manufacturer + part number) will be updated instead of creating duplicates</li>
+                            <li><strong>Required Columns:</strong> Manufacturer (or manu), and one of: Customer Part Number, part_number, or SKU</li>
+                            <li><strong>Optional Columns:</strong> Category, Model, Rating, Description, Unit Price (or Price), UPC, Vendor, effective_date, Item Number</li>
+                            <li><strong>File Types:</strong> Excel (.xlsx, .xls) or CSV files supported</li>
+                            <li><strong>Column Names:</strong> Case-insensitive matching (e.g., 'Manufacturer' or 'manufacturer')</li>
+                            <li><strong>Duplicate Prevention:</strong> Parts with existing part numbers will be skipped and reported</li>
                             <li>All pricing information is stored in price history table for tracking</li>
-                            <li>Large files are imported in batches for better performance</li>
+                            <li>Large files are processed in batches for better performance</li>
                         </ul>
                     </div>
 
@@ -69,4 +102,31 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clearDuplicateReport() {
+    if (confirm('Are you sure you want to clear the duplicate report?')) {
+        fetch('{{ url_for("parts.clear_duplicate_report") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error clearing report. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error clearing report. Please try again.');
+        });
+    }
+}
+</script>
 {% endblock %}

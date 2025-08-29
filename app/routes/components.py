@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Component, PriceHistory, Assembly, Parts, Estimate, Project, PartsPriceHistory, AssemblyPart
+from app.models import Component, PriceHistory, Assembly, Parts, Estimate, Project, PartsPriceHistory, AssemblyPart, PartCategory
 from app import db, csrf
 from datetime import datetime
 
@@ -497,6 +497,9 @@ def api_update_database_part(part_id):
         part = Parts.query.get_or_404(part_id)
         data = request.get_json()
         
+        # Debug logging
+        print(f"Update request for part {part_id}: {data}")
+        
         # Update part fields (non-price)
         part.category = data.get('category', part.category)
         part.model = data.get('model', part.model)
@@ -517,10 +520,32 @@ def api_update_database_part(part_id):
                 source='manual'
             )
         
-        # Handle effective_date if provided
+        # Handle effective_date if provided - update the current price history record
         if 'effective_date' in data and data['effective_date']:
             try:
-                part.effective_date = datetime.strptime(data['effective_date'], '%Y-%m-%d').date()
+                new_effective_date = datetime.strptime(data['effective_date'], '%Y-%m-%d').date()
+                
+                # Find the current price history record and update its effective_date
+                current_history = db.session.query(PartsPriceHistory)\
+                    .filter_by(part_id=part.part_id, is_current=True)\
+                    .first()
+                
+                if current_history:
+                    current_history.effective_date = new_effective_date
+                else:
+                    # If no price history exists, create one with just the effective date
+                    price_history = PartsPriceHistory(
+                        part_id=part.part_id,
+                        old_price=None,
+                        new_price=0.00,  # Default price
+                        changed_at=datetime.utcnow(),
+                        changed_reason="Effective date update via database edit",
+                        effective_date=new_effective_date,
+                        is_current=True,
+                        source="manual"
+                    )
+                    db.session.add(price_history)
+                    
             except ValueError:
                 pass  # Keep existing date if format is invalid
         
@@ -567,12 +592,34 @@ def api_add_database_part():
             part_number=data.get('part_number', ''),
             upc=data.get('upc', ''),
             description=data.get('description', ''),
-            price=float(data.get('price', 0.0)),
-            vendor=data.get('vendor', ''),
-            effective_date=datetime.strptime(data['effective_date'], '%Y-%m-%d').date() if data.get('effective_date') else None
+            vendor=data.get('vendor', '')
         )
         
         db.session.add(part)
+        db.session.flush()  # Get the part_id
+        
+        # Add price history if price is provided
+        price = float(data.get('price', 0.0))
+        if price > 0:
+            effective_date = None
+            if data.get('effective_date'):
+                try:
+                    effective_date = datetime.strptime(data['effective_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    effective_date = datetime.utcnow().date()  # Default to today
+            
+            price_history = PartsPriceHistory(
+                part_id=part.part_id,
+                old_price=None,  # No previous price for new part
+                new_price=price,
+                changed_at=datetime.utcnow(),
+                changed_reason="Initial part creation",
+                effective_date=effective_date or datetime.utcnow().date(),
+                is_current=True,
+                source="manual"
+            )
+            db.session.add(price_history)
+        
         db.session.commit()
         
         return jsonify({

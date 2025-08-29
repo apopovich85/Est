@@ -182,7 +182,15 @@
                 <form id="addPartForm">
                     <div class="mb-3">
                         <label for="category" class="form-label">Category *</label>
-                        <input type="text" class="form-control" id="category" required>
+                        <select class="form-control" id="category" required>
+                            <option value="">Select a category...</option>
+                        </select>
+                        <div class="form-text">
+                            <a href="#" id="addNewCategoryLink">+ Add new category</a>
+                        </div>
+                        <div id="newCategoryInput" class="mt-2" style="display: none;">
+                            <input type="text" class="form-control" id="newCategoryName" placeholder="Enter new category name">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="manufacturer" class="form-label">Manufacturer *</label>
@@ -392,6 +400,8 @@
 
 .editable:hover .fill-handle,
 .editable.selected .fill-handle,
+.category-cell:hover .fill-handle,
+.category-cell.selected .fill-handle,
 .selected-cell .fill-handle {
     display: block !important;
 }
@@ -425,12 +435,26 @@
 
 /* Force fill handle to show on selected cells */
 td.selected-cell .fill-handle,
-.table td.selected-cell .fill-handle {
+.table td.selected-cell .fill-handle,
+td.category-cell.selected-cell .fill-handle,
+.table td.category-cell.selected-cell .fill-handle {
     display: block !important;
     visibility: visible !important;
-    background-color: #ff0000 !important; /* Temporary red color for debugging */
+    background-color: #007bff !important;
     width: 12px !important;
     height: 12px !important;
+}
+
+/* Category cell specific styling */
+.category-cell {
+    position: relative !important;
+}
+
+.category-cell .fill-handle {
+    position: absolute !important;
+    bottom: -4px !important;
+    right: -4px !important;
+    z-index: 1001 !important;
 }
 
 /* Fix price column font to match other columns */
@@ -465,6 +489,7 @@ class DatabasePartsManager {
     init() {
         this.bindEvents();
         this.loadParts();
+        this.loadCategories();
         this.setupKeyboardShortcuts();
     }
     
@@ -485,6 +510,7 @@ class DatabasePartsManager {
         
         // Modal actions
         document.getElementById('savePartBtn').addEventListener('click', () => this.saveNewPart());
+        document.getElementById('addNewCategoryLink').addEventListener('click', (e) => this.showNewCategoryInput(e));
         
         // Auto-save toggle
         document.getElementById('autoSaveToggle').addEventListener('change', (e) => {
@@ -570,6 +596,147 @@ class DatabasePartsManager {
             this.showToast('Error loading parts', 'error');
         }
         this.showLoading(false);
+    }
+    
+    async loadCategories() {
+        try {
+            const response = await fetch('/parts/api/categories');
+            const categories = await response.json();
+            
+            this.categories = categories;
+            this.updateAddPartCategoryDropdown();
+        } catch (error) {
+            console.error('Error loading categories:', error);
+        }
+    }
+    
+    updateAddPartCategoryDropdown() {
+        const select = document.getElementById('category');
+        if (!select) return;
+        
+        // Clear existing options except the first one
+        while (select.children.length > 1) {
+            select.removeChild(select.lastChild);
+        }
+        
+        // Add category options
+        this.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.name;
+            option.textContent = category.name;
+            select.appendChild(option);
+        });
+    }
+    
+    showNewCategoryInput(e) {
+        e.preventDefault();
+        
+        const link = document.getElementById('addNewCategoryLink');
+        const input = document.getElementById('newCategoryInput');
+        const categoryNameInput = document.getElementById('newCategoryName');
+        
+        link.style.display = 'none';
+        input.style.display = 'block';
+        categoryNameInput.focus();
+        
+        // Handle input events
+        const handleCategoryInput = (e) => {
+            if (e.key === 'Enter') {
+                this.createNewCategory();
+            } else if (e.key === 'Escape') {
+                this.hideNewCategoryInput();
+            }
+        };
+        
+        const handleBlur = () => {
+            if (categoryNameInput.value.trim()) {
+                this.createNewCategory();
+            } else {
+                this.hideNewCategoryInput();
+            }
+        };
+        
+        categoryNameInput.addEventListener('keydown', handleCategoryInput);
+        categoryNameInput.addEventListener('blur', handleBlur);
+    }
+    
+    hideNewCategoryInput() {
+        const link = document.getElementById('addNewCategoryLink');
+        const input = document.getElementById('newCategoryInput');
+        const categoryNameInput = document.getElementById('newCategoryName');
+        
+        link.style.display = 'inline';
+        input.style.display = 'none';
+        categoryNameInput.value = '';
+        
+        // Remove event listeners
+        categoryNameInput.removeEventListener('keydown', this.handleCategoryInput);
+        categoryNameInput.removeEventListener('blur', this.handleBlur);
+    }
+    
+    async createNewCategory() {
+        const categoryNameInput = document.getElementById('newCategoryName');
+        const categoryName = categoryNameInput.value.trim();
+        
+        if (!categoryName) {
+            this.hideNewCategoryInput();
+            return;
+        }
+        
+        // Check if category already exists
+        if (this.categories.some(cat => cat.name.toLowerCase() === categoryName.toLowerCase())) {
+            this.showToast('Category already exists', 'warning');
+            this.selectExistingCategory(categoryName);
+            this.hideNewCategoryInput();
+            return;
+        }
+        
+        try {
+            const response = await fetch('/parts/api/categories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: categoryName })
+            });
+            
+            if (response.ok) {
+                const newCategory = await response.json();
+                
+                // Add to local categories array
+                this.categories.push(newCategory);
+                
+                // Update dropdown
+                this.updateAddPartCategoryDropdown();
+                
+                // Select the new category
+                document.getElementById('category').value = newCategory.name;
+                
+                // Show success message
+                this.showToast(`Category "${categoryName}" created successfully`, 'success');
+                
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create category');
+            }
+            
+        } catch (error) {
+            console.error('Error creating category:', error);
+            this.showToast('Error creating category: ' + error.message, 'error');
+        }
+        
+        this.hideNewCategoryInput();
+    }
+    
+    selectExistingCategory(categoryName) {
+        const select = document.getElementById('category');
+        const existingOption = Array.from(select.options).find(
+            option => option.value.toLowerCase() === categoryName.toLowerCase()
+        );
+        
+        if (existingOption) {
+            select.value = existingOption.value;
+        }
     }
     
     updateCategoryFilter() {
@@ -685,7 +852,7 @@ class DatabasePartsManager {
                 <input type="checkbox" class="form-check-input part-checkbox" 
                        data-part-id="${part.part_id}">
             </td>
-            <td class="editable" data-field="category">${this.escapeHtml(part.category || '')}<div class="fill-handle"></div></td>
+            <td class="category-cell" data-field="category" data-part-id="${part.part_id}" data-current-category="${part.category || ''}">${this.renderCategoryDropdown(part.category || '', part.part_id)}<div class="fill-handle"></div></td>
             <td class="editable" data-field="manufacturer">${this.escapeHtml(part.manufacturer || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="part_number">${this.escapeHtml(part.part_number || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="description">${this.escapeHtml(part.description || '')}<div class="fill-handle"></div></td>
@@ -747,8 +914,19 @@ class DatabasePartsManager {
         
         // Editable cells
         row.querySelectorAll('.editable').forEach(cell => {
-            cell.addEventListener('click', () => this.selectCell(cell));
+            cell.addEventListener('click', (e) => this.selectCell(cell, e));
             cell.addEventListener('dblclick', () => this.startEdit(cell));
+            
+            // Fill handle drag functionality
+            const fillHandle = cell.querySelector('.fill-handle');
+            if (fillHandle) {
+                fillHandle.addEventListener('mousedown', (e) => this.startDragFill(e, cell));
+            }
+        });
+        
+        // Category cells
+        row.querySelectorAll('.category-cell').forEach(cell => {
+            cell.addEventListener('click', (e) => this.selectCell(cell, e));
             
             // Fill handle drag functionality
             const fillHandle = cell.querySelector('.fill-handle');
@@ -1355,6 +1533,13 @@ class DatabasePartsManager {
                 document.addEventListener('mouseup', stopResize);
                 
                 e.preventDefault();
+                e.stopPropagation(); // Prevent event from bubbling to parent sortable header
+            });
+            
+            // Also prevent click events on the resize handle from triggering sort
+            handle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
             });
         });
         
@@ -1424,13 +1609,33 @@ class DatabasePartsManager {
         });
     }
     
-    selectCell(cell) {
-        // Clear previous selection
-        document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
+    selectCell(cell, event) {
+        if (!this.selectedCells) {
+            this.selectedCells = [];
+        }
         
-        // Select new cell
-        cell.classList.add('selected-cell');
-        this.selectedCell = cell;
+        // Handle multi-selection with Ctrl key
+        if (event && event.ctrlKey) {
+            if (cell.classList.contains('selected-cell')) {
+                // Deselect if already selected
+                cell.classList.remove('selected-cell');
+                this.selectedCells = this.selectedCells.filter(c => c !== cell);
+            } else {
+                // Add to selection
+                cell.classList.add('selected-cell');
+                this.selectedCells.push(cell);
+            }
+        } else {
+            // Clear previous selection
+            document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
+            this.selectedCells = [];
+            
+            // Select new cell
+            cell.classList.add('selected-cell');
+            this.selectedCells.push(cell);
+        }
+        
+        this.selectedCell = cell; // Keep single selection for backwards compatibility
     }
     
     startDragFill(e, cell) {
@@ -1456,7 +1661,7 @@ class DatabasePartsManager {
         if (!this.isDragging || !this.fillStartCell) return;
         
         const targetCell = document.elementFromPoint(e.clientX, e.clientY);
-        if (!targetCell || !targetCell.classList.contains('editable')) return;
+        if (!targetCell || (!targetCell.classList.contains('editable') && !targetCell.classList.contains('category-cell'))) return;
         
         // Clear previous preview
         document.querySelectorAll('.fill-preview').forEach(c => c.classList.remove('fill-preview'));
@@ -1502,46 +1707,117 @@ class DatabasePartsManager {
         const startRowIndex = rows.indexOf(startRow);
         const endRowIndex = rows.indexOf(endRow);
         
-        const startColIndex = Array.from(startRow.children).indexOf(startCell);
-        const endColIndex = Array.from(endRow.children).indexOf(endCell);
-        
         const cells = [];
         
-        const minRow = Math.min(startRowIndex, endRowIndex);
-        const maxRow = Math.max(startRowIndex, endRowIndex);
-        const minCol = Math.min(startColIndex, endColIndex);
-        const maxCol = Math.max(startColIndex, endColIndex);
+        // Get all currently selected cells for multi-column fills
+        const selectedCells = this.selectedCells && this.selectedCells.length > 1 ? this.selectedCells : [startCell];
         
-        for (let r = minRow; r <= maxRow; r++) {
-            for (let c = minCol; c <= maxCol; c++) {
-                const cell = rows[r].children[c];
-                if (cell && cell.classList.contains('editable')) {
-                    cells.push(cell);
-                }
+        // Only allow vertical fills (down or up from the selected row)
+        if (startRowIndex !== endRowIndex) {
+            // Vertical fill - get all cells in the range for each selected column
+            const minRow = Math.min(startRowIndex, endRowIndex);
+            const maxRow = Math.max(startRowIndex, endRowIndex);
+            
+            // Get unique columns from selected cells
+            const selectedColumns = new Set();
+            selectedCells.forEach(cell => {
+                const row = cell.closest('tr');
+                const colIndex = Array.from(row.children).indexOf(cell);
+                selectedColumns.add(colIndex);
+            });
+            
+            // Fill each column vertically
+            for (let r = minRow; r <= maxRow; r++) {
+                selectedColumns.forEach(colIndex => {
+                    const cell = rows[r].children[colIndex];
+                    if (cell && (cell.classList.contains('editable') || cell.classList.contains('category-cell'))) {
+                        cells.push(cell);
+                    }
+                });
             }
         }
+        // Don't allow horizontal fills - return empty array for same-row drags
         
         return cells;
     }
     
     async performFill(sourceCell, targetCells) {
-        const sourceValue = sourceCell.textContent.replace('$', '').trim();
-        const field = sourceCell.dataset.field;
-        const type = sourceCell.dataset.type;
+        // Check if we have multiple selected cells to use as source pattern
+        const sourceCells = this.selectedCells && this.selectedCells.length > 1 ? this.selectedCells : [sourceCell];
         
+        // Group target cells by rows for multi-column fills
+        const targetRowsMap = new Map();
         for (const cell of targetCells) {
-            if (cell === sourceCell) continue;
+            if (sourceCells.includes(cell)) continue; // Skip source cells
             
-            try {
-                await this.updateDatabasePart(cell, field, sourceValue);
-            } catch (error) {
-                console.error('Fill operation failed for cell:', error);
-                this.showToast(`Fill failed for ${field}: ${error.message}`, 'error');
-                break;
+            const row = cell.closest('tr');
+            const rowIndex = Array.from(row.parentElement.children).indexOf(row);
+            if (!targetRowsMap.has(rowIndex)) {
+                targetRowsMap.set(rowIndex, []);
+            }
+            targetRowsMap.get(rowIndex).push(cell);
+        }
+        
+        let totalFilled = 0;
+        
+        // Fill each target row with the pattern from source cells
+        for (const [rowIndex, rowCells] of targetRowsMap) {
+            for (let i = 0; i < rowCells.length && i < sourceCells.length; i++) {
+                const sourceCell = sourceCells[i];
+                const targetCell = rowCells[i];
+                
+                // Skip if not in same column (for multi-cell source patterns)
+                if (sourceCells.length > 1) {
+                    const sourceRow = sourceCell.closest('tr');
+                    const sourceColIndex = Array.from(sourceRow.children).indexOf(sourceCell);
+                    const targetRow = targetCell.closest('tr');
+                    const targetColIndex = Array.from(targetRow.children).indexOf(targetCell);
+                    
+                    if (sourceColIndex !== targetColIndex) continue;
+                }
+                
+                const field = sourceCell.dataset.field;
+                let sourceValue;
+                
+                // Handle different cell types
+                if (sourceCell.classList.contains('category-cell')) {
+                    const dropdown = sourceCell.querySelector('select');
+                    sourceValue = dropdown ? dropdown.value : '';
+                } else {
+                    sourceValue = sourceCell.textContent.replace('$', '').trim();
+                }
+                
+                try {
+                    if (targetCell.classList.contains('category-cell')) {
+                        const dropdown = targetCell.querySelector('select');
+                        if (dropdown && sourceValue) {
+                            const optionExists = Array.from(dropdown.options).some(option => option.value === sourceValue);
+                            if (optionExists) {
+                                dropdown.value = sourceValue;
+                                dropdown.dispatchEvent(new Event('change'));
+                                totalFilled++;
+                            }
+                        }
+                    } else {
+                        await this.updateDatabasePart(targetCell, field, sourceValue);
+                        totalFilled++;
+                    }
+                } catch (error) {
+                    console.error('Fill operation failed for cell:', error);
+                    this.showToast(`Fill failed for ${field}: ${error.message}`, 'error');
+                    return;
+                }
             }
         }
         
-        this.showToast(`Filled ${targetCells.length - 1} cells with "${sourceValue}"`, 'success');
+        if (sourceCells.length === 1) {
+            const sourceValue = sourceCells[0].classList.contains('category-cell') ? 
+                sourceCells[0].querySelector('select')?.value || '' : 
+                sourceCells[0].textContent.replace('$', '').trim();
+            this.showToast(`Filled ${totalFilled} cells with "${sourceValue}"`, 'success');
+        } else {
+            this.showToast(`Filled ${totalFilled} cells using ${sourceCells.length} column pattern`, 'success');
+        }
     }
     
     createDragLines() {
@@ -1584,6 +1860,62 @@ class DatabasePartsManager {
     removeDragLines() {
         this.dragLines.forEach(line => line.remove());
         this.dragLines = [];
+    }
+
+    renderCategoryDropdown(currentCategory, partId) {
+        const categories = this.categories || [];
+        let options = '<option value="">Select category...</option>';
+        
+        categories.forEach(category => {
+            const selected = category.name === currentCategory ? 'selected' : '';
+            const description = category.description ? ` - ${category.description}` : '';
+            options += `<option value="${this.escapeHtml(category.name)}" ${selected} title="${this.escapeHtml(category.description || '')}">${this.escapeHtml(category.name)}${this.escapeHtml(description)}</option>`;
+        });
+        
+        return `<select class="form-select form-select-sm category-dropdown" data-part-id="${partId}" onchange="window.databaseManager.updatePartCategory(this)">${options}</select>`;
+    }
+    
+    async updatePartCategory(selectElement) {
+        const partId = selectElement.dataset.partId;
+        const newCategory = selectElement.value;
+        const cell = selectElement.closest('td');
+        
+        try {
+            const response = await fetch(`/components/api/database/update/${partId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+                },
+                body: JSON.stringify({category: newCategory})
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                // Update local data
+                const partIndex = this.parts.findIndex(p => p.part_id === parseInt(partId));
+                if (partIndex !== -1) {
+                    this.parts[partIndex].category = newCategory;
+                }
+                
+                // Update filtered parts
+                this.applyFilters();
+                this.updateCategoryFilter();
+                this.showToast('Category updated successfully', 'success');
+            } else {
+                const error = await response.json();
+                this.showToast(error.message || 'Error updating category', 'error');
+                // Reset dropdown to original value
+                const originalCategory = cell.dataset.currentCategory;
+                selectElement.value = originalCategory;
+            }
+        } catch (error) {
+            console.error('Error updating category:', error);
+            this.showToast('Error updating category', 'error');
+            // Reset dropdown to original value
+            const originalCategory = cell.dataset.currentCategory;
+            selectElement.value = originalCategory;
+        }
     }
 
     escapeHtml(text) {

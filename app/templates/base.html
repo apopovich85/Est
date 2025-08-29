@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Project Estimates Manager{% endblock %}</title>
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation -->
@@ -20,9 +22,18 @@
                 <a class="nav-link" href="{{ url_for('projects.list_projects') }}">Projects</a>
                 <a class="nav-link" href="{{ url_for('standard_assemblies.list_assemblies') }}">Standard Assemblies</a>
                 <a class="nav-link" href="{{ url_for('categories.list_categories') }}">Categories</a>
-                <a class="nav-link" href="{{ url_for('components.master_parts_database') }}">Parts Database</a>
-                <a class="nav-link" href="{{ url_for('parts.import_parts') }}">Import Parts</a>
-                <a class="nav-link" href="{{ url_for('parts.price_update') }}">Price Updates</a>
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="partsDropdown" role="button" data-bs-toggle="dropdown">
+                        Parts
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ url_for('components.master_parts_database') }}">Parts Database</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('parts.manage_categories') }}">Part Categories</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('parts.import_parts') }}">Import Parts</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('parts.price_update') }}">Price Updates</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>

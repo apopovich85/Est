@@ -2,6 +2,38 @@ from app import db
 from datetime import datetime
 from sqlalchemy import event
 
+class PartCategory(db.Model):
+    __tablename__ = 'part_categories'
+    
+    category_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    description = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship to parts
+    parts = db.relationship('Parts', backref='part_category', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<PartCategory {self.name}>'
+    
+    @staticmethod
+    def get_or_create(name):
+        """Get existing category or create new one"""
+        if not name or not name.strip():
+            return None
+            
+        name = name.strip()
+        category = PartCategory.query.filter_by(name=name).first()
+        
+        if not category:
+            category = PartCategory(name=name)
+            db.session.add(category)
+            db.session.flush()  # Get the ID without committing
+            
+        return category
+
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -193,7 +225,7 @@ class Parts(db.Model):
     __tablename__ = 'parts'
     
     part_id = db.Column(db.Integer, primary_key=True)
-    category = db.Column(db.String(100), nullable=False, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('part_categories.category_id'), nullable=True, index=True)
     model = db.Column(db.String(100))
     rating = db.Column(db.String(50))
     master_item_number = db.Column(db.String(100))
@@ -202,13 +234,27 @@ class Parts(db.Model):
     upc = db.Column(db.String(50))
     description = db.Column(db.Text)
     # price column removed - now using PartsPriceHistory table
+    # effective_date column removed - now using PartsPriceHistory table
     vendor = db.Column(db.String(100))
-    effective_date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship to price history
     price_history = db.relationship('PartsPriceHistory', backref='part', cascade='all, delete-orphan')
+    
+    @property
+    def category(self):
+        """Get the category name for backward compatibility"""
+        return self.part_category.name if self.part_category else None
+    
+    @category.setter
+    def category(self, value):
+        """Set the category by name, creating if necessary"""
+        if value:
+            category_obj = PartCategory.get_or_create(value)
+            self.category_id = category_obj.category_id if category_obj else None
+        else:
+            self.category_id = None
     
     @property
     def current_price(self):
@@ -222,6 +268,24 @@ class Parts(db.Model):
         
         # No current price found
         return 0.0
+    
+    @property
+    def effective_date(self):
+        """Get the effective date from the current price history record"""
+        current_history = db.session.query(PartsPriceHistory)\
+            .filter_by(part_id=self.part_id, is_current=True)\
+            .first()
+        
+        if current_history:
+            return current_history.effective_date
+        
+        # If no current price history, get the most recent effective date
+        latest_history = db.session.query(PartsPriceHistory)\
+            .filter_by(part_id=self.part_id)\
+            .order_by(PartsPriceHistory.changed_at.desc())\
+            .first()
+        
+        return latest_history.effective_date if latest_history else None
     
     def update_price(self, new_price, reason="Price update", source="manual", effective_date=None):
         """Update part price with automatic history tracking"""
