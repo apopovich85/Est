@@ -9,6 +9,24 @@ from decimal import Decimal
 
 bp = Blueprint('parts', __name__)
 
+def clean_field_value(value):
+    """Clean field value and return None for empty/whitespace-only strings"""
+    if value is None:
+        return None
+    
+    # Convert to string and handle pandas NaN
+    if pd.isna(value):
+        return None
+    
+    # Convert to string and strip whitespace
+    cleaned = str(value).strip()
+    
+    # Return None for empty strings or common placeholder values
+    if not cleaned or cleaned.lower() in ['', 'null', 'none', 'n/a', 'na', '#n/a']:
+        return None
+    
+    return cleaned
+
 @bp.route('/import', methods=['GET', 'POST'])
 @csrf.exempt
 def import_parts():
@@ -113,7 +131,7 @@ def import_parts():
                         category=str(row.get('Category', '') or row.get('category', '')).strip(),
                         model=str(row.get('Model', '') or row.get('model', '')).strip() or None,
                         rating=str(row.get('Rating', '') or row.get('rating', '')).strip() or None,
-                        master_item_number=str(row.get('Customer Part Number', '') or row.get('master_item_number', '') or row.get('Item Number', '')).strip() or None,
+                        master_item_number=clean_field_value(row.get('Customer Part Number', '')),
                         manufacturer=str(row.get('Manufacturer', '') or row.get('manu', '') or row.get('manufacturer', '')).strip(),
                         part_number=str(row.get('SKU', '') or row.get('part_number', '')).strip(),
                         upc=str(row.get('UPC', '') or row.get('upc', '')).strip() or None,
@@ -126,18 +144,99 @@ def import_parts():
                         error_count += 1
                         continue
                     
-                    # Check for duplicates - prevent duplicate part numbers
+                    # Check for existing parts and update if fields have changed
                     existing_part = Parts.query.filter_by(part_number=part.part_number).first()
                     if existing_part:
-                        duplicate_count += 1
-                        duplicate_items.append({
-                            'part_number': part.part_number,
-                            'manufacturer': part.manufacturer,
-                            'description': part.description,
-                            'existing_manufacturer': existing_part.manufacturer,
-                            'existing_description': existing_part.description
-                        })
-                        continue
+                        # Compare fields and track changes
+                        changes = []
+                        updated = False
+                        
+                        # Compare each field - only update if provided in import data
+                        # Only update category if it's provided in the import file
+                        import_category = row.get('Category', '') or row.get('category', '')
+                        if import_category.strip() and existing_part.category != part.category:
+                            changes.append(f"Category: '{existing_part.category}' → '{part.category}'")
+                            existing_part.category = part.category
+                            updated = True
+                            
+                        # Only update model if it's provided in the import file
+                        import_model = row.get('Model', '') or row.get('model', '')
+                        if import_model.strip() and existing_part.model != part.model:
+                            changes.append(f"Model: '{existing_part.model}' → '{part.model}'")
+                            existing_part.model = part.model
+                            updated = True
+                            
+                        # Only update rating if it's provided in the import file
+                        import_rating = row.get('Rating', '') or row.get('rating', '')
+                        if import_rating.strip() and existing_part.rating != part.rating:
+                            changes.append(f"Rating: '{existing_part.rating}' → '{part.rating}'")
+                            existing_part.rating = part.rating
+                            updated = True
+                            
+                        if existing_part.master_item_number != part.master_item_number:
+                            changes.append(f"Customer Part Number: '{existing_part.master_item_number}' → '{part.master_item_number}'")
+                            existing_part.master_item_number = part.master_item_number
+                            updated = True
+                            
+                        if existing_part.manufacturer != part.manufacturer:
+                            changes.append(f"Manufacturer: '{existing_part.manufacturer}' → '{part.manufacturer}'")
+                            existing_part.manufacturer = part.manufacturer
+                            updated = True
+                            
+                        if existing_part.upc != part.upc:
+                            changes.append(f"UPC: '{existing_part.upc}' → '{part.upc}'")
+                            existing_part.upc = part.upc
+                            updated = True
+                            
+                        if existing_part.description != part.description:
+                            changes.append(f"Description: '{existing_part.description[:50]}...' → '{part.description[:50]}...'")
+                            existing_part.description = part.description
+                            updated = True
+                            
+                        if existing_part.vendor != part.vendor:
+                            changes.append(f"Vendor: '{existing_part.vendor}' → '{part.vendor}'")
+                            existing_part.vendor = part.vendor
+                            updated = True
+                        
+                        if updated:
+                            existing_part.updated_at = datetime.utcnow()
+                            imported_count += 1  # Count as import since we updated it
+                            
+                            # Log the update for duplicate report
+                            duplicate_items.append({
+                                'part_number': part.part_number,
+                                'action': 'updated',
+                                'manufacturer': part.manufacturer,
+                                'description': part.description,
+                                'changes': changes[:3]  # Show first 3 changes to avoid too long text
+                            })
+                        else:
+                            # No changes, count as duplicate skip
+                            duplicate_count += 1
+                            duplicate_items.append({
+                                'part_number': part.part_number,
+                                'action': 'skipped',
+                                'manufacturer': part.manufacturer,
+                                'description': part.description,
+                                'existing_manufacturer': existing_part.manufacturer,
+                                'existing_description': existing_part.description
+                            })
+                        
+                        # Handle price update for existing part
+                        if price_str and price_str != '0' and price_str != 'nan':
+                            try:
+                                price_value = float(price_str)
+                                if price_value > 0 and float(existing_part.current_price) != price_value:
+                                    existing_part.update_price(
+                                        new_price=price_value,
+                                        reason="Updated from file import",
+                                        source="file_import",
+                                        effective_date=effective_date or datetime.utcnow().date()
+                                    )
+                            except ValueError:
+                                pass  # Skip invalid prices
+                        
+                        continue  # Skip creating new part since we handled existing one
                     
                     db.session.add(part)
                     db.session.flush()  # Get the part_id
@@ -176,12 +275,17 @@ def import_parts():
             db.session.commit()
             
             # Create detailed import report
-            if imported_count > 0:
-                flash(f'Successfully imported {imported_count} parts!', 'success')
+            updated_count = len([item for item in duplicate_items if item.get('action') == 'updated'])
+            truly_skipped = duplicate_count - updated_count
             
-            if duplicate_count > 0:
-                duplicate_flash_msg = f'{duplicate_count} items skipped due to duplicate part numbers'
-                flash(duplicate_flash_msg, 'warning')
+            if imported_count > 0:
+                flash(f'Successfully imported/updated {imported_count} parts!', 'success')
+            
+            if updated_count > 0:
+                flash(f'{updated_count} existing parts were updated with new information', 'info')
+            
+            if truly_skipped > 0:
+                flash(f'{truly_skipped} items skipped (no changes detected)', 'warning')
             
             if error_count > 0:
                 flash(f'{error_count} items failed due to missing required fields', 'error')
@@ -197,6 +301,10 @@ def import_parts():
         except Exception as e:
             db.session.rollback()
             flash(f'Error importing parts: {str(e)}', 'error')
+    
+    # Clear any existing duplicate report when page first loads (GET request)
+    from flask import session
+    session.pop('duplicate_report', None)
     
     # Get current parts count
     parts_count = Parts.query.count()

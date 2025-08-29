@@ -24,29 +24,42 @@
                 {% endif %}
 
                 {% if session.get('duplicate_report') %}
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Duplicate Parts Report</h6>
-                        <p>The following {{ session.duplicate_report.count }} items were not imported because parts with the same part number already exist:</p>
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Import Results Report</h6>
+                        <p>The following {{ session.duplicate_report.count }} items were processed for existing part numbers:</p>
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
                                         <th>Part Number</th>
-                                        <th>New Item</th>
-                                        <th>Existing Item</th>
+                                        <th>Status</th>
+                                        <th>Item Details</th>
+                                        <th>Changes Made</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in session.duplicate_report.duplicates %}
-                                    <tr>
+                                    <tr class="{% if item.action == 'updated' %}table-success{% else %}table-warning{% endif %}">
                                         <td><strong>{{ item.part_number }}</strong></td>
+                                        <td>
+                                            {% if item.action == 'updated' %}
+                                                <span class="badge bg-success">Updated</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Skipped</span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <div>{{ item.manufacturer }}</div>
                                             <small class="text-muted">{{ item.description[:60] }}{% if item.description|length > 60 %}...{% endif %}</small>
                                         </td>
                                         <td>
-                                            <div>{{ item.existing_manufacturer }}</div>
-                                            <small class="text-muted">{{ item.existing_description[:60] }}{% if item.existing_description|length > 60 %}...{% endif %}</small>
+                                            {% if item.action == 'updated' and item.changes %}
+                                                {% for change in item.changes %}
+                                                    <small class="d-block text-success">{{ change }}</small>
+                                                {% endfor %}
+                                            {% else %}
+                                                <small class="text-muted">No changes detected</small>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -54,7 +67,7 @@
                             </table>
                         </div>
                         {% if session.duplicate_report.count > 20 %}
-                            <p class="mb-0"><small class="text-muted">Showing first 20 of {{ session.duplicate_report.count }} duplicate items.</small></p>
+                            <p class="mb-0"><small class="text-muted">Showing first 20 of {{ session.duplicate_report.count }} processed items.</small></p>
                         {% endif %}
                         <div class="mt-3">
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearDuplicateReport()">
