@@ -21,7 +21,7 @@
             <span class="d-inline-flex align-items-center">
                 <select class="form-select form-select-sm border-0 p-0 bg-transparent text-muted" 
                         id="assemblyCategorySelect" style="width: auto; font-size: inherit;">
-                    <option value="{{ assembly.category }}" selected>{{ assembly.category }}</option>
+                    <option value="{{ assembly.category.code }}" selected>{{ assembly.category.code }} - {{ assembly.category.name }}</option>
                 </select>
                 <button class="btn btn-sm p-0 ms-1" id="saveCategoryBtn" style="display: none; font-size: 0.8rem;">
                     <i class="fas fa-save text-primary"></i>
@@ -233,7 +233,7 @@ let selectedPartForAdd = null;
 let componentsTable;
 let hasUnsavedChanges = false;
 let originalName = "{{ assembly.name }}";
-let originalCategory = "{{ assembly.category }}";
+let originalCategory = "{{ assembly.category.code }}";
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeInterface();
@@ -483,17 +483,17 @@ function renderComponents() {
                 <div class="fw-bold text-truncate" style="max-width: 150px;" title="${comp.part_number || 'N/A'}">${comp.part_number || 'N/A'}</div>
             </td>
             <td class="align-middle">
-                <div class="text-truncate" style="max-width: 300px;" title="${comp.component_name || comp.description || 'N/A'}">
+                <div style="max-width: 500px; word-wrap: break-word;" title="${comp.component_name || comp.description || 'N/A'}">
                     ${comp.component_name || comp.description || 'N/A'}
                 </div>
-                ${comp.notes ? `<small class="text-muted text-truncate d-block" style="max-width: 300px;" title="${comp.notes}">${comp.notes}</small>` : ''}
+                ${comp.notes ? `<small class="text-muted d-block" style="max-width: 500px; word-wrap: break-word;" title="${comp.notes}">${comp.notes}</small>` : ''}
             </td>
             <td class="align-middle">
                 <small class="text-truncate d-block" style="max-width: 90px;" title="${comp.manufacturer || 'Unknown'}">${comp.manufacturer || 'Unknown'}</small>
             </td>
             <td class="align-middle">
                 <input type="number" class="form-control form-control-sm quantity-input" 
-                       value="${comp.quantity}" min="0.001" step="0.001" 
+                       value="${comp.quantity}" min="1" step="1" 
                        data-component-id="${comp.component_id}" style="width: 65px;">
             </td>
             <td class="align-middle">
@@ -566,7 +566,9 @@ function updateComponentQuantity(componentId, quantity) {
         }
         
         updateAssemblyTotals();
-        hasUnsavedChanges = true;
+        
+        // Auto-save the change
+        autoSaveComponent(componentId);
     }
 }
 
@@ -574,7 +576,9 @@ function updateComponentUOM(componentId, uom) {
     const component = components.find(c => c.component_id === componentId);
     if (component) {
         component.unit_of_measure = uom;
-        hasUnsavedChanges = true;
+        
+        // Auto-save the change
+        autoSaveComponent(componentId);
     }
 }
 
@@ -714,7 +718,8 @@ function saveAllChanges() {
             body: JSON.stringify({
                 quantity: comp.quantity,
                 unit_of_measure: comp.unit_of_measure,
-                notes: comp.notes
+                notes: comp.notes,
+                sort_order: comp.sort_order
             })
         });
     });
@@ -841,7 +846,28 @@ function saveAssemblyCategory() {
 
 function saveAssemblyNotes() {
     const notes = document.getElementById('assemblyDescription').value;
-    showToast('success', 'Success', 'Notes saved');
+    
+    fetch(`/standard_assemblies/api/${assemblyId}/update-description`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            description: notes
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast('success', 'Success', 'Assembly description saved');
+        } else {
+            showToast('error', 'Error', result.error || 'Failed to save description');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving assembly description:', error);
+        showToast('error', 'Error', 'Failed to save assembly description');
+    });
 }
 
 function showAddComponentModal() {
@@ -849,7 +875,57 @@ function showAddComponentModal() {
 }
 
 function updateSortOrder() {
-    // Implementation for sort order
+    // Update sort order based on current table row positions
+    const rows = document.querySelectorAll('#componentsTableBody tr');
+    const changedComponents = [];
+    
+    rows.forEach((row, index) => {
+        const componentId = row.dataset.componentId;
+        if (componentId) {
+            // Find the component in our array and update its sort_order
+            const component = components.find(c => c.component_id.toString() === componentId);
+            if (component && component.sort_order !== index + 1) {
+                component.sort_order = index + 1;
+                changedComponents.push(componentId);
+            }
+        }
+    });
+    
+    // Auto-save all changed components
+    changedComponents.forEach(componentId => {
+        autoSaveComponent(parseInt(componentId));
+    });
+}
+
+function autoSaveComponent(componentId) {
+    const component = components.find(c => c.component_id === componentId);
+    if (!component) return;
+    
+    fetch(`/standard_assemblies/api/components/${componentId}/update`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            quantity: component.quantity,
+            unit_of_measure: component.unit_of_measure,
+            notes: component.notes || '',
+            sort_order: component.sort_order
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Silent success - no toast for auto-save
+            console.log(`Auto-saved component ${componentId}`);
+        } else {
+            showToast('warning', 'Warning', `Failed to auto-save component: ${result.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error auto-saving component:', error);
+        showToast('warning', 'Warning', 'Failed to auto-save component');
+    });
 }
 
 function createNewVersion() {

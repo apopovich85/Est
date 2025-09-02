@@ -18,7 +18,14 @@
       "Bash(.venv/Scripts/python.exe -c \"\nimport sqlite3\nconn = sqlite3.connect(''estimates.db'')\ncursor = conn.cursor()\ncursor.execute(''SELECT * FROM standard_assemblies WHERE name LIKE \"\"%AB_PF755TS%\"\" OR name LIKE \"\"%PF755TS%\"\" LIMIT 5'')\nassemblies = cursor.fetchall()\ncursor.execute(''PRAGMA table_info(standard_assemblies)'')\ncolumns = cursor.fetchall()\nprint(''Standard Assemblies Columns:'')\nfor col in columns:\n    print(f''  {col[1]} ({col[2]})'')\nprint(''\\nExisting PF755TS Assemblies:'')\nfor assembly in assemblies:\n    print(f''  ID: {assembly[0]}, Name: {assembly[1]}, Category: {assembly[3]}'')\nconn.close()\n\")",
       "Bash(rm:*)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(venv/Scripts/python.exe:*)"
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(\"venv\\Scripts\\python.exe\" drop_price_column.py)",
+      "Bash(\"venv\\Scripts\\python.exe\":*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(del test_excel_import.py test_fixed_import.py)",
+      "Bash(del test_standard_assembly_creation.py)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\Est_v0.5"

@@ -21,7 +21,7 @@
                             <th>Client</th>
                             <th>Status</th>
                             <th>Estimates</th>
-                            <th>Total Value</th>
+                            <th>Total Cost</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -44,7 +44,7 @@
                                 </span>
                             </td>
                             <td>{{ project.estimates|length }}</td>
-                            <td class="text-currency">${{ "{:,.2f}".format(project.total_value()) }}</td>
+                            <td>${{ "{:,.2f}".format(project.total_value()) }}</td>
                             <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <div class="btn-group" role="group">

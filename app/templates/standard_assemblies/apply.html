@@ -95,7 +95,7 @@
                     <div class="col-md-3">
                         <select class="form-select" id="categoryFilter">
                             <option value="">All Categories</option>
-                            {% set categories = assemblies | map(attribute='category') | list | unique | sort %}
+                            {% set categories = assemblies | map(attribute='category') | map(attribute='name') | list | unique | sort %}
                             {% for category in categories %}
                                 <option value="{{ category }}">{{ category }}</option>
                             {% endfor %}
@@ -521,8 +521,26 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
             return;
         }
         
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
+        try {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } catch (modalError) {
+            console.error('Bootstrap modal initialization failed:', modalError);
+            // Manual fallback
+            modalElement.style.display = 'block';
+            modalElement.classList.add('show');
+            modalElement.setAttribute('aria-modal', 'true');
+            modalElement.setAttribute('role', 'dialog');
+            
+            // Add backdrop
+            if (!document.getElementById('modal-backdrop-fallback')) {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.id = 'modal-backdrop-fallback';
+                document.body.appendChild(backdrop);
+                document.body.classList.add('modal-open');
+            }
+        }
     } catch (error) {
         console.error('Error showing modal:', error);
         showToast('error', 'Error', 'Failed to open confirmation modal. Please try again.');
@@ -532,27 +550,57 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
 function closeConfirmationModal() {
     try {
         const modalElement = document.getElementById('confirmationModal');
+        if (!modalElement) {
+            console.error('Modal element not found for closing');
+            return;
+        }
         
         if (typeof bootstrap !== 'undefined') {
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) {
-                modalInstance.hide();
-            }
-        } else {
-            // Fallback manual close
-            modalElement.style.display = 'none';
-            modalElement.classList.remove('show');
-            modalElement.removeAttribute('aria-modal');
-            modalElement.removeAttribute('role');
-            
-            // Remove backdrop
-            const backdrop = document.getElementById('modal-backdrop-fallback');
-            if (backdrop) {
-                backdrop.remove();
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                } else {
+                    // Try to create and immediately hide if no instance exists
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.hide();
+                }
+            } catch (bootstrapError) {
+                console.error('Bootstrap modal close failed, using fallback:', bootstrapError);
+                // Fall through to manual close
             }
         }
+        
+        // Always do manual cleanup as well (in case Bootstrap failed)
+        modalElement.style.display = 'none';
+        modalElement.classList.remove('show');
+        modalElement.removeAttribute('aria-modal');
+        modalElement.removeAttribute('role');
+        
+        // Remove any fallback backdrops
+        const fallbackBackdrop = document.getElementById('modal-backdrop-fallback');
+        if (fallbackBackdrop) {
+            fallbackBackdrop.remove();
+        }
+        
+        // Remove any Bootstrap backdrops that might be stuck
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.remove();
+        });
+        
+        // Ensure body class is cleaned up
+        document.body.classList.remove('modal-open');
+        
     } catch (error) {
         console.error('Error closing modal:', error);
+        // Force close as last resort
+        const modalElement = document.getElementById('confirmationModal');
+        if (modalElement) {
+            modalElement.style.display = 'none';
+            modalElement.classList.remove('show');
+        }
+        document.body.classList.remove('modal-open');
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
     }
 }
 

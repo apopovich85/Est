@@ -114,6 +114,10 @@
                             Part Number <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
+                        <th class="sortable resizable" data-column="master_item_number">
+                            Master Item Number <i class="fas fa-sort text-muted"></i>
+                            <div class="resize-handle"></div>
+                        </th>
                         <th class="resizable">
                             Description
                             <div class="resize-handle"></div>
@@ -199,6 +203,10 @@
                     <div class="mb-3">
                         <label for="partNumber" class="form-label">Part Number *</label>
                         <input type="text" class="form-control" id="partNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="masterItemNumber" class="form-label">Master Item Number</label>
+                        <input type="text" class="form-control" id="masterItemNumber" placeholder="Customer/Master part number">
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
@@ -816,7 +824,7 @@ class DatabasePartsManager {
         if (this.filteredParts.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="text-center py-4 text-muted">
+                    <td colspan="12" class="text-center py-4 text-muted">
                         <i class="fas fa-search fa-2x mb-2"></i><br>
                         No parts found matching your criteria
                     </td>
@@ -855,6 +863,7 @@ class DatabasePartsManager {
             <td class="category-cell" data-field="category" data-part-id="${part.part_id}" data-current-category="${part.category || ''}">${this.renderCategoryDropdown(part.category || '', part.part_id)}<div class="fill-handle"></div></td>
             <td class="editable" data-field="manufacturer">${this.escapeHtml(part.manufacturer || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="part_number">${this.escapeHtml(part.part_number || '')}<div class="fill-handle"></div></td>
+            <td class="editable" data-field="master_item_number">${this.escapeHtml(part.master_item_number || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="description">${this.escapeHtml(part.description || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="model">${this.escapeHtml(part.model || '')}<div class="fill-handle"></div></td>
             <td class="editable" data-field="rating">${this.escapeHtml(part.rating || '')}<div class="fill-handle"></div></td>
@@ -1112,6 +1121,7 @@ class DatabasePartsManager {
             category: document.getElementById('category').value,
             manufacturer: document.getElementById('manufacturer').value,
             part_number: document.getElementById('partNumber').value,
+            master_item_number: document.getElementById('masterItemNumber').value,
             description: document.getElementById('description').value,
             model: document.getElementById('model').value,
             rating: document.getElementById('rating').value,

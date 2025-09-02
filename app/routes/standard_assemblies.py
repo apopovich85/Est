@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import StandardAssembly, StandardAssemblyComponent, AssemblyVersion, Parts, Assembly, AssemblyPart, Estimate, Project, AssemblyCategory
+from app.models import StandardAssembly, StandardAssemblyComponent, AssemblyVersion, Parts, Assembly, AssemblyPart, Estimate, Project, AssemblyCategory, PartCategory
 from app import db, csrf
 from datetime import datetime
 from sqlalchemy import or_, and_, func
@@ -232,10 +232,18 @@ def create_assembly():
     """Create a new standard assembly"""
     if request.method == 'POST':
         try:
+            # Look up the category by code to get the category_id
+            category_code = request.form['category']
+            category = AssemblyCategory.query.filter_by(code=category_code, is_active=True).first()
+            if not category:
+                flash(f'Invalid category selected: {category_code}', 'error')
+                categories = AssemblyCategory.get_active_categories()
+                return render_template('standard_assemblies/create.html', categories=categories)
+            
             assembly = StandardAssembly(
                 name=request.form['name'],
                 description=request.form.get('description', ''),
-                category=request.form['category'],
+                category_id=category.category_id,
                 version='1.0',
                 is_active=True,
                 is_template=True,
@@ -280,7 +288,7 @@ def edit_assembly(assembly_id):
     assembly = StandardAssembly.query.get_or_404(assembly_id)
     
     # Get existing categories for filtering parts
-    categories = db.session.query(Parts.category).distinct().all()
+    categories = db.session.query(PartCategory.name).distinct().all()
     part_categories = sorted([cat[0] for cat in categories if cat[0]])
     
     return render_template('standard_assemblies/edit.html', 
@@ -715,6 +723,25 @@ def api_update_assembly_category(assembly_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
+@bp.route('/api/<int:assembly_id>/update-description', methods=['PUT'])
+@csrf.exempt
+def api_update_assembly_description(assembly_id):
+    """Update the description of a standard assembly"""
+    assembly = StandardAssembly.query.get_or_404(assembly_id)
+    data = request.get_json()
+    
+    try:
+        new_description = data.get('description', '').strip()
+        assembly.description = new_description
+        assembly.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'description': new_description})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 @bp.route('/api/parts/search')
 def api_search_parts():
     """Search parts for drag-and-drop interface"""
@@ -736,7 +763,7 @@ def api_search_parts():
         )
     
     if category:
-        parts_query = parts_query.filter(Parts.category == category)
+        parts_query = parts_query.join(PartCategory).filter(PartCategory.name == category)
     
     if manufacturer:
         parts_query = parts_query.filter(Parts.manufacturer == manufacturer)
