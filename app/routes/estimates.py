@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app.models import Project, Estimate, Assembly, Component, PriceHistory, EstimateComponent, Parts
 from app import db, csrf
-from datetime import datetime
+from datetime import datetime, date
 import uuid
+import sqlite3
 
 bp = Blueprint('estimates', __name__)
 
@@ -32,11 +33,34 @@ def create_estimate(project_id):
             # Generate unique estimate number
             estimate_number = f"EST-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
             
+            # Get current labor rates
+            conn = sqlite3.connect('estimates.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT engineering_rate, panel_shop_rate, machine_assembly_rate
+                FROM labor_rates 
+                WHERE is_current = 1 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ''')
+            rates = cursor.fetchone()
+            conn.close()
+            
+            # Use current rates or fallback to defaults
+            if rates:
+                eng_rate, panel_rate, machine_rate = rates
+            else:
+                eng_rate, panel_rate, machine_rate = 145.00, 125.00, 125.00
+            
             estimate = Estimate(
                 project_id=project_id,
                 estimate_number=estimate_number,
                 estimate_name=request.form['estimate_name'],
-                description=request.form.get('description', '')
+                description=request.form.get('description', ''),
+                engineering_rate=eng_rate,
+                panel_shop_rate=panel_rate,
+                machine_assembly_rate=machine_rate,
+                rate_snapshot_date=date.today()
             )
             
             db.session.add(estimate)
@@ -144,7 +168,8 @@ def add_individual_component(estimate_id):
             flash(f'Error adding component: {str(e)}', 'error')
     
     # Get part categories for the dropdown
-    part_categories = db.session.query(Parts.category).distinct().filter(Parts.category != '').all()
+    from app.models import PartCategory
+    part_categories = db.session.query(PartCategory.name).filter(PartCategory.name != '').distinct().all()
     part_categories = [cat[0] for cat in part_categories if cat[0]]
     
     return render_template('estimates/add_component.html', 
@@ -180,7 +205,8 @@ def edit_individual_component(component_id):
             flash(f'Error updating component: {str(e)}', 'error')
     
     # Get part categories for the dropdown
-    part_categories = db.session.query(Parts.category).distinct().filter(Parts.category != '').all()
+    from app.models import PartCategory
+    part_categories = db.session.query(PartCategory.name).filter(PartCategory.name != '').distinct().all()
     part_categories = [cat[0] for cat in part_categories if cat[0]]
     
     return render_template('estimates/edit_component.html', 

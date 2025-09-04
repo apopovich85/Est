@@ -171,14 +171,39 @@ def process_import():
         selected_assemblies = selected_assemblies_str.split(',') if selected_assemblies_str else []
         
         created_count = 0
+        skipped_count = 0
         for assembly_id in selected_assemblies:
             if assembly_id in assemblies_data:
                 data = assemblies_data[assembly_id]
                 
+                # Check for duplicate by assembly_number if available
+                assembly_number = data.get('assembly_number', assembly_id)
+                existing = StandardAssembly.query.filter_by(assembly_number=assembly_number).first()
+                
+                if existing:
+                    print(f"SKIP {data['name']} ({assembly_number}) - already exists")
+                    skipped_count += 1
+                    continue
+                
+                # Get or create category
+                category_name = data['category']
+                category = AssemblyCategory.query.filter_by(name=category_name).first()
+                if not category:
+                    # Create category if it doesn't exist
+                    category = AssemblyCategory(
+                        code=category_name.upper().replace(' ', '_'),
+                        name=category_name,
+                        description=f"Imported category: {category_name}",
+                        is_active=True
+                    )
+                    db.session.add(category)
+                    db.session.flush()
+                
                 # Create standard assembly
                 assembly = StandardAssembly(
                     name=data['name'],
-                    category=data['category'],
+                    assembly_number=assembly_number,
+                    category_id=category.category_id,
                     description=f"Imported from CSV - {data['category']} assembly",
                     version="1.0",
                     is_active=True,
@@ -219,7 +244,10 @@ def process_import():
                 created_count += 1
         
         db.session.commit()
-        flash(f'Successfully imported {created_count} assemblies', 'success')
+        if skipped_count > 0:
+            flash(f'Successfully imported {created_count} assemblies, skipped {skipped_count} duplicates', 'success')
+        else:
+            flash(f'Successfully imported {created_count} assemblies', 'success')
         return redirect(url_for('standard_assemblies.list_assemblies'))
         
     except Exception as e:
@@ -370,34 +398,59 @@ def apply_interface():
 @bp.route('/apply/<int:assembly_id>/to/<int:estimate_id>', methods=['POST'])
 @csrf.exempt
 def apply_to_estimate(assembly_id, estimate_id):
-    """Apply a standard assembly to an estimate"""
-    standard_assembly = StandardAssembly.query.get_or_404(assembly_id)
-    estimate = Estimate.query.get_or_404(estimate_id)
+    """Apply a standard assembly to an estimate with optional quantity multiplier"""
+    try:
+        standard_assembly = StandardAssembly.query.get_or_404(assembly_id)
+        estimate = Estimate.query.get_or_404(estimate_id)
+        
+        # Get quantity from request data
+        quantity_multiplier = 1
+        if request.is_json and request.json:
+            quantity_multiplier = max(1, int(request.json.get('quantity', 1)))
+            print(f"DEBUG: Received quantity: {quantity_multiplier}")
+        else:
+            print(f"DEBUG: No JSON data received. Content-Type: {request.content_type}")
+    except Exception as e:
+        print(f"ERROR: Exception in apply_to_estimate setup: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Setup error: {str(e)}'}), 500
     
     try:
         # Get highest sort order for this estimate
         max_sort = db.session.query(func.max(Assembly.sort_order))\
             .filter_by(estimate_id=estimate_id).scalar() or 0
         
+        # Create assembly name with quantity if > 1
+        assembly_name = standard_assembly.name
+        if quantity_multiplier > 1:
+            assembly_name = f"{standard_assembly.name} (x{quantity_multiplier})"
+            
+        description = f"{standard_assembly.description}\n(Applied from Standard Assembly v{standard_assembly.version}"
+        if quantity_multiplier > 1:
+            description += f" with quantity {quantity_multiplier}"
+        description += ")"
+        
         # Create new assembly in the estimate
         new_assembly = Assembly(
             estimate_id=estimate_id,
-            assembly_name=standard_assembly.name,
-            description=f"{standard_assembly.description}\n(Applied from Standard Assembly v{standard_assembly.version})",
+            assembly_name=assembly_name,
+            description=description,
             sort_order=max_sort + 1,
             standard_assembly_id=standard_assembly.standard_assembly_id,
-            standard_assembly_version=standard_assembly.version
+            standard_assembly_version=standard_assembly.version,
+            quantity=quantity_multiplier
         )
         
         db.session.add(new_assembly)
         db.session.flush()  # Get the assembly ID
         
-        # Copy all components from standard assembly
+        # Copy all components from standard assembly with quantity multiplier
         for std_component in standard_assembly.components:
             assembly_part = AssemblyPart(
                 assembly_id=new_assembly.assembly_id,
                 part_id=std_component.part_id,
-                quantity=std_component.quantity,
+                quantity=std_component.quantity * quantity_multiplier,
                 unit_of_measure=std_component.unit_of_measure,
                 notes=std_component.notes,
                 sort_order=std_component.sort_order
@@ -406,10 +459,17 @@ def apply_to_estimate(assembly_id, estimate_id):
         
         db.session.commit()
         
-        flash(f'Standard assembly "{standard_assembly.name}" applied to estimate successfully!', 'success')
+        # Create success message based on quantity
+        message = f'Standard assembly "{standard_assembly.name}"'
+        if quantity_multiplier > 1:
+            message += f' (x{quantity_multiplier})'
+        message += ' applied to estimate successfully!'
+        
+        flash(message, 'success')
         return jsonify({
             'success': True,
             'message': 'Assembly applied successfully',
+            'quantity': quantity_multiplier,
             'assembly_id': new_assembly.assembly_id,
             'estimate_url': url_for('estimates.detail_estimate', estimate_id=estimate_id)
         })
@@ -820,3 +880,51 @@ def api_get_all_projects():
         'project_name': project.project_name,
         'client_name': project.client_name
     } for project in projects])
+
+
+@bp.route('/bulk-delete', methods=['DELETE'])
+@csrf.exempt
+def bulk_delete_assemblies():
+    """Delete multiple standard assemblies"""
+    data = request.get_json()
+    if not data or 'assembly_ids' not in data:
+        return jsonify({'success': False, 'error': 'No assembly IDs provided'}), 400
+    
+    assembly_ids = data['assembly_ids']
+    if not assembly_ids:
+        return jsonify({'success': False, 'error': 'No assembly IDs provided'}), 400
+    
+    try:
+        deleted_count = 0
+        skipped_count = 0
+        skipped_assemblies = []
+        
+        for assembly_id in assembly_ids:
+            assembly = StandardAssembly.query.get(assembly_id)
+            if not assembly:
+                continue
+                
+            # Check if assembly is being used in any estimates
+            estimates_using = Assembly.query.filter_by(standard_assembly_id=assembly_id).count()
+            if estimates_using > 0:
+                skipped_assemblies.append(f"{assembly.name} (used in {estimates_using} estimate(s))")
+                skipped_count += 1
+                continue
+            
+            # Safe to delete
+            db.session.delete(assembly)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'skipped_count': skipped_count,
+            'skipped_details': skipped_assemblies,
+            'message': f'Deleted {deleted_count} assemblies' + (f', skipped {skipped_count}' if skipped_count > 0 else '')
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

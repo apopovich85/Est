@@ -69,7 +69,13 @@
                     <dd class="col-sm-9">{{ assembly.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
                     
                     <dt class="col-sm-3">Last Updated:</dt>
-                    <dd class="col-sm-9">{{ assembly.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                    <dd class="col-sm-9">
+                        {% if assembly.updated_at %}
+                            {{ assembly.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            Not available
+                        {% endif %}
+                    </dd>
                 </dl>
             </div>
         </div>

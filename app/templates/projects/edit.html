@@ -53,95 +53,13 @@
                         <div>
                             <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" class="btn btn-secondary me-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> + total.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-    }
-    
-    // Attach event listeners for price calculation
-    const priceInputs = document.querySelectorAll('.price-input');
-    const quantityInputs = document.querySelectorAll('.quantity-input');
-    
-    priceInputs.forEach(input => input.addEventListener('input', calculateTotal));
-    quantityInputs.forEach(input => input.addEventListener('input', calculateTotal));
-    
-    // Initialize calculation on page load
-    calculateTotal();
-    
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // AJAX form submission helper
-    window.submitForm = function(formId, successCallback) {
-        const form = document.getElementById(formId);
-        const formData = new FormData(form);
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (successCallback) successCallback(data);
-            } else {
-                alert('Error: ' + (data.message || 'Unknown error occurred'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Network error occurred');
-        });
-    };
-    
-    // Component duplication functionality
-    window.duplicateComponent = function(componentId, targetAssemblyId) {
-        fetch(`/components/${componentId}/duplicate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                target_assembly_id: targetAssemblyId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error duplicating component: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error duplicating component');
-        });
-    };
-    
-    // Table search functionality
-    const searchInputs = document.querySelectorAll('[data-table-search]');
-    searchInputs.forEach(function(input) {
-        const targetTable = document.querySelector(input.getAttribute('data-table-search'));
-        if (targetTable) {
-            input.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const rows = targetTable.querySelectorAll('tbody tr');
-                
-                rows.forEach(function(row) {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchTerm) ? '' : 'none';
-                });
-            });
-        }
-    });
-});
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

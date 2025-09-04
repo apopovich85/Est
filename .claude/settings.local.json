@@ -25,7 +25,10 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(del test_excel_import.py test_fixed_import.py)",
-      "Bash(del test_standard_assembly_creation.py)"
+      "Bash(del test_standard_assembly_creation.py)",
+      "Bash(git commit:*)",
+      "Bash(\".venv\\Scripts\\python.exe\":*)",
+      "Bash(\"./venv/Scripts/python.exe\":*)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\Est_v0.5"

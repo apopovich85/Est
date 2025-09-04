@@ -9,6 +9,9 @@
         <p class="text-muted mb-0">Manage reusable assembly templates</p>
     </div>
     <div>
+        <button id="bulkDeleteBtn" class="btn btn-danger me-2" style="display: none;">
+            <i class="fas fa-trash"></i> Delete Selected (<span id="selectedCount">0</span>)
+        </button>
         <a href="{{ url_for('standard_assemblies.create_assembly') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Standard Assembly
         </a>
@@ -70,19 +73,27 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-dark">
                         <tr>
-                            <th style="width: 300px;">Assembly Name</th>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input" title="Select All">
+                            </th>
+                            <th style="width: 280px;">Assembly Name</th>
                             <th style="width: 100px;">Version</th>
-                            <th style="width: 180px;">Category</th>
+                            <th style="width: 160px;">Category</th>
                             <th style="width: 120px;">Components</th>
                             <th style="width: 130px;">Total Cost</th>
                             <th style="width: 100px;">Status</th>
                             <th style="width: 120px;">Created</th>
-                            <th style="width: 200px;">Actions</th>
+                            <th style="width: 180px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assembly in assemblies %}
                         <tr data-assembly-id="{{ assembly.standard_assembly_id }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input assembly-checkbox" 
+                                       value="{{ assembly.standard_assembly_id }}" 
+                                       data-assembly-name="{{ assembly.name }}">
+                            </td>
                             <td>
                                 <div>
                                     <strong>{{ assembly.name }}</strong>
@@ -257,6 +268,9 @@ let projects = [];
 let estimates = [];
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize bulk delete functionality
+    initializeBulkDelete();
+    
     // Initialize Bootstrap dropdowns
     console.log('Bootstrap object:', typeof bootstrap);
     if (typeof bootstrap !== 'undefined') {
@@ -510,6 +524,108 @@ function toggleAssemblyStatus(assemblyId, makeActive) {
     .catch(error => {
         console.error('Error:', error);
         showToast('error', 'Error', 'Failed to update assembly status');
+    });
+}
+
+function initializeBulkDelete() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.assembly-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkDeleteButton();
+    });
+    
+    // Individual checkbox change handlers
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('assembly-checkbox')) {
+            updateBulkDeleteButton();
+            
+            // Update select all checkbox state
+            const checkboxes = document.querySelectorAll('.assembly-checkbox');
+            const checkedBoxes = document.querySelectorAll('.assembly-checkbox:checked');
+            selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+            selectAllCheckbox.checked = checkedBoxes.length === checkboxes.length && checkboxes.length > 0;
+        }
+    });
+    
+    // Bulk delete button handler
+    bulkDeleteBtn.addEventListener('click', function() {
+        const selectedCheckboxes = document.querySelectorAll('.assembly-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            showToast('warning', 'No Selection', 'Please select assemblies to delete');
+            return;
+        }
+        
+        const assemblyNames = Array.from(selectedCheckboxes).map(cb => cb.dataset.assemblyName);
+        const assemblyIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        
+        const confirmMessage = `Are you sure you want to DELETE ${selectedCheckboxes.length} assemblies?\n\n` +
+            `Assemblies to delete:\n${assemblyNames.slice(0, 5).join('\n')}` +
+            (assemblyNames.length > 5 ? `\n...and ${assemblyNames.length - 5} more` : '') +
+            `\n\nThis action cannot be undone!`;
+        
+        if (confirm(confirmMessage)) {
+            bulkDeleteAssemblies(assemblyIds);
+        }
+    });
+}
+
+function updateBulkDeleteButton() {
+    const selectedCheckboxes = document.querySelectorAll('.assembly-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    selectedCountSpan.textContent = selectedCheckboxes.length;
+    
+    if (selectedCheckboxes.length > 0) {
+        bulkDeleteBtn.style.display = 'inline-block';
+    } else {
+        bulkDeleteBtn.style.display = 'none';
+    }
+}
+
+function bulkDeleteAssemblies(assemblyIds) {
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const originalText = bulkDeleteBtn.innerHTML;
+    bulkDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    bulkDeleteBtn.disabled = true;
+    
+    fetch('/standard_assemblies/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            assembly_ids: assemblyIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Deleted', `Successfully deleted ${data.deleted_count} assemblies`);
+            if (data.skipped_count > 0) {
+                showToast('warning', 'Skipped', `${data.skipped_count} assemblies were skipped (in use)`);
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to delete assemblies');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting assemblies:', error);
+        showToast('error', 'Error', 'Failed to delete assemblies. Please try again.');
+    })
+    .finally(() => {
+        bulkDeleteBtn.innerHTML = originalText;
+        bulkDeleteBtn.disabled = false;
     });
 }
 

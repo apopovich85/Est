@@ -67,6 +67,30 @@ class Project(db.Model):
     
     def total_value(self):
         return sum(estimate.calculated_total for estimate in self.estimates)
+    
+    def total_project_hours(self):
+        """Calculate total hours across all estimates in project"""
+        return sum(estimate.total_hours for estimate in self.estimates)
+    
+    def total_project_engineering_hours(self):
+        """Calculate total engineering hours across all estimates in project"""
+        return sum(estimate.total_engineering_hours for estimate in self.estimates)
+    
+    def total_project_panel_shop_hours(self):
+        """Calculate total panel shop hours across all estimates in project"""
+        return sum(estimate.total_panel_shop_hours for estimate in self.estimates)
+    
+    def total_project_machine_assembly_hours(self):
+        """Calculate total machine assembly hours across all estimates in project"""
+        return sum(estimate.total_machine_assembly_hours for estimate in self.estimates)
+    
+    def total_project_labor_cost(self):
+        """Calculate total labor cost across all estimates in project"""
+        return sum(estimate.total_labor_cost for estimate in self.estimates)
+    
+    def total_project_grand_total(self):
+        """Calculate total project value including materials and labor"""
+        return sum(estimate.grand_total for estimate in self.estimates)
 
 class Estimate(db.Model):
     __tablename__ = 'estimates'
@@ -80,6 +104,12 @@ class Estimate(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Labor rate snapshot (preserves rates used when estimate was created)
+    engineering_rate = db.Column(db.Numeric(8, 2), default=145.00)
+    panel_shop_rate = db.Column(db.Numeric(8, 2), default=125.00)
+    machine_assembly_rate = db.Column(db.Numeric(8, 2), default=125.00)
+    rate_snapshot_date = db.Column(db.Date)
+    
     # Relationships
     assemblies = db.relationship('Assembly', backref='estimate', cascade='all, delete-orphan')
     individual_components = db.relationship('EstimateComponent', backref='estimate', cascade='all, delete-orphan')
@@ -90,6 +120,51 @@ class Estimate(db.Model):
         assembly_total = sum(assembly.calculated_total for assembly in self.assemblies)
         component_total = sum(comp.total_price for comp in self.individual_components)
         return assembly_total + component_total
+    
+    @property
+    def total_engineering_hours(self):
+        """Calculate total engineering hours across all assemblies"""
+        return sum(float(assembly.engineering_hours or 0) for assembly in self.assemblies)
+    
+    @property
+    def total_panel_shop_hours(self):
+        """Calculate total panel shop hours across all assemblies"""
+        return sum(float(assembly.panel_shop_hours or 0) for assembly in self.assemblies)
+    
+    @property
+    def total_machine_assembly_hours(self):
+        """Calculate total machine assembly hours across all assemblies"""
+        return sum(float(assembly.machine_assembly_hours or 0) for assembly in self.assemblies)
+    
+    @property
+    def total_hours(self):
+        """Calculate total hours across all labor types and assemblies"""
+        return self.total_engineering_hours + self.total_panel_shop_hours + self.total_machine_assembly_hours
+    
+    @property
+    def total_engineering_cost(self):
+        """Calculate total engineering cost across all assemblies"""
+        return sum(assembly.calculated_engineering_cost for assembly in self.assemblies)
+    
+    @property
+    def total_panel_shop_cost(self):
+        """Calculate total panel shop cost across all assemblies"""
+        return sum(assembly.calculated_panel_shop_cost for assembly in self.assemblies)
+    
+    @property
+    def total_machine_assembly_cost(self):
+        """Calculate total machine assembly cost across all assemblies"""
+        return sum(assembly.calculated_machine_assembly_cost for assembly in self.assemblies)
+    
+    @property
+    def total_labor_cost(self):
+        """Calculate total labor cost across all assemblies"""
+        return self.total_engineering_cost + self.total_panel_shop_cost + self.total_machine_assembly_cost
+    
+    @property
+    def grand_total(self):
+        """Calculate grand total including materials and labor"""
+        return self.calculated_total + self.total_labor_cost
     
     def __repr__(self):
         return f'<Estimate {self.estimate_number}>'
@@ -108,6 +183,19 @@ class Assembly(db.Model):
     # Link to standard assembly if created from one
     standard_assembly_id = db.Column(db.Integer, db.ForeignKey('standard_assemblies.standard_assembly_id'), nullable=True)
     standard_assembly_version = db.Column(db.String(20), nullable=True)  # Version used when created
+    quantity = db.Column(db.Numeric(10, 3), default=1.0)  # How many of this assembly (for standard assembly multiplier)
+    
+    # Time estimation fields
+    engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    estimated_by = db.Column(db.String(100))
+    time_estimate_notes = db.Column(db.Text)
+    
+    # Labor cost fields (calculated from hours * rates)
+    engineering_cost = db.Column(db.Numeric(10, 2), default=0.0)
+    panel_shop_cost = db.Column(db.Numeric(10, 2), default=0.0)
+    machine_assembly_cost = db.Column(db.Numeric(10, 2), default=0.0)
     
     # Relationships - now uses AssemblyPart instead of Component
     assembly_parts = db.relationship('AssemblyPart', backref='assembly', cascade='all, delete-orphan')
@@ -116,6 +204,39 @@ class Assembly(db.Model):
     def calculated_total(self):
         """Calculate the total value of all parts in this assembly"""
         return sum(ap.total_price for ap in self.assembly_parts)
+    
+    @property
+    def total_hours(self):
+        """Calculate total hours across all labor types"""
+        return float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
+    
+    @property
+    def calculated_engineering_cost(self):
+        """Calculate engineering cost based on hours * estimate's engineering rate"""
+        rate = float(self.estimate.engineering_rate) if self.estimate else 145.0
+        return float(self.engineering_hours or 0) * rate
+    
+    @property
+    def calculated_panel_shop_cost(self):
+        """Calculate panel shop cost based on hours * estimate's panel shop rate"""
+        rate = float(self.estimate.panel_shop_rate) if self.estimate else 125.0
+        return float(self.panel_shop_hours or 0) * rate
+    
+    @property
+    def calculated_machine_assembly_cost(self):
+        """Calculate machine assembly cost based on hours * estimate's machine assembly rate"""
+        rate = float(self.estimate.machine_assembly_rate) if self.estimate else 125.0
+        return float(self.machine_assembly_hours or 0) * rate
+    
+    @property
+    def total_labor_cost(self):
+        """Calculate total labor cost across all disciplines"""
+        return self.calculated_engineering_cost + self.calculated_panel_shop_cost + self.calculated_machine_assembly_cost
+    
+    @property
+    def total_assembly_cost(self):
+        """Calculate total assembly cost (materials + labor)"""
+        return self.calculated_total + self.total_labor_cost
     
     def __repr__(self):
         return f'<Assembly {self.assembly_name}>'
@@ -383,6 +504,7 @@ class StandardAssembly(db.Model):
     
     standard_assembly_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False, index=True)
+    assembly_number = db.Column(db.String(50), nullable=True, index=True)  # Original Assy_# for duplicate checking
     description = db.Column(db.Text)
     category_id = db.Column(db.Integer, db.ForeignKey('assembly_categories.category_id'), nullable=False, index=True)
     base_assembly_id = db.Column(db.Integer, db.ForeignKey('standard_assemblies.standard_assembly_id'))

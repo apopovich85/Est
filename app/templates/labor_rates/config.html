@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Labor Rates Configuration{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Current Labor Rates</h5>
+                <small class="text-muted">These rates will be applied to new estimates</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('labor_rates.update_rates') }}">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="engineering_rate" class="form-label">Engineering Rate ($/hr)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="engineering_rate" 
+                                           name="engineering_rate" step="0.01" min="0" required
+                                           value="{{ current_rates.engineering_rate }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="panel_shop_rate" class="form-label">Panel Shop Rate ($/hr)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="panel_shop_rate" 
+                                           name="panel_shop_rate" step="0.01" min="0" required
+                                           value="{{ current_rates.panel_shop_rate }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="machine_assembly_rate" class="form-label">Machine Assembly Rate ($/hr)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="machine_assembly_rate" 
+                                           name="machine_assembly_rate" step="0.01" min="0" required
+                                           value="{{ current_rates.machine_assembly_rate }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="created_by" class="form-label">Updated By</label>
+                                <input type="text" class="form-control" id="created_by" 
+                                       name="created_by" placeholder="Enter your name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Notes</label>
+                                <input type="text" class="form-control" id="notes" 
+                                       name="notes" placeholder="Reason for rate change">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Rates
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Rate Impact</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Important:</strong> Rate changes only affect new estimates. Existing estimates retain their original rates for accuracy.
+                </div>
+                
+                <h6>Current Rates:</h6>
+                <ul class="list-unstyled">
+                    <li><strong>Engineering:</strong> ${{ "{:.2f}".format(current_rates.engineering_rate) }}/hr</li>
+                    <li><strong>Panel Shop:</strong> ${{ "{:.2f}".format(current_rates.panel_shop_rate) }}/hr</li>
+                    <li><strong>Machine Assembly:</strong> ${{ "{:.2f}".format(current_rates.machine_assembly_rate) }}/hr</li>
+                </ul>
+                
+                {% if current_rates.effective_date %}
+                <small class="text-muted">
+                    Effective: {{ current_rates.effective_date }}
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rate History -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Rate History</h5>
+    </div>
+    <div class="card-body">
+        {% if rate_history %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Effective Date</th>
+                        <th class="text-end">Engineering</th>
+                        <th class="text-end">Panel Shop</th>
+                        <th class="text-end">Machine Assembly</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th>Updated By</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rate in rate_history %}
+                    <tr class="{{ 'table-success' if rate.is_current else '' }}">
+                        <td>{{ rate.effective_date }}</td>
+                        <td class="text-end">${{ "{:.2f}".format(rate.engineering_rate) }}</td>
+                        <td class="text-end">${{ "{:.2f}".format(rate.panel_shop_rate) }}</td>
+                        <td class="text-end">${{ "{:.2f}".format(rate.machine_assembly_rate) }}</td>
+                        <td>
+                            {% if rate.is_current %}
+                                <span class="badge bg-success">Current</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Historical</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ rate.notes or '-' }}</td>
+                        <td>{{ rate.created_by or '-' }}</td>
+                        <td>{{ rate.created_at[:10] if rate.created_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-3">
+            <p class="text-muted">No rate history available</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

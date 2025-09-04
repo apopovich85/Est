@@ -112,41 +112,41 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0" id="componentsTable">
+            <table class="table table-hover mb-0 table-fixed" id="componentsTable" style="table-layout: fixed; width: 100%;">
                 <thead class="table-light">
                     <tr>
-                        <th width="40px">
+                        <th>
                             <div class="resize-handle"></div>
                         </th>
                         <th class="sortable resizable" data-column="component_name">
-                            Component Name <i class="fas fa-sort text-muted"></i>
+                            Part <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
                         <th class="sortable resizable" data-column="part_number">
-                            Part Number <i class="fas fa-sort text-muted"></i>
+                            Part # <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
                         <th class="resizable">
-                            Description
+                            Manufacturer
                             <div class="resize-handle"></div>
                         </th>
-                        <th class="sortable resizable" data-column="unit_price">
+                        <th class="sortable resizable text-end" data-column="unit_price">
                             Unit Price <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
-                        <th class="sortable resizable" data-column="quantity">
+                        <th class="sortable resizable text-center" data-column="quantity">
                             Quantity <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
-                        <th class="sortable resizable" data-column="unit_of_measure">
+                        <th class="sortable resizable text-center" data-column="unit_of_measure">
                             UOM <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
-                        <th class="sortable resizable" data-column="total_price">
+                        <th class="sortable resizable text-end" data-column="total_price">
                             Total <i class="fas fa-sort text-muted"></i>
                             <div class="resize-handle"></div>
                         </th>
-                        <th width="120px">Actions</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="componentsTableBody">
@@ -271,6 +271,134 @@
 <!-- Toast Container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
 </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.table-fixed {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+
+.table-fixed th {
+    border-right: 1px solid #dee2e6;
+    padding: 8px 4px;
+    font-size: 0.875rem;
+}
+
+.table-fixed td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    vertical-align: top;
+    border-right: 1px solid #dee2e6;
+    padding: 8px 4px;
+    overflow: hidden;
+}
+
+/* Checkbox column */
+.table-fixed th:nth-child(1),
+.table-fixed td:nth-child(1) {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+}
+
+/* Part column */
+.table-fixed th:nth-child(2),
+.table-fixed td:nth-child(2) {
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    white-space: normal;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* Part # column */
+.table-fixed th:nth-child(3),
+.table-fixed td:nth-child(3) {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Manufacturer column */
+.table-fixed th:nth-child(4),
+.table-fixed td:nth-child(4) {
+    width: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Unit Price column */
+.table-fixed th:nth-child(5),
+.table-fixed td:nth-child(5) {
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+    text-align: right;
+}
+
+/* Quantity column */
+.table-fixed th:nth-child(6),
+.table-fixed td:nth-child(6) {
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
+    text-align: center;
+}
+
+/* UOM column */
+.table-fixed th:nth-child(7),
+.table-fixed td:nth-child(7) {
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
+    text-align: center;
+}
+
+/* Total column */
+.table-fixed th:nth-child(8),
+.table-fixed td:nth-child(8) {
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+    text-align: right;
+}
+
+/* Actions column */
+.table-fixed th:nth-child(9),
+.table-fixed td:nth-child(9) {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+}
+
+.resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 3px;
+    height: 100%;
+    background: transparent;
+    cursor: col-resize;
+    border-right: 2px solid transparent;
+}
+
+.resize-handle:hover {
+    border-right: 2px solid #007bff;
+}
+
+th {
+    position: relative;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -483,12 +611,15 @@ class ComponentManager {
                 <input type="checkbox" class="form-check-input component-checkbox" 
                        data-component-id="${component.component_id}">
             </td>
-            <td class="editable" data-field="component_name">${this.escapeHtml(component.component_name)}</td>
+            <td class="editable" data-field="component_name">
+                <strong>${this.escapeHtml(component.component_name)}</strong>
+                ${component.description ? '<br><small class="text-muted">' + this.escapeHtml(component.description) + '</small>' : ''}
+            </td>
             <td class="editable" data-field="part_number">${this.escapeHtml(component.part_number || '')}</td>
-            <td class="editable" data-field="description">${this.escapeHtml(component.description || '')}</td>
+            <td class="editable" data-field="manufacturer">${this.escapeHtml(component.manufacturer || '')}</td>
             <td class="editable text-end" data-field="unit_price" data-type="currency">$${component.unit_price.toFixed(2)}</td>
-            <td class="editable text-end" data-field="quantity" data-type="number">${component.quantity}</td>
-            <td class="editable" data-field="unit_of_measure">${component.unit_of_measure}</td>
+            <td class="editable text-center" data-field="quantity" data-type="number">${component.quantity}</td>
+            <td class="editable text-center" data-field="unit_of_measure">${component.unit_of_measure}</td>
             <td class="text-end fw-bold">$${component.total_price.toFixed(2)}</td>
             <td>
                 <div class="btn-group btn-group-sm">

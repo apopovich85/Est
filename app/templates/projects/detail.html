@@ -56,8 +56,22 @@
             </div>
             <div class="card-body">
                 <div class="text-center">
-                    <h3 class="text-primary">${{ "{:,.2f}".format(project.total_value()) }}</h3>
+                    <h3 class="text-success">${{ "{:,.2f}".format(project.total_project_grand_total()) }}</h3>
                     <p class="text-muted mb-1">Total Project Value</p>
+                    
+                    <!-- Breakdown -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <h5 class="text-primary mb-0">${{ "{:,.0f}".format(project.total_value()) }}</h5>
+                            <small class="text-muted">Materials</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-info mb-0">${{ "{:,.0f}".format(project.total_project_labor_cost()) }}</h5>
+                            <small class="text-muted">Labor</small>
+                        </div>
+                    </div>
+                    
+                    
                     <hr>
                     <p class="mb-1"><strong>{{ estimates|length }}</strong> Estimate{{ 's' if estimates|length != 1 else '' }}</p>
                 </div>
@@ -83,8 +97,13 @@
                         <tr>
                             <th>Estimate Number</th>
                             <th>Name</th>
-                            <th>Total Value</th>
-                            <th>Assemblies</th>
+                            <th class="text-end">Material Cost</th>
+                            <th class="text-end">Labor Cost</th>
+                            <th class="text-center">Engineering</th>
+                            <th class="text-center">Panel Shop</th>
+                            <th class="text-center">Machine Assy</th>
+                            <th class="text-end">Grand Total</th>
+                            <th class="text-center">Assemblies</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -99,8 +118,39 @@
                                 </a>
                             </td>
                             <td>{{ estimate.estimate_name }}</td>
-                            <td>${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
-                            <td>{{ estimate.assemblies|length }}</td>
+                            <td class="text-end">${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
+                            <td class="text-end">
+                                {% if estimate.total_labor_cost > 0 %}
+                                    ${{ "{:,.2f}".format(estimate.total_labor_cost) }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_engineering_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_engineering_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_panel_shop_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_panel_shop_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_machine_assembly_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_machine_assembly_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-success">${{ "{:,.2f}".format(estimate.grand_total) }}</strong>
+                            </td>
+                            <td class="text-center">{{ estimate.assemblies|length }}</td>
                             <td>{{ estimate.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <div class="btn-group" role="group">
@@ -113,6 +163,36 @@
                         </tr>
                         {% endfor %}
                     </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="4" class="text-end">Project Totals:</th>
+                            <th class="text-center">
+                                {% if project.total_project_engineering_hours() > 0 %}
+                                    <strong class="text-primary">{{ "{:.1f}".format(project.total_project_engineering_hours()) }}h</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </th>
+                            <th class="text-center">
+                                {% if project.total_project_panel_shop_hours() > 0 %}
+                                    <strong class="text-warning">{{ "{:.1f}".format(project.total_project_panel_shop_hours()) }}h</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </th>
+                            <th class="text-center">
+                                {% if project.total_project_machine_assembly_hours() > 0 %}
+                                    <strong class="text-success">{{ "{:.1f}".format(project.total_project_machine_assembly_hours()) }}h</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </th>
+                            <th class="text-end">
+                                <strong class="text-success">${{ "{:,.2f}".format(project.total_project_grand_total()) }}</strong>
+                            </th>
+                            <th colspan="3"></th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         {% else %}

@@ -245,7 +245,14 @@
                     <strong>Apply Assembly:</strong> <span id="confirmAssemblyName">-</span><br>
                     <strong>To Estimate:</strong> <span id="confirmEstimateName">-</span><br>
                     <strong>Components to Add:</strong> <span id="confirmComponentCount">0</span><br>
-                    <strong>Additional Cost:</strong> <span id="confirmAssemblyCost">$0.00</span>
+                    <strong>Base Cost per Assembly:</strong> <span id="confirmAssemblyCost">$0.00</span><br>
+                    <strong>Total Cost:</strong> <span id="confirmTotalCost">$0.00</span>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="assemblyQuantity" class="form-label">Number of Assemblies *</label>
+                    <input type="number" class="form-control" id="assemblyQuantity" min="1" step="1" value="1" required>
+                    <div class="form-text">Specify how many of this standard assembly to add. Component quantities will be multiplied accordingly.</div>
                 </div>
                 
                 <p>This will add all components from the standard assembly to your estimate. You can modify quantities and details after application.</p>
@@ -352,6 +359,11 @@ function setupEventHandlers() {
     // Confirmation modal
     document.getElementById('confirmUnderstand').addEventListener('change', function() {
         document.getElementById('finalApplyBtn').disabled = !this.checked;
+    });
+    
+    // Assembly quantity input
+    document.getElementById('assemblyQuantity').addEventListener('input', function() {
+        updateTotalCost();
     });
     
     document.getElementById('finalApplyBtn').addEventListener('click', applyAssemblyToEstimate);
@@ -470,7 +482,12 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     confirmComponentCountEl.textContent = 'Loading...';
     confirmAssemblyCostEl.textContent = `$${assemblyCost.toFixed(2)}`;
     
-    // Reset confirmation checkbox
+    // Reset quantity and confirmation
+    const quantityInput = document.getElementById('assemblyQuantity');
+    if (quantityInput) {
+        quantityInput.value = 1;
+    }
+    
     const confirmCheckbox = document.getElementById('confirmUnderstand');
     if (confirmCheckbox) {
         confirmCheckbox.checked = false;
@@ -480,6 +497,9 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     if (finalApplyBtn) {
         finalApplyBtn.disabled = true;
     }
+    
+    // Update total cost initially
+    updateTotalCost();
     
     // Load component count
     fetch(`/standard_assemblies/api/${assemblyId}/components`)
@@ -547,6 +567,20 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     }
 }
 
+function updateTotalCost() {
+    if (!currentAssemblyForApply) return;
+    
+    const quantityInput = document.getElementById('assemblyQuantity');
+    const confirmTotalCostEl = document.getElementById('confirmTotalCost');
+    
+    if (!quantityInput || !confirmTotalCostEl) return;
+    
+    const quantity = parseInt(quantityInput.value) || 1;
+    const totalCost = currentAssemblyForApply.cost * quantity;
+    
+    confirmTotalCostEl.textContent = `$${totalCost.toFixed(2)}`;
+}
+
 function closeConfirmationModal() {
     try {
         const modalElement = document.getElementById('confirmationModal');
@@ -607,18 +641,41 @@ function closeConfirmationModal() {
 function applyAssemblyToEstimate() {
     if (!currentAssemblyForApply || !selectedEstimateId) return;
     
+    const quantityInput = document.getElementById('assemblyQuantity');
+    const quantity = parseInt(quantityInput.value) || 1;
+    
+    if (quantity < 1) {
+        showToast('error', 'Error', 'Quantity must be at least 1');
+        return;
+    }
+    
     const btn = document.getElementById('finalApplyBtn');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
     btn.disabled = true;
     
+    console.log('Applying assembly:', currentAssemblyForApply.id, 'to estimate:', selectedEstimateId, 'with quantity:', quantity);
+    
     fetch(`/standard_assemblies/apply/${currentAssemblyForApply.id}/to/${selectedEstimateId}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-        }
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            quantity: quantity
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('Error response body:', text);
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Close modal

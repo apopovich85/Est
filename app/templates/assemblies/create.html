@@ -27,6 +27,11 @@
                                 placeholder="Enter assembly description..."></textarea>
                     </div>
                     
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Time Estimation:</strong> After creating assemblies, use the "Manage Hours" button to add labor time estimates.
+                    </div>
+                    
                     <div class="d-flex justify-content-end">
                         <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
                            class="btn btn-secondary me-2">Cancel</a>

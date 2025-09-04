@@ -21,7 +21,10 @@
                             <th>Client</th>
                             <th>Status</th>
                             <th>Estimates</th>
-                            <th>Total Cost</th>
+                            <th class="text-end">Total Cost</th>
+                            <th class="text-center">Engineering</th>
+                            <th class="text-center">Panel Shop</th>
+                            <th class="text-center">Machine Assy</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -44,7 +47,28 @@
                                 </span>
                             </td>
                             <td>{{ project.estimates|length }}</td>
-                            <td>${{ "{:,.2f}".format(project.total_value()) }}</td>
+                            <td class="text-end">${{ "{:,.2f}".format(project.total_project_grand_total()) }}</td>
+                            <td class="text-center">
+                                {% if project.total_project_engineering_hours() > 0 %}
+                                    {{ "{:.1f}".format(project.total_project_engineering_hours()) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if project.total_project_panel_shop_hours() > 0 %}
+                                    {{ "{:.1f}".format(project.total_project_panel_shop_hours()) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if project.total_project_machine_assembly_hours() > 0 %}
+                                    {{ "{:.1f}".format(project.total_project_machine_assembly_hours()) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td>{{ project.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <div class="btn-group" role="group">
