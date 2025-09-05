@@ -28,7 +28,8 @@
       "Bash(del test_standard_assembly_creation.py)",
       "Bash(git commit:*)",
       "Bash(\".venv\\Scripts\\python.exe\":*)",
-      "Bash(\"./venv/Scripts/python.exe\":*)"
+      "Bash(\"./venv/Scripts/python.exe\":*)",
+      "Bash(del:*)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\Est_v0.5"

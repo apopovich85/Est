@@ -187,11 +187,18 @@ def process_import():
                 
                 # Get or create category
                 category_name = data['category']
-                category = AssemblyCategory.query.filter_by(name=category_name).first()
+                
+                # Try to find by code first, then by name
+                category_code = category_name.upper().replace(' ', '_')
+                category = AssemblyCategory.query.filter(
+                    or_(AssemblyCategory.code == category_code, 
+                        AssemblyCategory.name == category_name)
+                ).first()
+                
                 if not category:
                     # Create category if it doesn't exist
                     category = AssemblyCategory(
-                        code=category_name.upper().replace(' ', '_'),
+                        code=category_code,
                         name=category_name,
                         description=f"Imported category: {category_name}",
                         is_active=True
@@ -224,9 +231,7 @@ def process_import():
                         part = Parts(
                             part_number=comp_data['part_number'],
                             description=f"Imported part - {comp_data['part_number']}",
-                            manufacturer="Unknown",
-                            category="Imported",
-                            price=0.00
+                            manufacturer="Unknown"
                         )
                         db.session.add(part)
                         db.session.flush()

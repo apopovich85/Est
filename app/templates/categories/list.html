@@ -59,7 +59,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <small class="text-muted">{{ category.created_at.strftime('%m/%d/%Y') }}</small>
+                                <small class="text-muted">{{ category.created_at.strftime('%m/%d/%Y') if category.created_at else 'N/A' }}</small>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
