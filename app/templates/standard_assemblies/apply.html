@@ -287,19 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Apply assemblies page loaded');
     console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
     
-    // Verify critical elements exist
-    const criticalElements = [
-        'projectSelect', 'estimateSelect', 'confirmationModal',
-        'confirmAssemblyName', 'confirmEstimateName', 
-        'confirmComponentCount', 'confirmAssemblyCost',
-        'finalApplyBtn', 'confirmUnderstand'
-    ];
-    
-    const missingElements = criticalElements.filter(id => !document.getElementById(id));
-    if (missingElements.length > 0) {
-        console.error('Missing critical elements:', missingElements);
-    }
-    
     setupEventHandlers();
     
     // Initialize based on URL parameters
@@ -421,21 +408,36 @@ function loadEstimatesForProject(projectId) {
 }
 
 function loadEstimateInfo(estimateId) {
-    // This would typically load estimate details
-    // For now, just show the info panel
-    const estimateSelect = document.getElementById('estimateSelect');
-    const selectedOption = estimateSelect.options[estimateSelect.selectedIndex];
-    
-    if (selectedOption && selectedOption.value) {
-        document.getElementById('selectedEstimateName').textContent = selectedOption.textContent;
-        document.getElementById('selectedEstimateDetails').textContent = 'Click apply to add assemblies';
-        document.getElementById('selectedEstimateTotal').textContent = '$0.00'; // Would load actual total
-        document.getElementById('estimateInfo').classList.remove('d-none');
-    }
+    // Wait for DOM to be ready if needed
+    setTimeout(() => {
+        const estimateSelect = document.getElementById('estimateSelect');
+        const selectedOption = estimateSelect ? estimateSelect.options[estimateSelect.selectedIndex] : null;
+        
+        if (selectedOption && selectedOption.value) {
+            const selectedEstimateName = document.getElementById('selectedEstimateName');
+            const selectedEstimateDetails = document.getElementById('selectedEstimateDetails');
+            const selectedEstimateTotal = document.getElementById('selectedEstimateTotal');
+            const estimateInfo = document.getElementById('estimateInfo');
+            
+            if (selectedEstimateName && selectedEstimateDetails && selectedEstimateTotal && estimateInfo) {
+                selectedEstimateName.textContent = selectedOption.textContent;
+                selectedEstimateDetails.textContent = 'Click apply to add assemblies';
+                selectedEstimateTotal.textContent = '$0.00'; // Would load actual total
+                estimateInfo.classList.remove('d-none');
+                console.log('Estimate info loaded successfully');
+            } else {
+                // Elements not found, but don't show error to user
+                console.log('Some estimate info elements not yet available, will retry');
+            }
+        }
+    }, 50);
 }
 
 function hideEstimateInfo() {
-    document.getElementById('estimateInfo').classList.add('d-none');
+    const estimateInfo = document.getElementById('estimateInfo');
+    if (estimateInfo) {
+        estimateInfo.classList.add('d-none');
+    }
 }
 
 function enableApplyButtons() {
@@ -450,6 +452,8 @@ function disableApplyButtons() {
     });
 }
 
+
+
 function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     currentAssemblyForApply = {
         id: assemblyId,
@@ -458,29 +462,51 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     };
     
     const estimateSelect = document.getElementById('estimateSelect');
-    const selectedOption = estimateSelect.options[estimateSelect.selectedIndex];
+    const selectedOption = estimateSelect ? estimateSelect.options[estimateSelect.selectedIndex] : null;
     
-    // Check if elements exist before setting content
-    const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
-    const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
-    const confirmComponentCountEl = document.getElementById('confirmComponentCount');
-    const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
-    
-    if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || !confirmAssemblyCostEl) {
-        console.error('Confirmation modal elements not found');
-        showToast('error', 'Error', 'Modal elements not found. Please refresh the page.');
-        return;
-    }
-    
-    if (!selectedOption || !selectedOption.textContent) {
+    if (!selectedOption || !selectedOption.value) {
         showToast('error', 'Error', 'Please select a valid estimate first.');
         return;
     }
     
-    confirmAssemblyNameEl.textContent = assemblyName;
+    // Ensure modal elements exist
+    const confirmationModal = document.getElementById('confirmationModal');
+    if (!confirmationModal) {
+        console.error('Confirmation modal not found in DOM');
+        showToast('error', 'Error', 'Modal not available. Please refresh the page.');
+        return;
+    }
+    
+    // Wait a moment for any pending DOM updates
+    setTimeout(() => {
+        const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
+        const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
+        const confirmComponentCountEl = document.getElementById('confirmComponentCount');
+        const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
+        const confirmTotalCostEl = document.getElementById('confirmTotalCost');
+        
+        if (confirmAssemblyNameEl && confirmEstimateNameEl && confirmComponentCountEl && confirmAssemblyCostEl && confirmTotalCostEl) {
+            setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
+                            confirmAssemblyCostEl, confirmTotalCostEl, selectedOption);
+        } else {
+            console.error('Modal elements still not found after delay');
+            showToast('error', 'Error', 'Modal elements not ready. Please try again.');
+        }
+    }, 100);
+}
+
+function setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
+                          confirmAssemblyCostEl, confirmTotalCostEl, selectedOption) {
+    
+    if (!selectedOption || !selectedOption.textContent) {
+        showToast('error', 'Error', 'Please select a valid estimate first.');
+        return false;
+    }
+    
+    confirmAssemblyNameEl.textContent = currentAssemblyForApply.name;
     confirmEstimateNameEl.textContent = selectedOption.textContent;
     confirmComponentCountEl.textContent = 'Loading...';
-    confirmAssemblyCostEl.textContent = `$${assemblyCost.toFixed(2)}`;
+    confirmAssemblyCostEl.textContent = `$${currentAssemblyForApply.cost.toFixed(2)}`;
     
     // Reset quantity and confirmation
     const quantityInput = document.getElementById('assemblyQuantity');
@@ -502,7 +528,7 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     updateTotalCost();
     
     // Load component count
-    fetch(`/standard_assemblies/api/${assemblyId}/components`)
+    fetch(`/standard_assemblies/api/${currentAssemblyForApply.id}/components`)
         .then(response => response.json())
         .then(components => {
             if (confirmComponentCountEl) {
@@ -538,7 +564,7 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
             backdrop.id = 'modal-backdrop-fallback';
             document.body.appendChild(backdrop);
             
-            return;
+            return true;
         }
         
         try {
@@ -561,9 +587,12 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
                 document.body.classList.add('modal-open');
             }
         }
+        
+        return true; // Success
     } catch (error) {
         console.error('Error showing modal:', error);
         showToast('error', 'Error', 'Failed to open confirmation modal. Please try again.');
+        return false;
     }
 }
 
