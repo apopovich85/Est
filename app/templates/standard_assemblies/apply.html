@@ -408,29 +408,48 @@ function loadEstimatesForProject(projectId) {
 }
 
 function loadEstimateInfo(estimateId) {
+    if (!estimateId) {
+        console.log('No estimateId provided to loadEstimateInfo');
+        return;
+    }
+    
     // Wait for DOM to be ready if needed
     setTimeout(() => {
         const estimateSelect = document.getElementById('estimateSelect');
-        const selectedOption = estimateSelect ? estimateSelect.options[estimateSelect.selectedIndex] : null;
+        if (!estimateSelect) {
+            console.log('Estimate select not found');
+            return;
+        }
         
-        if (selectedOption && selectedOption.value) {
-            const selectedEstimateName = document.getElementById('selectedEstimateName');
-            const selectedEstimateDetails = document.getElementById('selectedEstimateDetails');
-            const selectedEstimateTotal = document.getElementById('selectedEstimateTotal');
-            const estimateInfo = document.getElementById('estimateInfo');
-            
-            if (selectedEstimateName && selectedEstimateDetails && selectedEstimateTotal && estimateInfo) {
-                selectedEstimateName.textContent = selectedOption.textContent;
-                selectedEstimateDetails.textContent = 'Click apply to add assemblies';
-                selectedEstimateTotal.textContent = '$0.00'; // Would load actual total
-                estimateInfo.classList.remove('d-none');
-                console.log('Estimate info loaded successfully');
-            } else {
-                // Elements not found, but don't show error to user
-                console.log('Some estimate info elements not yet available, will retry');
+        // Find the option with the matching estimate ID, not just the currently selected one
+        let targetOption = null;
+        for (let i = 0; i < estimateSelect.options.length; i++) {
+            if (parseInt(estimateSelect.options[i].value) === parseInt(estimateId)) {
+                targetOption = estimateSelect.options[i];
+                break;
             }
         }
-    }, 50);
+        
+        if (!targetOption || !targetOption.value) {
+            console.log(`No option found for estimate ID ${estimateId}`);
+            return;
+        }
+        
+        const selectedEstimateName = document.getElementById('selectedEstimateName');
+        const selectedEstimateDetails = document.getElementById('selectedEstimateDetails');
+        const selectedEstimateTotal = document.getElementById('selectedEstimateTotal');
+        const estimateInfo = document.getElementById('estimateInfo');
+        
+        if (selectedEstimateName && selectedEstimateDetails && selectedEstimateTotal && estimateInfo) {
+            selectedEstimateName.textContent = targetOption.textContent;
+            selectedEstimateDetails.textContent = 'Click apply to add assemblies';
+            selectedEstimateTotal.textContent = '$0.00'; // Would load actual total
+            estimateInfo.classList.remove('d-none');
+            console.log(`Estimate info loaded successfully for ID ${estimateId}: ${targetOption.textContent}`);
+        } else {
+            console.log('Some estimate info elements not yet available');
+        }
+    }, 100);  // Increased delay to ensure dropdown is fully populated
 }
 
 function hideEstimateInfo() {
