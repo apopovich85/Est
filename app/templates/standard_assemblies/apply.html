@@ -240,6 +240,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <p id="testElement">TEST: This is a test element</p>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
                     <strong>Apply Assembly:</strong> <span id="confirmAssemblyName">-</span><br>
@@ -321,15 +322,28 @@ function setupEventHandlers() {
     
     // Estimate selection
     document.getElementById('estimateSelect').addEventListener('change', function() {
+        // Skip change event if we're rebuilding the dropdown
+        if (window.rebuildingDropdown) {
+            console.log('Ignoring change event during dropdown rebuild');
+            return;
+        }
+        
+        console.log('=== ESTIMATE SELECT CHANGED ===');
+        console.log('Value:', this.value, 'Selected index:', this.selectedIndex);
+        console.log('Options count:', this.options.length);
+        console.log('Global selectedEstimateId:', selectedEstimateId);
         selectedEstimateId = this.value ? parseInt(this.value) : null;
         
         if (selectedEstimateId) {
+            console.log('Valid estimate selected:', selectedEstimateId, '- SHOWING panel');
             enableApplyButtons();
             loadEstimateInfo(selectedEstimateId);
         } else {
+            console.log('No estimate selected - HIDING panel');
             disableApplyButtons();
             hideEstimateInfo();
         }
+        console.log('=== END ESTIMATE SELECT CHANGED ===');
     });
     
     // Apply buttons
@@ -376,6 +390,11 @@ function loadEstimatesForProject(projectId) {
         .then(response => response.json())
         .then(estimates => {
             const select = document.getElementById('estimateSelect');
+            
+            // Temporarily disable change event handling during rebuild by setting a flag
+            window.rebuildingDropdown = true;
+            
+            console.log('Rebuilding estimate dropdown for project:', projectId);
             select.innerHTML = '<option value="">Select an estimate...</option>';
             
             if (estimates.length === 0) {
@@ -389,6 +408,7 @@ function loadEstimatesForProject(projectId) {
                     option.textContent = `${estimate.estimate_name} (${estimate.estimate_number})`;
                     if (estimate.estimate_id === selectedEstimateId) {
                         option.selected = true;
+                        console.log('Pre-selected estimate option:', estimate.estimate_id);
                     }
                     select.appendChild(option);
                 });
@@ -396,10 +416,15 @@ function loadEstimatesForProject(projectId) {
                 
                 // If there's a pre-selected estimate, load its info
                 if (selectedEstimateId) {
+                    console.log('Re-loading info for pre-selected estimate:', selectedEstimateId);
                     enableApplyButtons();
                     loadEstimateInfo(selectedEstimateId);
                 }
             }
+            
+            // Re-enable change event handling
+            window.rebuildingDropdown = false;
+            console.log('Estimate dropdown rebuild complete');
         })
         .catch(error => {
             console.error('Error loading estimates:', error);
@@ -453,9 +478,11 @@ function loadEstimateInfo(estimateId) {
 }
 
 function hideEstimateInfo() {
+    console.log('hideEstimateInfo() called from:', new Error().stack);
     const estimateInfo = document.getElementById('estimateInfo');
     if (estimateInfo) {
         estimateInfo.classList.add('d-none');
+        console.log('Estimate info panel hidden');
     }
 }
 
@@ -496,6 +523,13 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     const confirmTotalCostEl = document.getElementById('confirmTotalCost');
     const confirmationModal = document.getElementById('confirmationModal');
     
+    // Check if test element exists
+    const testElement = document.getElementById('testElement');
+    console.log('Test element exists:', !!testElement);
+    if (testElement) {
+        console.log('Test element content:', testElement.textContent);
+    }
+    
     // Check if all elements exist
     if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || 
         !confirmAssemblyCostEl || !confirmTotalCostEl || !confirmationModal) {
@@ -506,7 +540,8 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
             confirmComponentCount: !!confirmComponentCountEl,
             confirmAssemblyCost: !!confirmAssemblyCostEl,
             confirmTotalCost: !!confirmTotalCostEl,
-            confirmationModal: !!confirmationModal
+            confirmationModal: !!confirmationModal,
+            testElement: !!testElement
         });
         
         // Try to find all elements with IDs that start with 'confirm'
@@ -520,10 +555,22 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
             const modalSpans = confirmationModal.querySelectorAll('span[id]');
             console.log('Spans with IDs inside modal:', 
                 Array.from(modalSpans).map(el => ({ id: el.id, text: el.textContent })));
+            console.log('Modal HTML snippet:', confirmationModal.outerHTML.substring(0, 1000));
+            console.log('Modal inner HTML:', confirmationModal.innerHTML.substring(0, 500));
         } else {
             console.log('Modal itself not found. All modals in page:');
             const allModals = document.querySelectorAll('.modal');
-            console.log(Array.from(allModals).map(el => ({ id: el.id, class: el.className })));
+            console.log('All modals found:', Array.from(allModals).map(el => ({ id: el.id, class: el.className })));
+            
+            // Check if modal HTML exists anywhere in the document
+            const bodyText = document.body.innerHTML;
+            const hasConfirmationModal = bodyText.includes('confirmationModal');
+            const hasConfirmAssemblyName = bodyText.includes('confirmAssemblyName');
+            console.log('Modal HTML exists in document:', {
+                hasConfirmationModal,
+                hasConfirmAssemblyName,
+                bodyLength: bodyText.length
+            });
         }
         
         showToast('error', 'Error', 'Modal not ready. Please refresh the page.');
