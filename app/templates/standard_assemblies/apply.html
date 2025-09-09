@@ -469,30 +469,32 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
         return;
     }
     
-    // Ensure modal elements exist
+    // Get all required elements immediately - they should be in the DOM already
+    const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
+    const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
+    const confirmComponentCountEl = document.getElementById('confirmComponentCount');
+    const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
+    const confirmTotalCostEl = document.getElementById('confirmTotalCost');
     const confirmationModal = document.getElementById('confirmationModal');
-    if (!confirmationModal) {
-        console.error('Confirmation modal not found in DOM');
-        showToast('error', 'Error', 'Modal not available. Please refresh the page.');
+    
+    // Check if all elements exist
+    if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || 
+        !confirmAssemblyCostEl || !confirmTotalCostEl || !confirmationModal) {
+        console.error('Modal elements not found in DOM immediately');
+        console.log('Available elements:', {
+            confirmAssemblyName: !!confirmAssemblyNameEl,
+            confirmEstimateName: !!confirmEstimateNameEl,
+            confirmComponentCount: !!confirmComponentCountEl,
+            confirmAssemblyCost: !!confirmAssemblyCostEl,
+            confirmTotalCost: !!confirmTotalCostEl,
+            confirmationModal: !!confirmationModal
+        });
+        showToast('error', 'Error', 'Modal not ready. Please refresh the page.');
         return;
     }
     
-    // Wait a moment for any pending DOM updates
-    setTimeout(() => {
-        const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
-        const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
-        const confirmComponentCountEl = document.getElementById('confirmComponentCount');
-        const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
-        const confirmTotalCostEl = document.getElementById('confirmTotalCost');
-        
-        if (confirmAssemblyNameEl && confirmEstimateNameEl && confirmComponentCountEl && confirmAssemblyCostEl && confirmTotalCostEl) {
-            setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
-                            confirmAssemblyCostEl, confirmTotalCostEl, selectedOption);
-        } else {
-            console.error('Modal elements still not found after delay');
-            showToast('error', 'Error', 'Modal elements not ready. Please try again.');
-        }
-    }, 100);
+    setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
+                     confirmAssemblyCostEl, confirmTotalCostEl, selectedOption);
 }
 
 function setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
