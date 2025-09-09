@@ -481,7 +481,7 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
     if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || 
         !confirmAssemblyCostEl || !confirmTotalCostEl || !confirmationModal) {
         console.error('Modal elements not found in DOM immediately');
-        console.log('Available elements:', {
+        console.log('Element availability check:', {
             confirmAssemblyName: !!confirmAssemblyNameEl,
             confirmEstimateName: !!confirmEstimateNameEl,
             confirmComponentCount: !!confirmComponentCountEl,
@@ -489,6 +489,24 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
             confirmTotalCost: !!confirmTotalCostEl,
             confirmationModal: !!confirmationModal
         });
+        
+        // Try to find all elements with IDs that start with 'confirm'
+        const allConfirmElements = document.querySelectorAll('[id^="confirm"]');
+        console.log('All elements with IDs starting with "confirm":', 
+            Array.from(allConfirmElements).map(el => ({ id: el.id, tagName: el.tagName })));
+        
+        // Check if modal exists but elements inside don't
+        if (confirmationModal) {
+            console.log('Modal exists, checking internal elements...');
+            const modalSpans = confirmationModal.querySelectorAll('span[id]');
+            console.log('Spans with IDs inside modal:', 
+                Array.from(modalSpans).map(el => ({ id: el.id, text: el.textContent })));
+        } else {
+            console.log('Modal itself not found. All modals in page:');
+            const allModals = document.querySelectorAll('.modal');
+            console.log(Array.from(allModals).map(el => ({ id: el.id, class: el.className })));
+        }
+        
         showToast('error', 'Error', 'Modal not ready. Please refresh the page.');
         return;
     }
