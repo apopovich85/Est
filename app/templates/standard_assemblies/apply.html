@@ -240,7 +240,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p id="testElement">TEST: This is a test element</p>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
                     <strong>Apply Assembly:</strong> <span id="confirmAssemblyName">-</span><br>
@@ -470,7 +469,102 @@ function loadEstimateInfo(estimateId) {
             selectedEstimateDetails.textContent = 'Click apply to add assemblies';
             selectedEstimateTotal.textContent = '$0.00'; // Would load actual total
             estimateInfo.classList.remove('d-none');
+            console.log(`✅ SHOWING ESTIMATE INFO PANEL ✅`);
             console.log(`Estimate info loaded successfully for ID ${estimateId}: ${targetOption.textContent}`);
+            
+            // Force the element to stay visible by overriding any attempts to hide it
+            estimateInfo.style.display = 'block !important';
+            estimateInfo.style.visibility = 'visible !important';
+            estimateInfo.style.opacity = '1 !important';
+            
+            // Add a flag to identify this as a protected element
+            estimateInfo.dataset.protected = 'true';
+            
+            // Set up a MutationObserver to track ANY changes to the element
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    console.log('🔍 MUTATION OBSERVER: Element changed!', {
+                        type: mutation.type,
+                        attributeName: mutation.attributeName,
+                        oldValue: mutation.oldValue,
+                        newValue: mutation.target.getAttribute(mutation.attributeName)
+                    });
+                    
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        if (estimateInfo.classList.contains('d-none')) {
+                            console.log('🔍 d-none class was added!');
+                            console.log('Stack trace:', new Error().stack);
+                        }
+                    }
+                    
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        console.log('🎨 Style attribute changed!');
+                        console.log('New style:', estimateInfo.style.cssText);
+                        console.log('Computed style display:', window.getComputedStyle(estimateInfo).display);
+                        console.log('Stack trace:', new Error().stack);
+                    }
+                });
+            });
+            
+            observer.observe(estimateInfo, { 
+                attributes: true, 
+                attributeOldValue: true,
+                attributeFilter: ['class', 'style', 'hidden'] 
+            });
+            
+            // Add periodic checks to see what's happening to the element
+            const checkInterval = setInterval(() => {
+                const currentElement = document.getElementById('estimateInfo');
+                if (!currentElement) {
+                    console.log('❌ Element no longer exists in DOM!');
+                    clearInterval(checkInterval);
+                    return;
+                }
+                
+                const isVisible = !currentElement.classList.contains('d-none');
+                const computedStyle = window.getComputedStyle(currentElement);
+                const displayValue = computedStyle.display;
+                const visibilityValue = computedStyle.visibility;
+                const opacityValue = computedStyle.opacity;
+                
+                const rect = currentElement.getBoundingClientRect();
+                const parent = currentElement.parentElement;
+                
+                console.log('🔍 Element status check:', {
+                    hasElement: !!currentElement,
+                    hasDnoneClass: currentElement.classList.contains('d-none'),
+                    display: displayValue,
+                    visibility: visibilityValue,
+                    opacity: opacityValue,
+                    offsetHeight: currentElement.offsetHeight,
+                    offsetWidth: currentElement.offsetWidth,
+                    boundingRect: {
+                        top: rect.top,
+                        left: rect.left,
+                        width: rect.width,
+                        height: rect.height,
+                        bottom: rect.bottom,
+                        right: rect.right
+                    },
+                    parentElement: parent ? parent.tagName + (parent.id ? '#' + parent.id : '') : 'null',
+                    parentDisplay: parent ? window.getComputedStyle(parent).display : 'null'
+                });
+                
+                if (displayValue === 'none' || visibilityValue === 'hidden' || opacityValue === '0' || currentElement.offsetHeight === 0) {
+                    console.log('🚨 Element is effectively hidden but not by d-none class!');
+                }
+            }, 1000);
+            
+            // Stop checking after 10 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, 10000);
+            
+            // Stop observing after 10 seconds
+            setTimeout(() => {
+                observer.disconnect();
+                console.log('Stopped observing panel changes');
+            }, 10000);
         } else {
             console.log('Some estimate info elements not yet available');
         }
@@ -478,11 +572,12 @@ function loadEstimateInfo(estimateId) {
 }
 
 function hideEstimateInfo() {
+    console.log('🚨 HIDING ESTIMATE INFO PANEL 🚨');
     console.log('hideEstimateInfo() called from:', new Error().stack);
     const estimateInfo = document.getElementById('estimateInfo');
     if (estimateInfo) {
         estimateInfo.classList.add('d-none');
-        console.log('Estimate info panel hidden');
+        console.log('❌ Estimate info panel hidden');
     }
 }
 
@@ -515,70 +610,61 @@ function showConfirmationModal(assemblyId, assemblyName, assemblyCost) {
         return;
     }
     
-    // Get all required elements immediately - they should be in the DOM already
+    // Simple direct approach - just try to set the values and show modal
+    console.log('Attempting to show confirmation modal...');
+    
     const confirmAssemblyNameEl = document.getElementById('confirmAssemblyName');
     const confirmEstimateNameEl = document.getElementById('confirmEstimateName');
     const confirmComponentCountEl = document.getElementById('confirmComponentCount');
     const confirmAssemblyCostEl = document.getElementById('confirmAssemblyCost');
     const confirmTotalCostEl = document.getElementById('confirmTotalCost');
-    const confirmationModal = document.getElementById('confirmationModal');
     
-    // Check if test element exists
-    const testElement = document.getElementById('testElement');
-    console.log('Test element exists:', !!testElement);
-    if (testElement) {
-        console.log('Test element content:', testElement.textContent);
-    }
+    // Set values directly if elements exist
+    if (confirmAssemblyNameEl) confirmAssemblyNameEl.textContent = assemblyName;
+    if (confirmEstimateNameEl) confirmEstimateNameEl.textContent = selectedOption.textContent;
+    if (confirmAssemblyCostEl) confirmAssemblyCostEl.textContent = `$${assemblyCost.toFixed(2)}`;
+    if (confirmTotalCostEl) confirmTotalCostEl.textContent = `$${assemblyCost.toFixed(2)}`;
+    if (confirmComponentCountEl) confirmComponentCountEl.textContent = 'Loading...';
     
-    // Check if all elements exist
-    if (!confirmAssemblyNameEl || !confirmEstimateNameEl || !confirmComponentCountEl || 
-        !confirmAssemblyCostEl || !confirmTotalCostEl || !confirmationModal) {
-        console.error('Modal elements not found in DOM immediately');
-        console.log('Element availability check:', {
-            confirmAssemblyName: !!confirmAssemblyNameEl,
-            confirmEstimateName: !!confirmEstimateNameEl,
-            confirmComponentCount: !!confirmComponentCountEl,
-            confirmAssemblyCost: !!confirmAssemblyCostEl,
-            confirmTotalCost: !!confirmTotalCostEl,
-            confirmationModal: !!confirmationModal,
-            testElement: !!testElement
+    // Reset form elements
+    const quantityInput = document.getElementById('assemblyQuantity');
+    const confirmCheckbox = document.getElementById('confirmUnderstand');
+    const finalApplyBtn = document.getElementById('finalApplyBtn');
+    
+    if (quantityInput) quantityInput.value = 1;
+    if (confirmCheckbox) confirmCheckbox.checked = false;
+    if (finalApplyBtn) finalApplyBtn.disabled = true;
+    
+    // Load component count
+    fetch(`/standard_assemblies/api/${assemblyId}/components`)
+        .then(response => response.json())
+        .then(components => {
+            if (confirmComponentCountEl) {
+                confirmComponentCountEl.textContent = components.length;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading component count:', error);
+            if (confirmComponentCountEl) {
+                confirmComponentCountEl.textContent = 'Error loading';
+            }
         });
-        
-        // Try to find all elements with IDs that start with 'confirm'
-        const allConfirmElements = document.querySelectorAll('[id^="confirm"]');
-        console.log('All elements with IDs starting with "confirm":', 
-            Array.from(allConfirmElements).map(el => ({ id: el.id, tagName: el.tagName })));
-        
-        // Check if modal exists but elements inside don't
-        if (confirmationModal) {
-            console.log('Modal exists, checking internal elements...');
-            const modalSpans = confirmationModal.querySelectorAll('span[id]');
-            console.log('Spans with IDs inside modal:', 
-                Array.from(modalSpans).map(el => ({ id: el.id, text: el.textContent })));
-            console.log('Modal HTML snippet:', confirmationModal.outerHTML.substring(0, 1000));
-            console.log('Modal inner HTML:', confirmationModal.innerHTML.substring(0, 500));
-        } else {
-            console.log('Modal itself not found. All modals in page:');
-            const allModals = document.querySelectorAll('.modal');
-            console.log('All modals found:', Array.from(allModals).map(el => ({ id: el.id, class: el.className })));
-            
-            // Check if modal HTML exists anywhere in the document
-            const bodyText = document.body.innerHTML;
-            const hasConfirmationModal = bodyText.includes('confirmationModal');
-            const hasConfirmAssemblyName = bodyText.includes('confirmAssemblyName');
-            console.log('Modal HTML exists in document:', {
-                hasConfirmationModal,
-                hasConfirmAssemblyName,
-                bodyLength: bodyText.length
-            });
-        }
-        
-        showToast('error', 'Error', 'Modal not ready. Please refresh the page.');
-        return;
-    }
     
-    setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 
-                     confirmAssemblyCostEl, confirmTotalCostEl, selectedOption);
+    // Show modal using Bootstrap
+    const confirmationModal = document.getElementById('confirmationModal');
+    if (confirmationModal && typeof bootstrap !== 'undefined') {
+        try {
+            const modal = new bootstrap.Modal(confirmationModal);
+            modal.show();
+            console.log('Modal shown successfully');
+        } catch (error) {
+            console.error('Error showing modal:', error);
+            showToast('error', 'Error', 'Failed to open confirmation modal.');
+        }
+    } else {
+        console.error('Modal element or Bootstrap not available');
+        showToast('error', 'Error', 'Modal not available.');
+    }
 }
 
 function setupAndShowModal(confirmAssemblyNameEl, confirmEstimateNameEl, confirmComponentCountEl, 

@@ -5,7 +5,22 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1>{{ estimate.estimate_name }}</h1>
+        <h1 id="estimateNameDisplay" onclick="editEstimateName()" style="cursor: pointer;" title="Click to edit">
+            {{ estimate.estimate_name }} 
+            <i class="fas fa-edit text-muted ms-2" style="font-size: 0.6em;"></i>
+        </h1>
+        <div id="estimateNameEdit" style="display: none;">
+            <div class="input-group" style="max-width: 400px;">
+                <input type="text" id="estimateNameInput" class="form-control form-control-lg" 
+                       value="{{ estimate.estimate_name }}" maxlength="255">
+                <button class="btn btn-success" onclick="saveEstimateName()">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="cancelEditEstimateName()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
         <p class="text-muted mb-0">
             Estimate #{{ estimate.estimate_number }} | 
             Project: <a href="{{ url_for('projects.detail_project', project_id=estimate.project_id) }}">
@@ -14,6 +29,15 @@
         </p>
     </div>
     <div>
+        {% if assemblies or individual_components %}
+        <a href="{{ url_for('estimates.manage_all_hours', estimate_id=estimate.estimate_id) }}" 
+           class="btn btn-warning me-2">
+            <i class="fas fa-clock"></i> Manage Hours
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-success me-2" onclick="showBOMModal()">
+            <i class="fas fa-file-invoice"></i> Bill of Materials
+        </button>
         <a href="{{ url_for('assemblies.create_assembly', estimate_id=estimate.estimate_id) }}" 
            class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Assembly
@@ -124,12 +148,6 @@
                class="btn btn-sm btn-info">
                 <i class="fas fa-microchip"></i> Add Individual Component
             </a>
-            {% if assemblies %}
-            <a href="{{ url_for('assemblies.manage_hours', estimate_id=estimate.estimate_id) }}" 
-               class="btn btn-sm btn-warning">
-                <i class="fas fa-clock"></i> Manage Hours
-            </a>
-            {% endif %}
         </div>
     </div>
     <div class="card-body">
@@ -313,10 +331,16 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">
             <i class="fas fa-microchip"></i> Individual Components
+            <small class="text-muted ms-2">
+                {{ individual_components|length }} component{{ 's' if individual_components|length != 1 else '' }} • 
+                ${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}
+            </small>
         </h5>
-        <div class="text-muted">
-            <small>{{ individual_components|length }} component{{ 's' if individual_components|length != 1 else '' }} • 
-            ${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}</small>
+        <div>
+            <a href="{{ url_for('estimates.add_individual_component', estimate_id=estimate.estimate_id) }}" 
+               class="btn btn-sm btn-info">
+                <i class="fas fa-plus"></i> Add Component
+            </a>
         </div>
     </div>
     <div class="card-body">
@@ -406,6 +430,125 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Bill of Materials Modal -->
+<div class="modal fade" id="bomModal" tabindex="-1" aria-labelledby="bomModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="bomModalLabel">
+                    <i class="fas fa-file-invoice"></i> Bill of Materials
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- BOM Header Info -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Project Information</h6>
+                        <p class="mb-1"><strong>Project:</strong> {{ estimate.project.project_name }}</p>
+                        <p class="mb-1"><strong>Estimate:</strong> {{ estimate.estimate_name }}</p>
+                        <p class="mb-0"><strong>Estimate #:</strong> {{ estimate.estimate_number }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Document Information</h6>
+                        <p class="mb-1"><strong>Generated:</strong> <span id="bomGeneratedDate"></span></p>
+                        <p class="mb-1"><strong>Status:</strong> <span class="badge bg-primary">Draft</span></p>
+                        <p class="mb-0"><strong>Total Items:</strong> <span id="bomItemCount">0</span></p>
+                    </div>
+                </div>
+                
+                <!-- Loading Indicator -->
+                <div id="bomLoading" class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading Bill of Materials...</p>
+                </div>
+                
+                <!-- BOM Table -->
+                <div id="bomContent" class="d-none">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-success">
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th style="width: 120px;">Part Number</th>
+                                    <th>Description</th>
+                                    <th style="width: 120px;">Manufacturer</th>
+                                    <th style="width: 80px;" class="text-center">Qty</th>
+                                    <th style="width: 60px;">UOM</th>
+                                    <th style="width: 100px;" class="text-end">Unit Price</th>
+                                    <th style="width: 120px;" class="text-end">Total Price</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bomTableBody">
+                                <!-- Dynamic content will be inserted here -->
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="7" class="text-end"><strong>Grand Total:</strong></th>
+                                    <th class="text-end text-success"><strong id="bomTotal">$0.00</strong></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <!-- Summary Statistics -->
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Total Items</h6>
+                                    <h4 class="mb-0 text-primary" id="totalItems">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Unique Parts</h6>
+                                    <h4 class="mb-0 text-info" id="uniqueParts">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Total Quantity</h6>
+                                    <h4 class="mb-0 text-warning" id="totalQuantity">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Total Value</h6>
+                                    <h4 class="mb-0 text-success" id="totalValue">$0.00</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        This report consolidates all components across assemblies and individual items.
+                    </small>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportBOMToPDF()">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -500,5 +643,184 @@ function showToast(type, title, message) {
     
     setTimeout(() => toast.remove(), 5000);
 }
+
+function showBOMModal() {
+    // Fetch BOM data for the estimate
+    fetch(`/estimates/{{ estimate.estimate_id }}/bom`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderBOMModal(data.bom);
+                const modalElement = document.getElementById('bomModal');
+                const modal = new bootstrap.Modal(modalElement);
+                
+                // Fix accessibility issue by removing aria-hidden when modal is shown
+                modalElement.addEventListener('shown.bs.modal', function() {
+                    modalElement.removeAttribute('aria-hidden');
+                });
+                
+                modal.show();
+            } else {
+                showToast('error', 'Error', data.error || 'Failed to load Bill of Materials');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading BOM:', error);
+            showToast('error', 'Error', 'Failed to load Bill of Materials');
+        });
+}
+
+function renderBOMModal(bomData) {
+    // Hide loading and show content
+    document.getElementById('bomLoading').classList.add('d-none');
+    document.getElementById('bomContent').classList.remove('d-none');
+    
+    // Set generation date
+    document.getElementById('bomGeneratedDate').textContent = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    const tbody = document.getElementById('bomTableBody');
+    const totalElement = document.getElementById('bomTotal');
+    
+    tbody.innerHTML = '';
+    let grandTotal = 0;
+    let totalQuantitySum = 0;
+    
+    bomData.forEach((item, index) => {
+        const quantity = parseFloat(item.total_quantity) || 0;
+        const totalPrice = quantity * item.unit_price;
+        grandTotal += totalPrice;
+        
+        // For quantity counting, treat 'ft' (feet) items as 1 item regardless of footage
+        const countQuantity = (item.unit_of_measure && item.unit_of_measure.toLowerCase() === 'ft') ? 1 : quantity;
+        totalQuantitySum += countQuantity;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td><code>${item.part_number || 'N/A'}</code></td>
+            <td>${item.description || item.component_name || 'N/A'}</td>
+            <td><small class="text-muted">${item.manufacturer || 'N/A'}</small></td>
+            <td class="text-center"><span class="badge bg-secondary">${quantity.toLocaleString()}</span></td>
+            <td class="text-center"><small>${item.unit_of_measure || 'EA'}</small></td>
+            <td class="text-end">$${item.unit_price.toFixed(2)}</td>
+            <td class="text-end"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Update totals
+    totalElement.textContent = `$${grandTotal.toFixed(2)}`;
+    
+    // Update statistics
+    document.getElementById('bomItemCount').textContent = bomData.length;
+    document.getElementById('totalItems').textContent = bomData.length;
+    document.getElementById('uniqueParts').textContent = bomData.length; // Each row is unique part
+    document.getElementById('totalQuantity').textContent = totalQuantitySum.toLocaleString();
+    document.getElementById('totalValue').textContent = `$${grandTotal.toFixed(2)}`;
+}
+
+// Estimate Name Editing Functions
+function editEstimateName() {
+    document.getElementById('estimateNameDisplay').style.display = 'none';
+    document.getElementById('estimateNameEdit').style.display = 'block';
+    document.getElementById('estimateNameInput').focus();
+    document.getElementById('estimateNameInput').select();
+}
+
+function cancelEditEstimateName() {
+    document.getElementById('estimateNameInput').value = '{{ estimate.estimate_name }}';
+    document.getElementById('estimateNameDisplay').style.display = 'block';
+    document.getElementById('estimateNameEdit').style.display = 'none';
+}
+
+function saveEstimateName() {
+    const newName = document.getElementById('estimateNameInput').value.trim();
+    if (!newName) {
+        showToast('error', 'Error', 'Estimate name cannot be empty');
+        return;
+    }
+    
+    fetch(`/estimates/{{ estimate.estimate_id }}/update-name`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('estimateNameDisplay').innerHTML = 
+                `${newName} <i class="fas fa-edit text-muted ms-2" style="font-size: 0.6em;"></i>`;
+            document.getElementById('estimateNameDisplay').style.display = 'block';
+            document.getElementById('estimateNameEdit').style.display = 'none';
+            document.title = `${newName} - Estimates`;
+            showToast('success', 'Success', 'Estimate name updated successfully');
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update estimate name');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating estimate name:', error);
+        showToast('error', 'Error', 'Failed to update estimate name');
+    });
+}
+
+// Allow Enter key to save and Escape key to cancel
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('estimateNameInput');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                saveEstimateName();
+            } else if (e.key === 'Escape') {
+                cancelEditEstimateName();
+            }
+        });
+    }
+});
+
+function exportBOMToPDF() {
+    const estimateName = '{{ estimate.estimate_name }}';
+    const projectName = '{{ estimate.project.project_name }}';
+    const estimateNumber = '{{ estimate.estimate_number }}';
+    
+    // Create PDF download
+    fetch(`/estimates/{{ estimate.estimate_id }}/bom/pdf`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('PDF generation failed');
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `BOM_${estimateNumber}_${estimateName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showToast('success', 'Success', 'BOM exported to PDF successfully');
+    })
+    .catch(error => {
+        console.error('Error exporting PDF:', error);
+        showToast('error', 'Error', 'Failed to export BOM to PDF');
+    });
+}
+
 </script>
 {% endblock %}

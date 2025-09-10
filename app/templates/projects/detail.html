@@ -117,7 +117,26 @@
                                     {{ estimate.estimate_number }}
                                 </a>
                             </td>
-                            <td>{{ estimate.estimate_name }}</td>
+                            <td>
+                                <span class="estimate-name-display" onclick="editEstimateNameInTable({{ estimate.estimate_id }})" 
+                                      style="cursor: pointer;" title="Click to edit">
+                                    {{ estimate.estimate_name }} 
+                                    <i class="fas fa-edit text-muted ms-1" style="font-size: 0.8em;"></i>
+                                </span>
+                                <div class="estimate-name-edit" id="estimateNameEdit_{{ estimate.estimate_id }}" style="display: none;">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control estimate-name-input" 
+                                               id="estimateNameInput_{{ estimate.estimate_id }}"
+                                               value="{{ estimate.estimate_name }}" maxlength="255">
+                                        <button class="btn btn-success btn-sm" onclick="saveEstimateNameInTable({{ estimate.estimate_id }})">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="cancelEditEstimateNameInTable({{ estimate.estimate_id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
                             <td class="text-end">${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
                             <td class="text-end">
                                 {% if estimate.total_labor_cost > 0 %}
@@ -208,4 +227,83 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Estimate name editing functions for the table
+function editEstimateNameInTable(estimateId) {
+    const displaySpan = document.querySelector(`[onclick="editEstimateNameInTable(${estimateId})"]`);
+    const editDiv = document.getElementById(`estimateNameEdit_${estimateId}`);
+    const input = document.getElementById(`estimateNameInput_${estimateId}`);
+    
+    displaySpan.style.display = 'none';
+    editDiv.style.display = 'block';
+    input.focus();
+    input.select();
+}
+
+function cancelEditEstimateNameInTable(estimateId) {
+    const displaySpan = document.querySelector(`[onclick="editEstimateNameInTable(${estimateId})"]`);
+    const editDiv = document.getElementById(`estimateNameEdit_${estimateId}`);
+    const input = document.getElementById(`estimateNameInput_${estimateId}`);
+    
+    // Reset input value to original
+    input.value = input.getAttribute('value');
+    displaySpan.style.display = 'inline';
+    editDiv.style.display = 'none';
+}
+
+function saveEstimateNameInTable(estimateId) {
+    const displaySpan = document.querySelector(`[onclick="editEstimateNameInTable(${estimateId})"]`);
+    const editDiv = document.getElementById(`estimateNameEdit_${estimateId}`);
+    const input = document.getElementById(`estimateNameInput_${estimateId}`);
+    const newName = input.value.trim();
+    
+    if (!newName) {
+        showToast('error', 'Error', 'Estimate name cannot be empty');
+        return;
+    }
+    
+    fetch(`/estimates/${estimateId}/update-name`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displaySpan.innerHTML = `${newName} <i class="fas fa-edit text-muted ms-1" style="font-size: 0.8em;"></i>`;
+            displaySpan.style.display = 'inline';
+            editDiv.style.display = 'none';
+            input.setAttribute('value', newName); // Update the stored value
+            showToast('success', 'Success', 'Estimate name updated successfully');
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update estimate name');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating estimate name:', error);
+        showToast('error', 'Error', 'Failed to update estimate name');
+    });
+}
+
+// Handle keyboard events for table editing
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('keydown', function(e) {
+        const activeInput = document.activeElement;
+        if (activeInput && activeInput.classList.contains('estimate-name-input')) {
+            if (e.key === 'Enter') {
+                const estimateId = activeInput.id.replace('estimateNameInput_', '');
+                saveEstimateNameInTable(parseInt(estimateId));
+            } else if (e.key === 'Escape') {
+                const estimateId = activeInput.id.replace('estimateNameInput_', '');
+                cancelEditEstimateNameInTable(parseInt(estimateId));
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

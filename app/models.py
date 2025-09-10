@@ -123,18 +123,24 @@ class Estimate(db.Model):
     
     @property
     def total_engineering_hours(self):
-        """Calculate total engineering hours across all assemblies"""
-        return sum(float(assembly.engineering_hours or 0) for assembly in self.assemblies)
+        """Calculate total engineering hours across all assemblies and individual components"""
+        assembly_hours = sum(float(assembly.engineering_hours or 0) for assembly in self.assemblies)
+        component_hours = sum(float(component.engineering_hours or 0) for component in self.individual_components)
+        return assembly_hours + component_hours
     
     @property
     def total_panel_shop_hours(self):
-        """Calculate total panel shop hours across all assemblies"""
-        return sum(float(assembly.panel_shop_hours or 0) for assembly in self.assemblies)
+        """Calculate total panel shop hours across all assemblies and individual components"""
+        assembly_hours = sum(float(assembly.panel_shop_hours or 0) for assembly in self.assemblies)
+        component_hours = sum(float(component.panel_shop_hours or 0) for component in self.individual_components)
+        return assembly_hours + component_hours
     
     @property
     def total_machine_assembly_hours(self):
-        """Calculate total machine assembly hours across all assemblies"""
-        return sum(float(assembly.machine_assembly_hours or 0) for assembly in self.assemblies)
+        """Calculate total machine assembly hours across all assemblies and individual components"""
+        assembly_hours = sum(float(assembly.machine_assembly_hours or 0) for assembly in self.assemblies)
+        component_hours = sum(float(component.machine_assembly_hours or 0) for component in self.individual_components)
+        return assembly_hours + component_hours
     
     @property
     def total_hours(self):
@@ -143,18 +149,24 @@ class Estimate(db.Model):
     
     @property
     def total_engineering_cost(self):
-        """Calculate total engineering cost across all assemblies"""
-        return sum(assembly.calculated_engineering_cost for assembly in self.assemblies)
+        """Calculate total engineering cost across all assemblies and individual components"""
+        assembly_cost = sum(assembly.calculated_engineering_cost for assembly in self.assemblies)
+        component_cost = sum(component.calculated_engineering_cost for component in self.individual_components)
+        return assembly_cost + component_cost
     
     @property
     def total_panel_shop_cost(self):
-        """Calculate total panel shop cost across all assemblies"""
-        return sum(assembly.calculated_panel_shop_cost for assembly in self.assemblies)
+        """Calculate total panel shop cost across all assemblies and individual components"""
+        assembly_cost = sum(assembly.calculated_panel_shop_cost for assembly in self.assemblies)
+        component_cost = sum(component.calculated_panel_shop_cost for component in self.individual_components)
+        return assembly_cost + component_cost
     
     @property
     def total_machine_assembly_cost(self):
-        """Calculate total machine assembly cost across all assemblies"""
-        return sum(assembly.calculated_machine_assembly_cost for assembly in self.assemblies)
+        """Calculate total machine assembly cost across all assemblies and individual components"""
+        assembly_cost = sum(assembly.calculated_machine_assembly_cost for assembly in self.assemblies)
+        component_cost = sum(component.calculated_machine_assembly_cost for component in self.individual_components)
+        return assembly_cost + component_cost
     
     @property
     def total_labor_cost(self):
@@ -331,6 +343,13 @@ class EstimateComponent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Time estimation fields
+    engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    estimated_by = db.Column(db.String(100))
+    time_estimate_notes = db.Column(db.Text)
+    
     # Relationships
     part = db.relationship('Parts', backref='estimate_components')
     
@@ -338,6 +357,39 @@ class EstimateComponent(db.Model):
     def total_price(self):
         """Calculate total price for this component"""
         return float(self.unit_price * self.quantity)
+    
+    @property
+    def total_hours(self):
+        """Calculate total hours across all labor types"""
+        return float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
+    
+    @property
+    def calculated_engineering_cost(self):
+        """Calculate engineering cost based on hours * estimate's engineering rate"""
+        rate = float(self.estimate.engineering_rate) if self.estimate else 145.0
+        return float(self.engineering_hours or 0) * rate
+    
+    @property
+    def calculated_panel_shop_cost(self):
+        """Calculate panel shop cost based on hours * estimate's panel shop rate"""
+        rate = float(self.estimate.panel_shop_rate) if self.estimate else 125.0
+        return float(self.panel_shop_hours or 0) * rate
+    
+    @property
+    def calculated_machine_assembly_cost(self):
+        """Calculate machine assembly cost based on hours * estimate's machine assembly rate"""
+        rate = float(self.estimate.machine_assembly_rate) if self.estimate else 125.0
+        return float(self.machine_assembly_hours or 0) * rate
+    
+    @property
+    def total_labor_cost(self):
+        """Calculate total labor cost across all disciplines"""
+        return self.calculated_engineering_cost + self.calculated_panel_shop_cost + self.calculated_machine_assembly_cost
+    
+    @property
+    def total_component_cost(self):
+        """Calculate total component cost (materials + labor)"""
+        return self.total_price + self.total_labor_cost
     
     def __repr__(self):
         return f'<EstimateComponent {self.component_name}>'
