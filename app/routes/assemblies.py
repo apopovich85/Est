@@ -116,9 +116,6 @@ def update_assembly_quantity(assembly_id):
         if not assembly.standard_assembly_id:
             return jsonify({'success': False, 'error': 'Can only adjust quantity for standard assemblies'}), 400
         
-        # Calculate the quantity multiplier
-        multiplier = new_quantity / old_quantity
-        
         # Update assembly quantity
         assembly.quantity = new_quantity
         
@@ -133,9 +130,25 @@ def update_assembly_quantity(assembly_id):
         else:
             assembly.assembly_name = base_name
         
-        # Update all component quantities proportionally
+        # Get original quantities from standard assembly and multiply by new assembly quantity
+        from app.models import StandardAssemblyComponent
+        standard_components = StandardAssemblyComponent.query.filter_by(
+            standard_assembly_id=assembly.standard_assembly_id
+        ).all()
+        
+        # Create a mapping of part_id to original quantity
+        original_quantities = {}
+        for std_component in standard_components:
+            original_quantities[std_component.part_id] = float(std_component.quantity)
+        
+        # Update all component quantities based on original quantities * new assembly quantity
         for component in assembly.assembly_parts:
-            component.quantity = float(component.quantity) * multiplier
+            if component.part_id in original_quantities:
+                original_qty = original_quantities[component.part_id]
+                component.quantity = original_qty * new_quantity
+            else:
+                # Fallback: if we can't find original quantity, use current quantity adjusted proportionally
+                component.quantity = float(component.quantity) * (new_quantity / old_quantity)
         
         db.session.commit()
         
@@ -144,6 +157,163 @@ def update_assembly_quantity(assembly_id):
             'message': f'Assembly quantity updated to {new_quantity}',
             'new_quantity': new_quantity,
             'assembly_name': assembly.assembly_name
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:assembly_id>/refresh-to-active', methods=['POST'])
+@csrf.exempt
+def refresh_assembly_to_active(assembly_id):
+    """Refresh assembly to current active version of standard assembly"""
+    assembly = Assembly.query.get_or_404(assembly_id)
+    
+    if not assembly.standard_assembly_id:
+        return jsonify({'success': False, 'error': 'Assembly is not based on a standard assembly'}), 400
+    
+    try:
+        # Get the current active version of the standard assembly
+        from app.models import StandardAssembly, StandardAssemblyComponent
+        active_standard = StandardAssembly.query.filter_by(
+            base_assembly_id=assembly.standard_assembly_id,
+            is_active=True,
+            is_template=True
+        ).first()
+        
+        if not active_standard:
+            # Check if the original assembly is still active
+            active_standard = StandardAssembly.query.filter_by(
+                standard_assembly_id=assembly.standard_assembly_id,
+                is_active=True,
+                is_template=True
+            ).first()
+        
+        if not active_standard:
+            return jsonify({'success': False, 'error': 'No active version found for this standard assembly'}), 400
+        
+        # Store existing quantities before updating
+        existing_quantities = {}
+        for assembly_part in assembly.assembly_parts:
+            existing_quantities[assembly_part.part_id] = float(assembly_part.quantity)
+        
+        # Delete existing assembly parts
+        for assembly_part in assembly.assembly_parts:
+            db.session.delete(assembly_part)
+        
+        # Copy components from active version
+        active_components = StandardAssemblyComponent.query.filter_by(
+            standard_assembly_id=active_standard.standard_assembly_id
+        ).order_by(StandardAssemblyComponent.sort_order).all()
+        
+        for std_component in active_components:
+            # Use existing quantity if part was already in assembly, otherwise use standard quantity * assembly quantity
+            if std_component.part_id in existing_quantities:
+                quantity_to_use = existing_quantities[std_component.part_id]
+            else:
+                quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
+            
+            new_assembly_part = AssemblyPart(
+                assembly_id=assembly.assembly_id,
+                part_id=std_component.part_id,
+                quantity=quantity_to_use,
+                unit_of_measure=std_component.unit_of_measure,
+                sort_order=std_component.sort_order,
+                notes=std_component.notes
+            )
+            db.session.add(new_assembly_part)
+        
+        # Update assembly version reference
+        assembly.standard_assembly_version = active_standard.version
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Assembly refreshed to active version {active_standard.version}',
+            'new_version': active_standard.version
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:assembly_id>/change-version', methods=['POST'])
+@csrf.exempt
+def change_assembly_version(assembly_id):
+    """Change assembly to a specific version"""
+    assembly = Assembly.query.get_or_404(assembly_id)
+    
+    if not assembly.standard_assembly_id:
+        return jsonify({'success': False, 'error': 'Assembly is not based on a standard assembly'}), 400
+    
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+    
+    new_version = request.json.get('version')
+    if not new_version:
+        return jsonify({'success': False, 'error': 'Version is required'}), 400
+    
+    try:
+        # Find the standard assembly with the requested version
+        from app.models import StandardAssembly, StandardAssemblyComponent
+        
+        # First check if it's the base assembly
+        target_standard = StandardAssembly.query.filter_by(
+            standard_assembly_id=assembly.standard_assembly_id,
+            version=new_version
+        ).first()
+        
+        # If not found, check derived versions
+        if not target_standard:
+            target_standard = StandardAssembly.query.filter_by(
+                base_assembly_id=assembly.standard_assembly_id,
+                version=new_version
+            ).first()
+        
+        if not target_standard:
+            return jsonify({'success': False, 'error': f'Version {new_version} not found'}), 404
+        
+        # Store existing quantities before updating
+        existing_quantities = {}
+        for assembly_part in assembly.assembly_parts:
+            existing_quantities[assembly_part.part_id] = float(assembly_part.quantity)
+        
+        # Delete existing assembly parts
+        for assembly_part in assembly.assembly_parts:
+            db.session.delete(assembly_part)
+        
+        # Copy components from target version
+        target_components = StandardAssemblyComponent.query.filter_by(
+            standard_assembly_id=target_standard.standard_assembly_id
+        ).order_by(StandardAssemblyComponent.sort_order).all()
+        
+        for std_component in target_components:
+            # Use existing quantity if part was already in assembly, otherwise use standard quantity * assembly quantity
+            if std_component.part_id in existing_quantities:
+                quantity_to_use = existing_quantities[std_component.part_id]
+            else:
+                quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
+            
+            new_assembly_part = AssemblyPart(
+                assembly_id=assembly.assembly_id,
+                part_id=std_component.part_id,
+                quantity=quantity_to_use,
+                unit_of_measure=std_component.unit_of_measure,
+                sort_order=std_component.sort_order,
+                notes=std_component.notes
+            )
+            db.session.add(new_assembly_part)
+        
+        # Update assembly version reference
+        assembly.standard_assembly_version = new_version
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Assembly changed to version {new_version}',
+            'new_version': new_version
         })
         
     except Exception as e:

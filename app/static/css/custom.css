@@ -770,3 +770,236 @@ td[data-type="number"] {
         animation: none !important;
     }
 }
+
+/* ================================
+   ESTIMATE BREAKDOWN TABLE ALIGNMENT
+   ================================ */
+
+/* Assembly item drag and drop styles */
+.assembly-item {
+    transition: all 0.3s ease;
+}
+
+.assembly-item.dragging {
+    transform: rotate(5deg);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.assembly-item.drag-over {
+    border-top: 3px solid #0d6efd;
+    transform: translateY(-2px);
+}
+
+.drag-handle:hover {
+    color: #0d6efd !important;
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Table alignment styles for estimates */
+.estimate-table th, 
+.estimate-table td,
+.individual-components-table th,
+.individual-components-table td {
+    vertical-align: middle;
+}
+
+.estimate-table .table-responsive,
+.individual-components-table .table-responsive {
+    border-radius: 0.375rem;
+}
+
+/* Consistent column styling for all estimate tables */
+.estimate-table th:nth-child(1) { /* Part/Component */
+    width: 35%;
+    min-width: 250px;
+}
+.estimate-table th:nth-child(2) { /* Item # */
+    width: 12%;
+    min-width: 90px;
+    text-align: center;
+}
+.estimate-table th:nth-child(3) { /* Part # */
+    width: 12%;
+    min-width: 90px;
+    text-align: center;
+}
+.estimate-table th:nth-child(4) { /* Manufacturer */
+    width: 15%;
+    min-width: 100px;
+}
+.estimate-table th:nth-child(5) { /* Unit Price */
+    width: 8%;
+    min-width: 70px;
+    text-align: right;
+}
+.estimate-table th:nth-child(6) { /* Quantity */
+    width: 6%;
+    min-width: 60px;
+    text-align: center;
+}
+.estimate-table th:nth-child(7) { /* UOM */
+    width: 4%;
+    min-width: 40px;
+    text-align: center;
+}
+.estimate-table th:nth-child(8) { /* Total */
+    width: 8%;
+    min-width: 80px;
+    text-align: right;
+}
+.estimate-table th:nth-child(9) { /* Actions */
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+}
+
+/* Individual components table adjustments */
+.individual-components-table th:nth-child(1) { /* Checkbox */
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+}
+.individual-components-table th:nth-child(2) { /* Component (after checkbox) */
+    width: 25%;
+    min-width: 200px;
+}
+.individual-components-table th:nth-child(3) { /* Item # */
+    width: 10%;
+    min-width: 90px;
+    text-align: center;
+}
+.individual-components-table th:nth-child(4) { /* Part # */
+    width: 10%;
+    min-width: 90px;
+    text-align: center;
+}
+.individual-components-table th:nth-child(5) { /* Manufacturer */
+    width: 12%;
+    min-width: 100px;
+}
+.individual-components-table th:nth-child(6) { /* Category */
+    width: 10%;
+    min-width: 80px;
+}
+.individual-components-table th:nth-child(7) { /* Unit Price */
+    width: 8%;
+    min-width: 70px;
+    text-align: right;
+}
+.individual-components-table th:nth-child(8) { /* Quantity */
+    width: 6%;
+    min-width: 60px;
+    text-align: center;
+}
+.individual-components-table th:nth-child(9) { /* UOM */
+    width: 4%;
+    min-width: 40px;
+    text-align: center;
+}
+.individual-components-table th:nth-child(10) { /* Total */
+    width: 8%;
+    min-width: 80px;
+    text-align: right;
+}
+.individual-components-table th:nth-child(11) { /* Actions */
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+}
+
+/* Ensure all Item # and Part # columns are center-aligned */
+.estimate-table td:nth-child(2), /* Item # */
+.estimate-table td:nth-child(3), /* Part # */
+.individual-components-table td:nth-child(3), /* Item # */
+.individual-components-table td:nth-child(4) { /* Part # */
+    text-align: center;
+}
+
+/* Ensure all Unit Price and Total columns are right-aligned */
+.estimate-table td:nth-child(5), /* Unit Price */
+.estimate-table td:nth-child(8), /* Total */
+.individual-components-table td:nth-child(7), /* Unit Price */
+.individual-components-table td:nth-child(10) { /* Total */
+    text-align: right;
+}
+
+/* Ensure all Quantity and UOM columns are center-aligned */
+.estimate-table td:nth-child(6), /* Quantity */
+.estimate-table td:nth-child(7), /* UOM */
+.individual-components-table td:nth-child(8), /* Quantity */
+.individual-components-table td:nth-child(9) { /* UOM */
+    text-align: center;
+}
+
+/* Make sure all tables have consistent margins and padding */
+.assembly-item .table-responsive {
+    margin-bottom: 0;
+}
+
+.assembly-item .table {
+    margin-bottom: 0;
+}
+
+/* Add visual separation between table sections */
+.assembly-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+/* Ensure consistent table layout */
+.table-layout-fixed {
+    table-layout: fixed;
+}
+
+/* Consistent header styling for estimate tables */
+.estimate-table th,
+.individual-components-table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    padding: 0.75rem 0.5rem;
+}
+
+/* Consistent cell padding for estimate tables */
+.estimate-table td,
+.individual-components-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Make sure key columns have consistent visual appearance */
+.estimate-table td:nth-child(2), /* Item # */
+.estimate-table td:nth-child(3), /* Part # */
+.individual-components-table td:nth-child(3), /* Item # */  
+.individual-components-table td:nth-child(4) { /* Part # */
+    font-family: monospace;
+    font-weight: 500;
+    background-color: #f8f9fa;
+}
+
+/* Compact styling for small data columns */
+.estimate-table td:nth-child(6), /* Quantity */
+.estimate-table td:nth-child(7), /* UOM */
+.individual-components-table td:nth-child(8), /* Quantity */
+.individual-components-table td:nth-child(9) { /* UOM */
+    font-size: 0.85rem;
+    padding: 0.5rem 0.25rem;
+}
+
+/* Actions column - compact button styling */
+.estimate-table td:nth-child(9), /* Actions */
+.individual-components-table td:nth-child(11) { /* Actions */
+    padding: 0.5rem 0.25rem;
+}
+
+.estimate-table td:nth-child(9) .btn-group,
+.individual-components-table td:nth-child(11) .btn-group {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+}

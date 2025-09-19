@@ -806,3 +806,41 @@ def api_get_assemblies_for_selection():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:component_id>/update-quantity', methods=['POST'])
+@csrf.exempt
+def update_component_quantity(component_id):
+    """Update component quantity via AJAX"""
+    assembly_part = AssemblyPart.query.get_or_404(component_id)
+    
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+    
+    new_quantity = request.json.get('quantity')
+    if new_quantity is None:
+        return jsonify({'success': False, 'error': 'Quantity is required'}), 400
+    
+    try:
+        new_quantity = float(new_quantity)
+        if new_quantity <= 0:
+            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
+        
+        old_quantity = float(assembly_part.quantity)
+        assembly_part.quantity = new_quantity
+        assembly_part.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Component quantity updated from {old_quantity} to {new_quantity}',
+            'old_quantity': old_quantity,
+            'new_quantity': new_quantity,
+            'new_total': float(new_quantity) * float(assembly_part.unit_price)
+        })
+        
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

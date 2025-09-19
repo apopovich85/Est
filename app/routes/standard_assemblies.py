@@ -47,6 +47,36 @@ def list_assemblies():
                          current_search=search_filter,
                          active_only=active_only)
 
+@bp.route('/<int:standard_assembly_id>/versions', methods=['GET'])
+def get_assembly_versions(standard_assembly_id):
+    """Get all versions of a standard assembly"""
+    standard_assembly = StandardAssembly.query.get_or_404(standard_assembly_id)
+    
+    try:
+        # Get version history
+        versions = standard_assembly.get_version_history()
+        
+        versions_data = []
+        for version in versions:
+            versions_data.append({
+                'standard_assembly_id': version.standard_assembly_id,
+                'version': version.version,
+                'is_active': version.is_active,
+                'is_template': version.is_template,
+                'created_at': version.created_at.isoformat() if version.created_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'versions': versions_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @bp.route('/import', methods=['GET', 'POST'])
 def import_assemblies():
     """Import assemblies from CSV file"""

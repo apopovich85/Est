@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ motor.load_type.title() }} - {{ motor.motor_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Edit {{ motor.load_type.title() }} - {{ motor.motor_name }}</h2>
+                <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Motor/Load List
+                </a>
+            </div>
+
+            <form method="POST" id="motorForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="row">
+                    <!-- Basic Motor Information -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Basic Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="load_type" class="form-label">Type <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="load_type" name="load_type" required>
+                                                <option value="motor" {{ 'selected' if motor.load_type == 'motor' }}>Motor</option>
+                                                <option value="load" {{ 'selected' if motor.load_type == 'load' }}>Load</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="motor_name" class="form-label">Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="motor_name" name="motor_name" 
+                                                   value="{{ motor.motor_name }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="location" class="form-label">Location</label>
+                                    <input type="text" class="form-control" id="location" name="location" 
+                                           value="{{ motor.location or '' }}" placeholder="e.g., DRV01, Panel A">
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="encl_type" class="form-label">Enclosure Type</label>
+                                            <input type="text" class="form-control" id="encl_type" name="encl_type" 
+                                                   value="{{ motor.encl_type or '' }}" placeholder="e.g., TEFC, ODP">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="frame" class="form-label">Frame</label>
+                                            <input type="text" class="form-control" id="frame" name="frame" 
+                                                   value="{{ motor.frame or '' }}" placeholder="e.g., 56, 145T">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="speed_range" class="form-label">Speed Range</label>
+                                    <input type="text" class="form-control" id="speed_range" name="speed_range" 
+                                           value="{{ motor.speed_range or '' }}" placeholder="e.g., 1750 RPM">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="additional_notes" class="form-label">Additional Notes</label>
+                                    <textarea class="form-control" id="additional_notes" name="additional_notes" rows="3">{{ motor.additional_notes or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motor Specifications -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Motor Specifications</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hp" class="form-label">Horsepower (HP) <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="hp" name="hp" step="0.25" min="0.5" 
+                                                   value="{{ motor.hp }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="voltage" class="form-label">Voltage <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="voltage" name="voltage" required>
+                                                <option value="">Select Voltage</option>
+                                                {% for voltage_option in voltage_options %}
+                                                <option value="{{ voltage_option }}" {{ 'selected' if motor.voltage == voltage_option }}>{{ voltage_option }}V</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="qty" name="qty" min="1" 
+                                                   value="{{ motor.qty }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="overload_percentage" class="form-label">Overload % <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="overload_percentage" name="overload_percentage" 
+                                                   step="0.01" min="1.00" max="2.00" value="{{ motor.overload_percentage }}" required>
+                                            <div class="form-text">Usually 1.15 (115%) or 1.25 (125%)</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="continuous_load" class="form-label">Continuous Load</label>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox" id="continuous_load" name="continuous_load"
+                                                       {{ 'checked' if motor.continuous_load }}>
+                                                <label class="form-check-label" for="continuous_load">
+                                                    Continuous (125%)
+                                                </label>
+                                            </div>
+                                            <div class="form-text">
+                                                <strong>NEC Article 100:</strong> A load where maximum current is expected to continue for 3 hours or more
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- NEC Amps Override -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nec_amps_override" name="nec_amps_override"
+                                               {{ 'checked' if motor.nec_amps_override }}>
+                                        <label class="form-check-label" for="nec_amps_override">
+                                            Override NEC Motor Amps
+                                        </label>
+                                    </div>
+                                    <div id="manual_amps_group" class="mt-2" style="display: {{ 'block' if motor.nec_amps_override else 'none' }};">
+                                        <label for="manual_amps" class="form-label">Manual Amps</label>
+                                        <input type="number" class="form-control" id="manual_amps" name="manual_amps" step="0.1" min="0"
+                                               value="{{ motor.manual_amps or '' }}">
+                                        <div class="form-text">Override calculated NEC amps (for non-standard motors)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VFD Selection -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">VFD Selection</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="vfd_type_id" class="form-label">VFD Type</label>
+                                            <select class="form-select" id="vfd_type_id" name="vfd_type_id">
+                                                <option value="">Select VFD Type</option>
+                                                {% for vfd_type in vfd_types %}
+                                                <option value="{{ vfd_type.vfd_type_id }}" {{ 'selected' if motor.vfd_type_id == vfd_type.vfd_type_id }}>
+                                                    {{ vfd_type.type_name }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Calculated Values -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Current Calculated Values</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Motor Amps</label>
+                                            <div class="form-control-plaintext">{{ "%.1f"|format(motor.motor_amps) }}A</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Amps</label>
+                                            <div class="form-control-plaintext">{{ "%.1f"|format(motor.total_amps) }}A</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Drive Required</label>
+                                            <div class="form-control-plaintext">{{ "%.1f"|format(motor.drive_required_current) }}A</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Current VFD</label>
+                                            <div class="form-control-plaintext">
+                                                {% if motor.recommended_vfd %}
+                                                    {{ motor.recommended_vfd.part_number }}<br>
+                                                    <small class="text-muted">({{ motor.recommended_vfd.rating }}A)</small>
+                                                {% else %}
+                                                    <span class="text-muted">None</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox" id="vfd_override" name="vfd_override"
+                                                       {{ 'checked' if motor.vfd_override }}>
+                                                <label class="form-check-label" for="vfd_override">
+                                                    Override Recommended VFD
+                                                </label>
+                                            </div>
+                                            <div id="vfd_override_group" class="mt-2" style="display: {{ 'block' if motor.vfd_override else 'none' }};">
+                                                <select class="form-select" id="selected_vfd_part_id" name="selected_vfd_part_id">
+                                                    <option value="">Select VFD</option>
+                                                    {% for vfd in vfd_options %}
+                                                    <option value="{{ vfd.part_id }}" {{ 'selected' if motor.selected_vfd_part_id == vfd.part_id }}>
+                                                        {{ vfd.part_number }} - {{ vfd.rating }}A - ${{ "%.2f"|format(vfd.current_price) }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                                <div class="form-text">Choose a specific VFD instead of auto-selection</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if motor.recommended_vfd %}
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Input Current</label>
+                                            <div class="form-control-plaintext">{{ "%.1f"|format(motor.vfd_input_current) }}A</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Input Current</label>
+                                            <div class="form-control-plaintext">{{ "%.1f"|format(motor.total_vfd_input_current) }}A</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Heat Loss</label>
+                                            <div class="form-control-plaintext">{{ "%.0f"|format(motor.vfd_heat_loss) }}W</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Width</label>
+                                            <div class="form-control-plaintext">{{ "%.2f"|format(motor.total_width) }}"</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+                       class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Motor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle NEC amps override
+    const necOverrideCheckbox = document.getElementById('nec_amps_override');
+    const manualAmpsGroup = document.getElementById('manual_amps_group');
+    
+    necOverrideCheckbox.addEventListener('change', function() {
+        manualAmpsGroup.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Toggle VFD override
+    const vfdOverrideCheckbox = document.getElementById('vfd_override');
+    const vfdOverrideGroup = document.getElementById('vfd_override_group');
+    
+    vfdOverrideCheckbox.addEventListener('change', function() {
+        vfdOverrideGroup.style.display = this.checked ? 'block' : 'none';
+        updateVFDOptions();
+    });
+
+    // Update VFD options when type changes
+    document.getElementById('vfd_type_id').addEventListener('change', updateVFDOptions);
+
+    function updateVFDOptions() {
+        const vfdTypeId = document.getElementById('vfd_type_id').value;
+        const currentSelection = document.getElementById('selected_vfd_part_id').value;
+        
+        const vfdSelect = document.getElementById('selected_vfd_part_id');
+        vfdSelect.innerHTML = '<option value="">Select VFD</option>';
+
+        if (!vfdTypeId) return;
+
+        // Get drive required current from current motor data
+        const driveRequired = {{ motor.drive_required_current }};
+
+        fetch(`/motors/api/vfd_options_by_type?vfd_type_id=${vfdTypeId}&required_current=${driveRequired}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(vfd => {
+                    const option = document.createElement('option');
+                    option.value = vfd.part_id;
+                    option.textContent = `${vfd.part_number} - ${vfd.rating}A - $${vfd.current_price.toFixed(2)}`;
+                    if (vfd.part_id == currentSelection) {
+                        option.selected = true;
+                    }
+                    vfdSelect.appendChild(option);
+                });
+            });
+    }
+
+    // Initialize VFD options if type is already selected
+    if (document.getElementById('vfd_type_id').value) {
+        updateVFDOptions();
+    }
+});
+</script>
+{% endblock %}

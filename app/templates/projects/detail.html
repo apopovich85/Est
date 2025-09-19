@@ -13,6 +13,10 @@
            class="btn btn-outline-primary me-2">
             <i class="fas fa-edit"></i> Edit Project
         </a>
+        <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+           class="btn btn-outline-secondary me-2">
+            <i class="fas fa-cogs"></i> Motor/Load List
+        </a>
         <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
            class="btn btn-primary">
             <i class="fas fa-plus"></i> New Estimate

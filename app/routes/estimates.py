@@ -162,40 +162,92 @@ def copy_estimate(estimate_id):
 
 @bp.route('/<int:estimate_id>/add-component', methods=['GET', 'POST'])
 def add_individual_component(estimate_id):
-    """Add an individual component directly to an estimate"""
+    """Add individual component(s) directly to an estimate"""
     estimate = Estimate.query.get_or_404(estimate_id)
     
     if request.method == 'POST':
         try:
-            part_id = request.form.get('part_id') if request.form.get('part_id') else None
-            part = Parts.query.get(part_id) if part_id else None
+            # Check if this is a multiple component submission
+            is_multiple = request.form.get('multiple') == 'true'
             
-            # Create new individual component
-            component = EstimateComponent(
-                estimate_id=estimate_id,
-                part_id=part_id,
-                component_name=request.form['component_name'],
-                description=request.form.get('description', ''),
-                part_number=request.form.get('part_number', ''),
-                manufacturer=request.form.get('manufacturer', ''),
-                unit_price=float(request.form['unit_price']),
-                quantity=float(request.form.get('quantity', 1.000)),
-                unit_of_measure=request.form.get('unit_of_measure', 'EA'),
-                category=request.form.get('category', ''),
-                notes=request.form.get('notes', ''),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
+            if is_multiple:
+                # Handle multiple components
+                components_data = {}
+                added_count = 0
+                
+                # Parse form data for multiple components
+                for key, value in request.form.items():
+                    if key.startswith('components[') and value.strip():
+                        # Parse key like "components[1][component_name]"
+                        parts = key.split('[')
+                        if len(parts) >= 3:
+                            row_id = parts[1].rstrip(']')
+                            field_name = parts[2].rstrip(']')
+                            
+                            if row_id not in components_data:
+                                components_data[row_id] = {}
+                            components_data[row_id][field_name] = value
+                
+                # Create components from parsed data
+                for row_id, component_data in components_data.items():
+                    # Skip incomplete rows
+                    if not component_data.get('component_name') or not component_data.get('unit_price'):
+                        continue
+                    
+                    try:
+                        component = EstimateComponent(
+                            estimate_id=estimate_id,
+                            part_id=None,  # No individual part linking for bulk add
+                            component_name=component_data['component_name'],
+                            description=component_data.get('description', ''),
+                            part_number=component_data.get('part_number', ''),
+                            manufacturer=component_data.get('manufacturer', ''),
+                            unit_price=float(component_data['unit_price']),
+                            quantity=float(component_data.get('quantity', 1.000)),
+                            unit_of_measure=component_data.get('unit_of_measure', 'EA'),
+                            category=component_data.get('category', ''),
+                            notes=component_data.get('notes', ''),
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow()
+                        )
+                        
+                        db.session.add(component)
+                        added_count += 1
+                    except (ValueError, KeyError) as e:
+                        continue  # Skip invalid rows
+                
+                db.session.commit()
+                flash(f'{added_count} component{"s" if added_count != 1 else ""} added successfully!', 'success')
+                
+            else:
+                # Handle single component (legacy support)
+                part_id = request.form.get('part_id') if request.form.get('part_id') else None
+                
+                component = EstimateComponent(
+                    estimate_id=estimate_id,
+                    part_id=part_id,
+                    component_name=request.form['component_name'],
+                    description=request.form.get('description', ''),
+                    part_number=request.form.get('part_number', ''),
+                    manufacturer=request.form.get('manufacturer', ''),
+                    unit_price=float(request.form['unit_price']),
+                    quantity=float(request.form.get('quantity', 1.000)),
+                    unit_of_measure=request.form.get('unit_of_measure', 'EA'),
+                    category=request.form.get('category', ''),
+                    notes=request.form.get('notes', ''),
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                
+                db.session.add(component)
+                db.session.commit()
+                flash(f'Component "{component.component_name}" added successfully!', 'success')
             
-            db.session.add(component)
-            db.session.commit()
-            
-            flash(f'Component "{component.component_name}" added successfully!', 'success')
             return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error adding component: {str(e)}', 'error')
+            flash(f'Error adding component(s): {str(e)}', 'error')
     
     # Get part categories for the dropdown
     from app.models import PartCategory
@@ -329,9 +381,9 @@ def get_bom_data(estimate_id):
                 # Use the assembly part quantity directly (already accounts for assembly multiplier)
                 total_quantity = assembly_part.quantity
                 
-                # Check if this part already exists in BOM
+                # Check if this part already exists in BOM (using master_item_number)
                 existing_item = next((item for item in bom_data 
-                                    if item['part_number'] == part.part_number), None)
+                                    if item['part_number'] == part.master_item_number), None)
                 
                 if existing_item:
                     # Add to existing quantity
@@ -339,7 +391,7 @@ def get_bom_data(estimate_id):
                 else:
                     # Add new item
                     bom_data.append({
-                        'part_number': part.part_number,
+                        'part_number': part.master_item_number,
                         'component_name': part.description or part.model or 'Component',
                         'description': part.description,
                         'manufacturer': part.manufacturer,
@@ -352,9 +404,13 @@ def get_bom_data(estimate_id):
         # Get individual components
         individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
         for component in individual_components:
+            # Use master_item_number from linked part if available, otherwise use component's part_number
+            part_number = component.part.master_item_number if component.part else component.part_number
+            manufacturer = component.part.manufacturer if component.part else component.manufacturer
+            
             # Check if this part already exists in BOM
             existing_item = next((item for item in bom_data 
-                                if item['part_number'] == component.part_number), None)
+                                if item['part_number'] == part_number), None)
             
             if existing_item:
                 # Add to existing quantity
@@ -362,14 +418,14 @@ def get_bom_data(estimate_id):
             else:
                 # Add new item
                 bom_data.append({
-                    'part_number': component.part_number,
+                    'part_number': part_number,
                     'component_name': component.component_name,
                     'description': component.description,
-                    'manufacturer': component.manufacturer or 'N/A',  # Use manufacturer if available
+                    'manufacturer': manufacturer or 'N/A',  # Use manufacturer from part if available
                     'unit_price': float(component.unit_price),
                     'unit_of_measure': component.unit_of_measure,
                     'total_quantity': float(component.quantity),
-                    'category': component.category or 'Uncategorized'  # Use category from component
+                    'category': component.part.category if component.part else (component.category or 'Uncategorized')
                 })
         
         # Sort by part number
@@ -417,9 +473,9 @@ def export_bom_pdf(estimate_id):
                 # Use the assembly part quantity directly (already accounts for assembly multiplier)
                 total_quantity = assembly_part.quantity
                 
-                # Check if this part already exists in BOM
+                # Check if this part already exists in BOM (using master_item_number)
                 existing_item = next((item for item in bom_data 
-                                    if item['part_number'] == part.part_number), None)
+                                    if item['part_number'] == part.master_item_number), None)
                 
                 if existing_item:
                     # Add to existing quantity
@@ -427,7 +483,7 @@ def export_bom_pdf(estimate_id):
                 else:
                     # Add new item
                     bom_data.append({
-                        'part_number': part.part_number,
+                        'part_number': part.master_item_number,
                         'component_name': part.description or part.model or 'Component',
                         'description': part.description,
                         'manufacturer': part.manufacturer,
@@ -439,21 +495,25 @@ def export_bom_pdf(estimate_id):
         
         individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
         for component in individual_components:
+            # Use master_item_number from linked part if available, otherwise use component's part_number
+            part_number = component.part.master_item_number if component.part else component.part_number
+            manufacturer = component.part.manufacturer if component.part else component.manufacturer
+            
             existing_item = next((item for item in bom_data 
-                                if item['part_number'] == component.part_number), None)
+                                if item['part_number'] == part_number), None)
             
             if existing_item:
                 existing_item['total_quantity'] += float(component.quantity)
             else:
                 bom_data.append({
-                    'part_number': component.part_number,
+                    'part_number': part_number,
                     'component_name': component.component_name,
                     'description': component.description,
-                    'manufacturer': component.manufacturer or 'N/A',  # Use manufacturer if available
+                    'manufacturer': manufacturer or 'N/A',  # Use manufacturer from part if available
                     'unit_price': float(component.unit_price),
                     'unit_of_measure': component.unit_of_measure,
                     'total_quantity': float(component.quantity),
-                    'category': component.category or 'Uncategorized'  # Use category from component
+                    'category': component.part.category if component.part else (component.category or 'Uncategorized')
                 })
         
         # Generate PDF using the pdf_reports module
@@ -518,6 +578,12 @@ def update_all_hours(estimate_id):
             engineering_hours = request.form.get(f'component_engineering_hours_{component_id}', 0)
             panel_shop_hours = request.form.get(f'component_panel_shop_hours_{component_id}', 0)
             machine_assembly_hours = request.form.get(f'component_machine_assembly_hours_{component_id}', 0)
+            
+            # Get per-assembly hours
+            engineering_hours_per_assembly = request.form.get(f'component_engineering_hours_per_assembly_{component_id}', 0)
+            panel_shop_hours_per_assembly = request.form.get(f'component_panel_shop_hours_per_assembly_{component_id}', 0)
+            machine_assembly_hours_per_assembly = request.form.get(f'component_machine_assembly_hours_per_assembly_{component_id}', 0)
+            
             estimated_by = request.form.get(f'component_estimated_by_{component_id}', '')
             time_estimate_notes = request.form.get(f'component_time_estimate_notes_{component_id}', '')
             
@@ -525,6 +591,9 @@ def update_all_hours(estimate_id):
             component.engineering_hours = float(engineering_hours or 0)
             component.panel_shop_hours = float(panel_shop_hours or 0)
             component.machine_assembly_hours = float(machine_assembly_hours or 0)
+            component.engineering_hours_per_assembly = float(engineering_hours_per_assembly or 0)
+            component.panel_shop_hours_per_assembly = float(panel_shop_hours_per_assembly or 0)
+            component.machine_assembly_hours_per_assembly = float(machine_assembly_hours_per_assembly or 0)
             component.estimated_by = estimated_by
             component.time_estimate_notes = time_estimate_notes
         
@@ -559,6 +628,127 @@ def update_estimate_name(estimate_id):
         
         return jsonify({'success': True, 'name': new_name})
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:estimate_id>/reorder-assemblies', methods=['POST'])
+@csrf.exempt
+def reorder_assemblies(estimate_id):
+    """Update assembly sort order via AJAX"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    
+    try:
+        data = request.get_json()
+        updates = data.get('updates', [])
+        
+        if not updates:
+            return jsonify({'success': False, 'error': 'No updates provided'}), 400
+        
+        # Validate that all assemblies belong to this estimate
+        assembly_ids = [update['assembly_id'] for update in updates]
+        assemblies = Assembly.query.filter(
+            Assembly.assembly_id.in_(assembly_ids),
+            Assembly.estimate_id == estimate_id
+        ).all()
+        
+        if len(assemblies) != len(assembly_ids):
+            return jsonify({'success': False, 'error': 'Some assemblies do not belong to this estimate'}), 400
+        
+        # Create a map for quick lookup
+        assembly_map = {assembly.assembly_id: assembly for assembly in assemblies}
+        
+        # Update sort orders
+        for update in updates:
+            assembly_id = update['assembly_id']
+            new_sort_order = update['sort_order']
+            
+            if assembly_id in assembly_map:
+                assembly_map[assembly_id].sort_order = new_sort_order
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Assembly order updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:estimate_id>/bulk-delete-components', methods=['POST'])
+@csrf.exempt
+def bulk_delete_components(estimate_id):
+    """Delete multiple individual components via AJAX"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    
+    try:
+        data = request.get_json()
+        component_ids = data.get('component_ids', [])
+        
+        if not component_ids:
+            return jsonify({'success': False, 'error': 'No components specified for deletion'}), 400
+        
+        if not isinstance(component_ids, list):
+            return jsonify({'success': False, 'error': 'component_ids must be a list'}), 400
+        
+        # Validate that all components belong to this estimate and exist
+        components = EstimateComponent.query.filter(
+            EstimateComponent.estimate_component_id.in_(component_ids),
+            EstimateComponent.estimate_id == estimate_id
+        ).all()
+        
+        if len(components) != len(component_ids):
+            return jsonify({'success': False, 'error': 'Some components do not belong to this estimate or do not exist'}), 400
+        
+        # Delete the components
+        deleted_count = 0
+        for component in components:
+            db.session.delete(component)
+            deleted_count += 1
+        
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted {deleted_count} component{"s" if deleted_count != 1 else ""}',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/individual-components/<int:component_id>/update-quantity', methods=['POST'])
+@csrf.exempt
+def update_individual_component_quantity(component_id):
+    """Update individual component quantity via AJAX"""
+    component = EstimateComponent.query.get_or_404(component_id)
+    
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Invalid request format'}), 400
+    
+    new_quantity = request.json.get('quantity')
+    if new_quantity is None:
+        return jsonify({'success': False, 'error': 'Quantity is required'}), 400
+    
+    try:
+        new_quantity = float(new_quantity)
+        if new_quantity <= 0:
+            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
+        
+        old_quantity = float(component.quantity)
+        component.quantity = new_quantity
+        component.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Individual component quantity updated from {old_quantity} to {new_quantity}',
+            'old_quantity': old_quantity,
+            'new_quantity': new_quantity,
+            'new_total': float(new_quantity) * float(component.unit_price)
+        })
+        
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid quantity format'}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

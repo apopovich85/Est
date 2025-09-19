@@ -139,13 +139,16 @@
                             <table class="table table-hover">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 25%">Component Name</th>
-                                        <th style="width: 12%" class="text-center">Engineering<br><small class="text-muted">${{ "%.0f"|format(estimate.engineering_rate) }}/hr</small></th>
-                                        <th style="width: 12%" class="text-center">Panel Shop<br><small class="text-muted">${{ "%.0f"|format(estimate.panel_shop_rate) }}/hr</small></th>
-                                        <th style="width: 12%" class="text-center">Machine Assembly<br><small class="text-muted">${{ "%.0f"|format(estimate.machine_assembly_rate) }}/hr</small></th>
-                                        <th style="width: 15%" class="text-center">Total Labor Cost</th>
-                                        <th style="width: 12%">Estimated By</th>
-                                        <th style="width: 12%">Notes</th>
+                                        <th style="width: 15%">Component Name</th>
+                                        <th style="width: 8%" class="text-center">Qty</th>
+                                        <th style="width: 10%" class="text-center">Engineering<br><small class="text-muted">Total</small></th>
+                                        <th style="width: 10%" class="text-center">Panel Shop<br><small class="text-muted">Total</small></th>
+                                        <th style="width: 10%" class="text-center">Machine Assembly<br><small class="text-muted">Total</small></th>
+                                        <th style="width: 10%" class="text-center">Engineering<br><small class="text-muted">Per Assembly</small></th>
+                                        <th style="width: 10%" class="text-center">Panel Shop<br><small class="text-muted">Per Assembly</small></th>
+                                        <th style="width: 10%" class="text-center">Machine Assembly<br><small class="text-muted">Per Assembly</small></th>
+                                        <th style="width: 12%" class="text-center">Total Labor Cost</th>
+                                        <th style="width: 5%">Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -160,12 +163,18 @@
                                                 <br><small class="text-muted">{{ component.manufacturer }}</small>
                                             {% endif %}
                                         </td>
+                                        <td class="text-center">
+                                            <strong>{{ "%.0f"|format(component.quantity) }}</strong>
+                                        </td>
                                         <td>
                                             <input type="number" class="form-control form-control-sm text-center" 
                                                    name="component_engineering_hours_{{ component.estimate_component_id }}" 
                                                    value="{{ component.engineering_hours or 0 }}"
                                                    step="0.25" min="0" placeholder="0.0"
                                                    onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-primary d-block mt-1" id="component_eng_total_{{ component.estimate_component_id }}">
+                                                {{ "{:.2f}".format(component.total_engineering_hours) }}h total
+                                            </small>
                                         </td>
                                         <td>
                                             <input type="number" class="form-control form-control-sm text-center" 
@@ -173,6 +182,9 @@
                                                    value="{{ component.panel_shop_hours or 0 }}"
                                                    step="0.25" min="0" placeholder="0.0"
                                                    onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-warning d-block mt-1" id="component_panel_total_{{ component.estimate_component_id }}">
+                                                {{ "{:.2f}".format(component.total_panel_shop_hours) }}h total
+                                            </small>
                                         </td>
                                         <td>
                                             <input type="number" class="form-control form-control-sm text-center" 
@@ -180,17 +192,38 @@
                                                    value="{{ component.machine_assembly_hours or 0 }}"
                                                    step="0.25" min="0" placeholder="0.0"
                                                    onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-success d-block mt-1" id="component_machine_total_{{ component.estimate_component_id }}">
+                                                {{ "{:.2f}".format(component.total_machine_assembly_hours) }}h total
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm text-center" 
+                                                   name="component_engineering_hours_per_assembly_{{ component.estimate_component_id }}" 
+                                                   value="{{ component.engineering_hours_per_assembly or 0 }}"
+                                                   step="0.25" min="0" placeholder="0.0"
+                                                   onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-muted d-block mt-1">×{{ "%.0f"|format(component.quantity) }} = {{ "{:.2f}".format((component.engineering_hours_per_assembly or 0) * component.quantity) }}h</small>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm text-center" 
+                                                   name="component_panel_shop_hours_per_assembly_{{ component.estimate_component_id }}" 
+                                                   value="{{ component.panel_shop_hours_per_assembly or 0 }}"
+                                                   step="0.25" min="0" placeholder="0.0"
+                                                   onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-muted d-block mt-1">×{{ "%.0f"|format(component.quantity) }} = {{ "{:.2f}".format((component.panel_shop_hours_per_assembly or 0) * component.quantity) }}h</small>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm text-center" 
+                                                   name="component_machine_assembly_hours_per_assembly_{{ component.estimate_component_id }}" 
+                                                   value="{{ component.machine_assembly_hours_per_assembly or 0 }}"
+                                                   step="0.25" min="0" placeholder="0.0"
+                                                   onchange="updateComponentCost({{ component.estimate_component_id }})">
+                                            <small class="text-muted d-block mt-1">×{{ "%.0f"|format(component.quantity) }} = {{ "{:.2f}".format((component.machine_assembly_hours_per_assembly or 0) * component.quantity) }}h</small>
                                         </td>
                                         <td class="text-center">
                                             <span class="text-success fw-bold" id="component_cost_{{ component.estimate_component_id }}">
                                                 ${{ "%.2f"|format(component.total_labor_cost) }}
                                             </span>
-                                        </td>
-                                        <td>
-                                            <input type="text" class="form-control form-control-sm" 
-                                                   name="component_estimated_by_{{ component.estimate_component_id }}" 
-                                                   value="{{ component.estimated_by or '' }}"
-                                                   placeholder="Estimator">
                                         </td>
                                         <td>
                                             <textarea class="form-control form-control-sm" 
@@ -203,11 +236,15 @@
                                 <tfoot class="table-secondary">
                                     <tr>
                                         <td><strong>Component Totals:</strong></td>
-                                        <td class="text-center"><strong id="total_component_eng_hours">{{ "%.2f"|format(individual_components|sum(attribute='engineering_hours')) }}h</strong></td>
-                                        <td class="text-center"><strong id="total_component_panel_hours">{{ "%.2f"|format(individual_components|sum(attribute='panel_shop_hours')) }}h</strong></td>
-                                        <td class="text-center"><strong id="total_component_machine_hours">{{ "%.2f"|format(individual_components|sum(attribute='machine_assembly_hours')) }}h</strong></td>
+                                        <td></td>
+                                        <td class="text-center"><strong id="total_component_eng_hours">{{ "%.2f"|format(individual_components|sum(attribute='total_engineering_hours')) }}h</strong></td>
+                                        <td class="text-center"><strong id="total_component_panel_hours">{{ "%.2f"|format(individual_components|sum(attribute='total_panel_shop_hours')) }}h</strong></td>
+                                        <td class="text-center"><strong id="total_component_machine_hours">{{ "%.2f"|format(individual_components|sum(attribute='total_machine_assembly_hours')) }}h</strong></td>
+                                        <td class="text-center"><strong>{{ "%.2f"|format(individual_components|sum(attribute='engineering_hours_per_assembly')) }}h</strong></td>
+                                        <td class="text-center"><strong>{{ "%.2f"|format(individual_components|sum(attribute='panel_shop_hours_per_assembly')) }}h</strong></td>
+                                        <td class="text-center"><strong>{{ "%.2f"|format(individual_components|sum(attribute='machine_assembly_hours_per_assembly')) }}h</strong></td>
                                         <td class="text-center"><strong class="text-success" id="total_component_labor_cost">${{ "%.2f"|format(individual_components|sum(attribute='total_labor_cost')) }}</strong></td>
-                                        <td colspan="2"></td>
+                                        <td></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -238,53 +275,37 @@
                                         <div class="col-md-3">
                                             <h6 class="text-primary">Engineering</h6>
                                             <div id="grand_total_eng_hours" class="h5 text-primary">
-                                                {% set assembly_eng_hours = estimate.total_engineering_hours|float if estimate.total_engineering_hours else 0.0 %}
-                                                {% set component_eng_hours = individual_components|sum(attribute='engineering_hours')|float if individual_components|sum(attribute='engineering_hours') else 0.0 %}
-                                                {{ "%.2f"|format(assembly_eng_hours + component_eng_hours) }}h
+                                                {{ "%.2f"|format(estimate.total_engineering_hours) }}h
                                             </div>
                                             <small class="text-muted" id="grand_total_eng_cost">
-                                                {% set assembly_eng_cost = estimate.total_engineering_cost|float if estimate.total_engineering_cost else 0.0 %}
-                                                {% set component_eng_cost = (component_eng_hours * estimate.engineering_rate|float) %}
-                                                ${{ "%.2f"|format(assembly_eng_cost + component_eng_cost) }}
+                                                ${{ "%.2f"|format(estimate.total_engineering_cost) }}
                                             </small>
                                         </div>
                                         <div class="col-md-3">
                                             <h6 class="text-warning">Panel Shop</h6>
                                             <div id="grand_total_panel_hours" class="h5 text-warning">
-                                                {% set assembly_panel_hours = estimate.total_panel_shop_hours|float if estimate.total_panel_shop_hours else 0.0 %}
-                                                {% set component_panel_hours = individual_components|sum(attribute='panel_shop_hours')|float if individual_components|sum(attribute='panel_shop_hours') else 0.0 %}
-                                                {{ "%.2f"|format(assembly_panel_hours + component_panel_hours) }}h
+                                                {{ "%.2f"|format(estimate.total_panel_shop_hours) }}h
                                             </div>
                                             <small class="text-muted" id="grand_total_panel_cost">
-                                                {% set assembly_panel_cost = estimate.total_panel_shop_cost|float if estimate.total_panel_shop_cost else 0.0 %}
-                                                {% set component_panel_cost = (component_panel_hours * estimate.panel_shop_rate|float) %}
-                                                ${{ "%.2f"|format(assembly_panel_cost + component_panel_cost) }}
+                                                ${{ "%.2f"|format(estimate.total_panel_shop_cost) }}
                                             </small>
                                         </div>
                                         <div class="col-md-3">
                                             <h6 class="text-success">Machine Assembly</h6>
                                             <div id="grand_total_machine_hours" class="h5 text-success">
-                                                {% set assembly_machine_hours = estimate.total_machine_assembly_hours|float if estimate.total_machine_assembly_hours else 0.0 %}
-                                                {% set component_machine_hours = individual_components|sum(attribute='machine_assembly_hours')|float if individual_components|sum(attribute='machine_assembly_hours') else 0.0 %}
-                                                {{ "%.2f"|format(assembly_machine_hours + component_machine_hours) }}h
+                                                {{ "%.2f"|format(estimate.total_machine_assembly_hours) }}h
                                             </div>
                                             <small class="text-muted" id="grand_total_machine_cost">
-                                                {% set assembly_machine_cost = estimate.total_machine_assembly_cost|float if estimate.total_machine_assembly_cost else 0.0 %}
-                                                {% set component_machine_cost = (component_machine_hours * estimate.machine_assembly_rate|float) %}
-                                                ${{ "%.2f"|format(assembly_machine_cost + component_machine_cost) }}
+                                                ${{ "%.2f"|format(estimate.total_machine_assembly_cost) }}
                                             </small>
                                         </div>
                                         <div class="col-md-3">
                                             <h6 class="text-info">Total Labor</h6>
                                             <div id="grand_total_labor_cost" class="h4 text-info">
-                                                {% set assembly_total_cost = estimate.total_labor_cost|float if estimate.total_labor_cost else 0.0 %}
-                                                {% set component_total_cost = individual_components|sum(attribute='total_labor_cost')|float if individual_components|sum(attribute='total_labor_cost') else 0.0 %}
-                                                ${{ "%.2f"|format(assembly_total_cost + component_total_cost) }}
+                                                ${{ "%.2f"|format(estimate.total_labor_cost) }}
                                             </div>
                                             <small class="text-muted" id="grand_total_hours">
-                                                {% set assembly_total_hours = estimate.total_hours|float if estimate.total_hours else 0.0 %}
-                                                {% set component_total_hours = component_eng_hours + component_panel_hours + component_machine_hours %}
-                                                {{ "%.2f"|format(assembly_total_hours + component_total_hours) }} hrs
+                                                {{ "%.2f"|format(estimate.total_hours) }} hrs
                                             </small>
                                         </div>
                                     </div>
@@ -349,11 +370,40 @@ function updateComponentCost(componentId) {
     const panelHours = parseFloat(document.querySelector(`input[name="component_panel_shop_hours_${componentId}"]`).value) || 0;
     const machineHours = parseFloat(document.querySelector(`input[name="component_machine_assembly_hours_${componentId}"]`).value) || 0;
     
+    const engHoursPerAssembly = parseFloat(document.querySelector(`input[name="component_engineering_hours_per_assembly_${componentId}"]`).value) || 0;
+    const panelHoursPerAssembly = parseFloat(document.querySelector(`input[name="component_panel_shop_hours_per_assembly_${componentId}"]`).value) || 0;
+    const machineHoursPerAssembly = parseFloat(document.querySelector(`input[name="component_machine_assembly_hours_per_assembly_${componentId}"]`).value) || 0;
+    
+    // Get quantity from the component data (assuming it's available in the template)
+    const quantity = parseFloat(document.querySelector(`tr:has(input[name="component_engineering_hours_${componentId}"])`).querySelector('td:nth-child(2) strong').textContent) || 1;
+    
     const engRate = {{ estimate.engineering_rate }};
     const panelRate = {{ estimate.panel_shop_rate }};
     const machineRate = {{ estimate.machine_assembly_rate }};
     
-    const totalCost = (engHours * engRate) + (panelHours * panelRate) + (machineHours * machineRate);
+    // Calculate total hours (base + per-assembly * quantity)
+    const totalEngHours = engHours + (engHoursPerAssembly * quantity);
+    const totalPanelHours = panelHours + (panelHoursPerAssembly * quantity);
+    const totalMachineHours = machineHours + (machineHoursPerAssembly * quantity);
+    
+    // Update total hours displays
+    const engTotalDisplay = document.getElementById(`component_eng_total_${componentId}`);
+    if (engTotalDisplay) {
+        engTotalDisplay.textContent = `${totalEngHours.toFixed(2)}h total`;
+    }
+    
+    const panelTotalDisplay = document.getElementById(`component_panel_total_${componentId}`);
+    if (panelTotalDisplay) {
+        panelTotalDisplay.textContent = `${totalPanelHours.toFixed(2)}h total`;
+    }
+    
+    const machineTotalDisplay = document.getElementById(`component_machine_total_${componentId}`);
+    if (machineTotalDisplay) {
+        machineTotalDisplay.textContent = `${totalMachineHours.toFixed(2)}h total`;
+    }
+    
+    // Calculate total cost using total hours
+    const totalCost = (totalEngHours * engRate) + (totalPanelHours * panelRate) + (totalMachineHours * machineRate);
     
     document.getElementById(`component_cost_${componentId}`).textContent = `$${totalCost.toFixed(2)}`;
     
@@ -373,13 +423,24 @@ function updateComponentTotals() {
     const panel{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_panel_shop_hours_{{ component.estimate_component_id }}"]').value) || 0;
     const machine{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_machine_assembly_hours_{{ component.estimate_component_id }}"]').value) || 0;
     
-    totalEngHours += eng{{ component.estimate_component_id }};
-    totalPanelHours += panel{{ component.estimate_component_id }};
-    totalMachineHours += machine{{ component.estimate_component_id }};
+    const engPerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_engineering_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
+    const panelPerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_panel_shop_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
+    const machinePerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_machine_assembly_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
     
-    const componentCost = (eng{{ component.estimate_component_id }} * {{ estimate.engineering_rate }}) + 
-                         (panel{{ component.estimate_component_id }} * {{ estimate.panel_shop_rate }}) + 
-                         (machine{{ component.estimate_component_id }} * {{ estimate.machine_assembly_rate }});
+    const quantity{{ component.estimate_component_id }} = {{ component.quantity }};
+    
+    // Calculate total hours (base + per-assembly * quantity)
+    const totalEngHours{{ component.estimate_component_id }} = eng{{ component.estimate_component_id }} + (engPerAssembly{{ component.estimate_component_id }} * quantity{{ component.estimate_component_id }});
+    const totalPanelHours{{ component.estimate_component_id }} = panel{{ component.estimate_component_id }} + (panelPerAssembly{{ component.estimate_component_id }} * quantity{{ component.estimate_component_id }});
+    const totalMachineHours{{ component.estimate_component_id }} = machine{{ component.estimate_component_id }} + (machinePerAssembly{{ component.estimate_component_id }} * quantity{{ component.estimate_component_id }});
+    
+    totalEngHours += totalEngHours{{ component.estimate_component_id }};
+    totalPanelHours += totalPanelHours{{ component.estimate_component_id }};
+    totalMachineHours += totalMachineHours{{ component.estimate_component_id }};
+    
+    const componentCost = (totalEngHours{{ component.estimate_component_id }} * {{ estimate.engineering_rate }}) + 
+                         (totalPanelHours{{ component.estimate_component_id }} * {{ estimate.panel_shop_rate }}) + 
+                         (totalMachineHours{{ component.estimate_component_id }} * {{ estimate.machine_assembly_rate }});
     totalLaborCost += componentCost;
     {% endfor %}
     
@@ -418,9 +479,20 @@ function updateGrandTotals() {
     const cPanel{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_panel_shop_hours_{{ component.estimate_component_id }}"]').value) || 0;
     const cMachine{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_machine_assembly_hours_{{ component.estimate_component_id }}"]').value) || 0;
     
-    componentEngHours += cEng{{ component.estimate_component_id }};
-    componentPanelHours += cPanel{{ component.estimate_component_id }};
-    componentMachineHours += cMachine{{ component.estimate_component_id }};
+    const cEngPerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_engineering_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
+    const cPanelPerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_panel_shop_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
+    const cMachinePerAssembly{{ component.estimate_component_id }} = parseFloat(document.querySelector('input[name="component_machine_assembly_hours_per_assembly_{{ component.estimate_component_id }}"]').value) || 0;
+    
+    const cQuantity{{ component.estimate_component_id }} = {{ component.quantity }};
+    
+    // Calculate total component hours (base + per-assembly * quantity)
+    const cTotalEngHours{{ component.estimate_component_id }} = cEng{{ component.estimate_component_id }} + (cEngPerAssembly{{ component.estimate_component_id }} * cQuantity{{ component.estimate_component_id }});
+    const cTotalPanelHours{{ component.estimate_component_id }} = cPanel{{ component.estimate_component_id }} + (cPanelPerAssembly{{ component.estimate_component_id }} * cQuantity{{ component.estimate_component_id }});
+    const cTotalMachineHours{{ component.estimate_component_id }} = cMachine{{ component.estimate_component_id }} + (cMachinePerAssembly{{ component.estimate_component_id }} * cQuantity{{ component.estimate_component_id }});
+    
+    componentEngHours += cTotalEngHours{{ component.estimate_component_id }};
+    componentPanelHours += cTotalPanelHours{{ component.estimate_component_id }};
+    componentMachineHours += cTotalMachineHours{{ component.estimate_component_id }};
     {% endfor %}
     
     // Grand totals

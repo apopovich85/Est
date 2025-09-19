@@ -29,7 +29,11 @@
       "Bash(git commit:*)",
       "Bash(\".venv\\Scripts\\python.exe\":*)",
       "Bash(\"./venv/Scripts/python.exe\":*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(cat:*)",
+      "Bash(cp:*)",
+      "Bash(\".venv/Scripts/python.exe\" add_time_per_assembly_columns.py)",
+      "Bash(where python)"
     ],
     "additionalDirectories": [
       "C:\\Projects\\Est_v0.5"

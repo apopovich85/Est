@@ -77,11 +77,15 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h6 class="card-title mb-0">
-                    <i class="fas fa-cogs"></i> Component Details
+                    <i class="fas fa-cogs"></i> Component Details 
+                    <small class="text-muted ms-2">(<span id="componentCount">0</span> component<span id="componentPlural">s</span>)</small>
                 </h6>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" id="clearFormBtn">
-                        <i class="fas fa-eraser"></i> Clear Form
+                    <button type="button" class="btn btn-outline-primary" id="addComponentBtn">
+                        <i class="fas fa-plus"></i> Add Row
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="clearAllBtn">
+                        <i class="fas fa-eraser"></i> Clear All
                     </button>
                 </div>
             </div>
@@ -90,128 +94,56 @@
                 <div id="componentDropZone" class="p-3 border-2 border-dashed rounded bg-light mb-4">
                     <div class="text-center text-muted">
                         <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
-                        <p class="mb-0">Drop a part here to auto-fill component details</p>
-                        <small>Or use the form below to manually enter component information</small>
+                        <p class="mb-0">Drop a part here to add as a new component row</p>
+                        <small>Or use the table below to manually enter multiple components</small>
                     </div>
                 </div>
                 
-                <!-- Component Form -->
+                <!-- Multi-Component Form -->
                 <form method="POST" action="{{ url_for('estimates.add_individual_component', estimate_id=estimate.estimate_id) }}" id="componentForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <input type="hidden" name="part_id" id="selectedPartId" value=""/>
+                    <input type="hidden" name="multiple" value="true"/>
                     
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="componentName" class="form-label">Component Name *</label>
-                                <input type="text" class="form-control" id="componentName" name="component_name" required>
-                                <div class="form-text">Enter a descriptive name for this component</div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="partNumber" class="form-label">Part Number</label>
-                                <input type="text" class="form-control" id="partNumber" name="part_number">
-                                <div class="form-text">Manufacturer part number</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="manufacturer" class="form-label">Manufacturer</label>
-                                <input type="text" class="form-control" id="manufacturer" name="manufacturer">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="category" class="form-label">Category</label>
-                                <select class="form-select" id="category" name="category">
-                                    <option value="">Select Category</option>
-                                    {% for category in part_categories %}
-                                        <option value="{{ category }}">{{ category }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="2" 
-                                placeholder="Enter detailed component description..."></textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="unitPrice" class="form-label">Unit Price *</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="unitPrice" 
-                                           name="unit_price" step="0.01" min="0" required>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="quantity" class="form-label">Quantity *</label>
-                                <input type="number" class="form-control" id="quantity" 
-                                       name="quantity" step="0.001" min="0.001" value="1.000" required>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label for="unitOfMeasure" class="form-label">Unit of Measure</label>
-                                <select class="form-select" id="unitOfMeasure" name="unit_of_measure">
-                                    <option value="EA" selected>Each (EA)</option>
-                                    <option value="FT">Feet (FT)</option>
-                                    <option value="LB">Pounds (LB)</option>
-                                    <option value="HR">Hours (HR)</option>
-                                    <option value="SQ FT">Square Feet (SQ FT)</option>
-                                    <option value="GAL">Gallons (GAL)</option>
-                                    <option value="LOT">Lot (LOT)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Total Cost</label>
-                                <div class="form-control bg-light" id="totalCost">$0.00</div>
-                                <div class="form-text">Calculated: Price × Quantity</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="2" 
-                                placeholder="Additional notes or specifications..."></textarea>
-                    </div>
-                    
-                    <!-- Selected Part Info -->
-                    <div id="selectedPartInfo" class="alert alert-success d-none">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="alert-heading mb-1">
-                                    <i class="fas fa-check-circle"></i> Part Selected from Catalog
-                                </h6>
-                                <div id="partInfoDisplay"></div>
-                            </div>
-                            <button type="button" class="btn-close" id="clearSelectedPart"></button>
-                        </div>
+                    <!-- Components Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="componentsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 200px;">Component Name <span class="text-danger">*</span></th>
+                                    <th style="width: 120px;">Part Number</th>
+                                    <th style="width: 120px;">Manufacturer</th>
+                                    <th style="width: 100px;">Category</th>
+                                    <th style="width: 250px;">Description</th>
+                                    <th style="width: 100px;">Unit Price <span class="text-danger">*</span></th>
+                                    <th style="width: 80px;">Qty <span class="text-danger">*</span></th>
+                                    <th style="width: 80px;">UOM</th>
+                                    <th style="width: 100px;">Total</th>
+                                    <th style="width: 150px;">Notes</th>
+                                    <th style="width: 80px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="componentsTableBody">
+                                <!-- Component rows will be added here -->
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="8">Grand Total:</th>
+                                    <th id="grandTotal">$0.00</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
                     
                     <div class="d-flex justify-content-between align-items-center pt-3 border-top">
                         <div class="text-muted">
-                            <small><i class="fas fa-info-circle"></i> Fields marked with * are required</small>
+                            <small><i class="fas fa-info-circle"></i> Fields marked with * are required. Use "Add Row" to add more components.</small>
                         </div>
                         <div>
                             <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
                                class="btn btn-secondary me-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> Add Component
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-plus"></i> Add <span id="submitCount">0</span> Component<span id="submitPlural">s</span>
                             </button>
                         </div>
                     </div>
@@ -230,13 +162,13 @@
 <script>
 // Global variables
 let parts = [];
-let selectedPart = null;
+let componentCounter = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadInitialParts();
     setupEventHandlers();
     setupDragAndDrop();
-    updateTotalCost();
+    addComponentRow(); // Add first row
 });
 
 function setupEventHandlers() {
@@ -250,16 +182,12 @@ function setupEventHandlers() {
     document.getElementById('categoryFilter').addEventListener('change', searchParts);
     document.getElementById('manufacturerFilter').addEventListener('change', searchParts);
     
-    // Live calculation
-    document.getElementById('unitPrice').addEventListener('input', updateTotalCost);
-    document.getElementById('quantity').addEventListener('input', updateTotalCost);
-    
-    // Clear form
-    document.getElementById('clearFormBtn').addEventListener('click', clearForm);
-    document.getElementById('clearSelectedPart').addEventListener('click', clearSelectedPart);
+    // Component management
+    document.getElementById('addComponentBtn').addEventListener('click', addComponentRow);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllComponents);
     
     // Form validation
-    document.getElementById('componentForm').addEventListener('submit', validateForm);
+    document.getElementById('componentForm').addEventListener('submit', validateMultipleComponents);
 }
 
 function setupDragAndDrop() {
@@ -283,7 +211,7 @@ function setupDragAndDrop() {
         
         const partId = e.dataTransfer.getData('text/plain');
         if (partId) {
-            selectPartFromDrop(parseInt(partId));
+            addComponentFromPart(parseInt(partId));
         }
     });
 }
@@ -391,99 +319,259 @@ function renderParts() {
             e.dataTransfer.setData('text/plain', part.part_id);
         });
         
-        // Double-click to select
-        item.addEventListener('dblclick', () => selectPartFromDrop(part.part_id));
+        // Double-click to add as new row
+        item.addEventListener('dblclick', () => addComponentFromPart(part.part_id));
         
         container.appendChild(item);
     });
 }
 
-function selectPartFromDrop(partId) {
+// Component Row Management Functions
+function addComponentRow(partData = null) {
+    componentCounter++;
+    const tbody = document.getElementById('componentsTableBody');
+    
+    const row = document.createElement('tr');
+    row.dataset.rowId = componentCounter;
+    row.innerHTML = `
+        <td>
+            <input type="text" class="form-control form-control-sm" 
+                   name="components[${componentCounter}][component_name]" 
+                   placeholder="Component name..."
+                   oninput="updateComponentCounts()">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" 
+                   name="components[${componentCounter}][part_number]" 
+                   placeholder="Part #...">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" 
+                   name="components[${componentCounter}][manufacturer]" 
+                   placeholder="Manufacturer...">
+        </td>
+        <td>
+            <select class="form-select form-select-sm" 
+                    name="components[${componentCounter}][category]">
+                <option value="">Category</option>
+                {% for category in part_categories %}
+                    <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <textarea class="form-control form-control-sm" 
+                      name="components[${componentCounter}][description]" 
+                      rows="1" placeholder="Description..."></textarea>
+        </td>
+        <td>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control unit-price" 
+                       name="components[${componentCounter}][unit_price]" 
+                       step="0.01" min="0" placeholder="0.00"
+                       onchange="updateRowTotal(${componentCounter})">
+            </div>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm quantity" 
+                   name="components[${componentCounter}][quantity]" 
+                   step="0.001" min="0.001" value="1.000"
+                   onchange="updateRowTotal(${componentCounter})">
+        </td>
+        <td>
+            <select class="form-select form-select-sm" 
+                    name="components[${componentCounter}][unit_of_measure]">
+                <option value="EA" selected>EA</option>
+                <option value="FT">FT</option>
+                <option value="LB">LB</option>
+                <option value="HR">HR</option>
+                <option value="SQ FT">SQ FT</option>
+                <option value="GAL">GAL</option>
+                <option value="LOT">LOT</option>
+            </select>
+        </td>
+        <td>
+            <div class="text-end fw-bold row-total">$0.00</div>
+        </td>
+        <td>
+            <textarea class="form-control form-control-sm" 
+                      name="components[${componentCounter}][notes]" 
+                      rows="1" placeholder="Notes..."></textarea>
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger" 
+                    onclick="removeComponentRow(${componentCounter})" title="Remove Row">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    
+    tbody.appendChild(row);
+    
+    // Fill with part data if provided
+    if (partData) {
+        fillRowWithPartData(componentCounter, partData);
+    }
+    
+    updateComponentCounts();
+    updateGrandTotal();
+}
+
+function removeComponentRow(rowId) {
+    const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+    if (row) {
+        row.remove();
+        updateComponentCounts();
+        updateGrandTotal();
+    }
+}
+
+function clearAllComponents() {
+    const tbody = document.getElementById('componentsTableBody');
+    tbody.innerHTML = '';
+    componentCounter = 0;
+    addComponentRow(); // Add one row back
+}
+
+function addComponentFromPart(partId) {
     const part = parts.find(p => p.part_id === partId);
     if (!part) return;
     
-    selectedPart = part;
-    
-    // Update form fields
-    document.getElementById('selectedPartId').value = partId;
-    document.getElementById('componentName').value = part.description || part.part_number || '';
-    document.getElementById('partNumber').value = part.part_number || '';
-    document.getElementById('manufacturer').value = part.manufacturer || '';
-    document.getElementById('description').value = part.description || '';
-    document.getElementById('unitPrice').value = part.price || '';
-    document.getElementById('category').value = part.category || '';
-    
-    // Show selected part info
-    const infoDisplay = document.getElementById('partInfoDisplay');
-    infoDisplay.innerHTML = `
-        <div class="row">
-            <div class="col-md-6">
-                <strong>Part:</strong> ${part.part_number || 'N/A'}<br>
-                <strong>Description:</strong> ${part.description || 'N/A'}
-            </div>
-            <div class="col-md-6">
-                <strong>Manufacturer:</strong> ${part.manufacturer || 'Unknown'}<br>
-                <strong>Price:</strong> $${part.price.toFixed(2)} • <strong>Category:</strong> ${part.category || 'N/A'}
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('selectedPartInfo').classList.remove('d-none');
-    
-    // Update total cost
-    updateTotalCost();
-    
-    // Show success toast
-    showToast('success', 'Part Selected', `${part.part_number} has been added to the form`);
+    addComponentRow(part);
+    showToast('success', 'Component Added', `${part.part_number || 'Component'} added as new row`);
 }
 
-function clearSelectedPart() {
-    selectedPart = null;
-    document.getElementById('selectedPartId').value = '';
-    document.getElementById('selectedPartInfo').classList.add('d-none');
+function fillRowWithPartData(rowId, part) {
+    const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+    if (!row) return;
     
-    // Don't clear the form fields, just remove the selected part indicator
-    showToast('info', 'Part Cleared', 'Form fields retained, part selection cleared');
+    const inputs = row.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        const name = input.name;
+        if (name.includes('component_name')) {
+            input.value = part.description || part.part_number || '';
+        } else if (name.includes('part_number')) {
+            input.value = part.part_number || '';
+        } else if (name.includes('manufacturer')) {
+            input.value = part.manufacturer || '';
+        } else if (name.includes('category')) {
+            input.value = part.category || '';
+        } else if (name.includes('description')) {
+            input.value = part.description || '';
+        } else if (name.includes('unit_price')) {
+            input.value = part.price || '';
+        }
+    });
+    
+    updateRowTotal(rowId);
+    updateComponentCounts();
 }
 
-function clearForm() {
-    selectedPart = null;
-    document.getElementById('componentForm').reset();
-    document.getElementById('selectedPartId').value = '';
-    document.getElementById('selectedPartInfo').classList.add('d-none');
-    document.getElementById('quantity').value = '1.000';
-    updateTotalCost();
+function updateRowTotal(rowId) {
+    const row = document.querySelector(`tr[data-row-id="${rowId}"]`);
+    if (!row) return;
     
-    showToast('info', 'Form Cleared', 'All form fields have been reset');
-}
-
-function updateTotalCost() {
-    const price = parseFloat(document.getElementById('unitPrice').value) || 0;
-    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const priceInput = row.querySelector('.unit-price');
+    const quantityInput = row.querySelector('.quantity');
+    const totalDiv = row.querySelector('.row-total');
+    
+    const price = parseFloat(priceInput.value) || 0;
+    const quantity = parseFloat(quantityInput.value) || 0;
     const total = price * quantity;
-    document.getElementById('totalCost').textContent = '$' + total.toFixed(2);
+    
+    totalDiv.textContent = '$' + total.toFixed(2);
+    updateGrandTotal();
 }
 
-function validateForm(e) {
-    const componentName = document.getElementById('componentName').value.trim();
-    const unitPrice = document.getElementById('unitPrice').value;
-    const quantity = document.getElementById('quantity').value;
+function updateGrandTotal() {
+    const totalDivs = document.querySelectorAll('.row-total');
+    let grandTotal = 0;
     
-    if (!componentName) {
-        e.preventDefault();
-        showToast('error', 'Validation Error', 'Component name is required');
-        return false;
+    totalDivs.forEach(div => {
+        const value = div.textContent.replace('$', '');
+        grandTotal += parseFloat(value) || 0;
+    });
+    
+    document.getElementById('grandTotal').textContent = '$' + grandTotal.toFixed(2);
+}
+
+function updateComponentCounts() {
+    // Count only rows with component names filled in
+    const rows = document.querySelectorAll('#componentsTableBody tr');
+    let validRowCount = 0;
+    
+    rows.forEach(row => {
+        const componentNameInput = row.querySelector('input[name*="component_name"]');
+        if (componentNameInput && componentNameInput.value.trim()) {
+            validRowCount++;
+        }
+    });
+    
+    document.getElementById('componentCount').textContent = validRowCount;
+    document.getElementById('submitCount').textContent = validRowCount;
+    
+    // Handle pluralization
+    const componentPlural = document.getElementById('componentPlural');
+    const submitPlural = document.getElementById('submitPlural');
+    if (validRowCount === 1) {
+        componentPlural.style.display = 'none';
+        submitPlural.style.display = 'none';
+    } else {
+        componentPlural.style.display = 'inline';
+        submitPlural.style.display = 'inline';
+    }
+}
+
+function validateMultipleComponents(e) {
+    const rows = document.querySelectorAll('#componentsTableBody tr');
+    let hasErrors = false;
+    let validRowCount = 0;
+    
+    rows.forEach((row, index) => {
+        const componentName = row.querySelector('input[name*="component_name"]').value.trim();
+        const unitPrice = row.querySelector('input[name*="unit_price"]').value;
+        const quantity = row.querySelector('input[name*="quantity"]').value;
+        
+        // Skip completely empty rows
+        if (!componentName && (!unitPrice || parseFloat(unitPrice) === 0) && (!quantity || parseFloat(quantity) === 1)) {
+            return; // Skip validation for empty rows
+        }
+        
+        // If row has some data, validate all required fields
+        let rowHasErrors = false;
+        
+        if (!componentName) {
+            showToast('error', 'Validation Error', `Component name is required for row ${index + 1}`);
+            hasErrors = true;
+            rowHasErrors = true;
+        }
+        
+        if (!unitPrice || parseFloat(unitPrice) <= 0) {
+            showToast('error', 'Validation Error', `Valid unit price is required for row ${index + 1}`);
+            hasErrors = true;
+            rowHasErrors = true;
+        }
+        
+        if (!quantity || parseFloat(quantity) <= 0) {
+            showToast('error', 'Validation Error', `Valid quantity is required for row ${index + 1}`);
+            hasErrors = true;
+            rowHasErrors = true;
+        }
+        
+        if (!rowHasErrors) {
+            validRowCount++;
+        }
+    });
+    
+    // Check if we have at least one valid component
+    if (validRowCount === 0) {
+        showToast('error', 'Validation Error', 'Please add at least one component before submitting');
+        hasErrors = true;
     }
     
-    if (!unitPrice || parseFloat(unitPrice) <= 0) {
+    if (hasErrors) {
         e.preventDefault();
-        showToast('error', 'Validation Error', 'Valid unit price is required');
-        return false;
-    }
-    
-    if (!quantity || parseFloat(quantity) <= 0) {
-        e.preventDefault();
-        showToast('error', 'Validation Error', 'Valid quantity is required');
         return false;
     }
     

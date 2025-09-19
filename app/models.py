@@ -125,21 +125,21 @@ class Estimate(db.Model):
     def total_engineering_hours(self):
         """Calculate total engineering hours across all assemblies and individual components"""
         assembly_hours = sum(float(assembly.engineering_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(float(component.engineering_hours or 0) for component in self.individual_components)
+        component_hours = sum(component.total_engineering_hours for component in self.individual_components)
         return assembly_hours + component_hours
     
     @property
     def total_panel_shop_hours(self):
         """Calculate total panel shop hours across all assemblies and individual components"""
         assembly_hours = sum(float(assembly.panel_shop_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(float(component.panel_shop_hours or 0) for component in self.individual_components)
+        component_hours = sum(component.total_panel_shop_hours for component in self.individual_components)
         return assembly_hours + component_hours
     
     @property
     def total_machine_assembly_hours(self):
         """Calculate total machine assembly hours across all assemblies and individual components"""
         assembly_hours = sum(float(assembly.machine_assembly_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(float(component.machine_assembly_hours or 0) for component in self.individual_components)
+        component_hours = sum(component.total_machine_assembly_hours for component in self.individual_components)
         return assembly_hours + component_hours
     
     @property
@@ -347,6 +347,12 @@ class EstimateComponent(db.Model):
     engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
     panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
     machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    
+    # Time per assembly fields (multiplied by quantity for total hours)
+    engineering_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
+    panel_shop_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
+    machine_assembly_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
+    
     estimated_by = db.Column(db.String(100))
     time_estimate_notes = db.Column(db.Text)
     
@@ -360,26 +366,51 @@ class EstimateComponent(db.Model):
     
     @property
     def total_hours(self):
-        """Calculate total hours across all labor types"""
-        return float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
+        """Calculate total hours across all labor types (includes per-assembly * quantity)"""
+        base_hours = float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
+        per_assembly_hours = (float(self.engineering_hours_per_assembly or 0) + 
+                             float(self.panel_shop_hours_per_assembly or 0) + 
+                             float(self.machine_assembly_hours_per_assembly or 0)) * float(self.quantity)
+        return base_hours + per_assembly_hours
+    
+    @property
+    def total_engineering_hours(self):
+        """Calculate total engineering hours (base + per-assembly * quantity)"""
+        base_hours = float(self.engineering_hours or 0)
+        per_assembly_hours = float(self.engineering_hours_per_assembly or 0) * float(self.quantity)
+        return base_hours + per_assembly_hours
+    
+    @property
+    def total_panel_shop_hours(self):
+        """Calculate total panel shop hours (base + per-assembly * quantity)"""
+        base_hours = float(self.panel_shop_hours or 0)
+        per_assembly_hours = float(self.panel_shop_hours_per_assembly or 0) * float(self.quantity)
+        return base_hours + per_assembly_hours
+    
+    @property
+    def total_machine_assembly_hours(self):
+        """Calculate total machine assembly hours (base + per-assembly * quantity)"""
+        base_hours = float(self.machine_assembly_hours or 0)
+        per_assembly_hours = float(self.machine_assembly_hours_per_assembly or 0) * float(self.quantity)
+        return base_hours + per_assembly_hours
     
     @property
     def calculated_engineering_cost(self):
-        """Calculate engineering cost based on hours * estimate's engineering rate"""
+        """Calculate engineering cost based on total hours * estimate's engineering rate"""
         rate = float(self.estimate.engineering_rate) if self.estimate else 145.0
-        return float(self.engineering_hours or 0) * rate
+        return self.total_engineering_hours * rate
     
     @property
     def calculated_panel_shop_cost(self):
-        """Calculate panel shop cost based on hours * estimate's panel shop rate"""
+        """Calculate panel shop cost based on total hours * estimate's panel shop rate"""
         rate = float(self.estimate.panel_shop_rate) if self.estimate else 125.0
-        return float(self.panel_shop_hours or 0) * rate
+        return self.total_panel_shop_hours * rate
     
     @property
     def calculated_machine_assembly_cost(self):
-        """Calculate machine assembly cost based on hours * estimate's machine assembly rate"""
+        """Calculate machine assembly cost based on total hours * estimate's machine assembly rate"""
         rate = float(self.estimate.machine_assembly_rate) if self.estimate else 125.0
-        return float(self.machine_assembly_hours or 0) * rate
+        return self.total_machine_assembly_hours * rate
     
     @property
     def total_labor_cost(self):
@@ -736,3 +767,265 @@ class AssemblyCategory(db.Model):
     def get_all_categories(cls):
         """Get all categories ordered by sort_order then name"""
         return cls.query.order_by(cls.sort_order, cls.name).all()
+
+class VFDType(db.Model):
+    """VFD type lookup table for drive selection"""
+    __tablename__ = 't_vfdtype'
+    
+    vfd_type_id = db.Column(db.Integer, primary_key=True)
+    type_name = db.Column(db.String(50), nullable=False, unique=True)
+    manufacturer = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    motors = db.relationship('Motor', backref='vfd_type')
+    
+    @classmethod
+    def get_active_types(cls):
+        """Get all active VFD types ordered by sort_order then name"""
+        return cls.query.filter_by(is_active=True).order_by(cls.sort_order, cls.type_name).all()
+    
+    def __repr__(self):
+        return f'<VFDType {self.type_name}>'
+
+class NECAmpTable(db.Model):
+    """NEC motor full load current lookup table"""
+    __tablename__ = 't_necamptable'
+    
+    nec_amp_id = db.Column(db.Integer, primary_key=True)
+    hp = db.Column(db.Numeric(6, 2), nullable=False, unique=True, index=True)
+    voltage_115 = db.Column(db.Numeric(8, 2))
+    voltage_200 = db.Column(db.Numeric(8, 2))
+    voltage_208 = db.Column(db.Numeric(8, 2))
+    voltage_230 = db.Column(db.Numeric(8, 2))
+    voltage_460 = db.Column(db.Numeric(8, 2))
+    voltage_575 = db.Column(db.Numeric(8, 2))
+    voltage_2300 = db.Column(db.Numeric(8, 2))
+    
+    @classmethod
+    def get_motor_amps(cls, hp, voltage):
+        """Get motor amps from NEC table for given HP and voltage"""
+        record = cls.query.filter_by(hp=hp).first()
+        if not record:
+            return None
+            
+        voltage_field = f'voltage_{int(voltage)}'
+        if hasattr(record, voltage_field):
+            amps = getattr(record, voltage_field, None)
+            return float(amps) if amps is not None else None
+        return None
+    
+    def __repr__(self):
+        return f'<NECAmpTable {self.hp}HP>'
+
+class TechData(db.Model):
+    """Technical specifications for parts (VFDs, etc.)"""
+    __tablename__ = 't_techdata'
+    
+    tech_data_id = db.Column(db.Integer, primary_key=True)
+    part_id = db.Column(db.Integer, db.ForeignKey('parts.part_id'), nullable=False, index=True)
+    heat_loss_w = db.Column(db.Numeric(10, 2))  # Heat Loss in Watts
+    width_in = db.Column(db.Numeric(8, 3))      # Width in inches
+    height_in = db.Column(db.Numeric(8, 3))     # Height in inches
+    length_in = db.Column(db.Numeric(8, 3))     # Length in inches
+    frame_size = db.Column(db.Integer)          # Frame size for calculations
+    input_current = db.Column(db.Numeric(8, 3)) # Input current for VFDs
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    part = db.relationship('Parts', backref=db.backref('tech_data', uselist=False))
+    
+    def __repr__(self):
+        return f'<TechData for Part {self.part_id}>'
+
+class Motor(db.Model):
+    """Motors and loads associated with projects"""
+    __tablename__ = 't_motors'
+    
+    motor_id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=False, index=True)
+    load_type = db.Column(db.String(20), nullable=False, default='motor')  # 'motor' or 'load'
+    motor_name = db.Column(db.String(255), nullable=False)
+    location = db.Column(db.String(100))
+    encl_type = db.Column(db.String(50))
+    frame = db.Column(db.String(50))
+    additional_notes = db.Column(db.Text)
+    hp = db.Column(db.Numeric(8, 2), nullable=True)  # Only for motors
+    speed_range = db.Column(db.String(50))
+    voltage = db.Column(db.Numeric(8, 2), nullable=False)  # 115, 200, 208, 230, 460, 575, 2300
+    qty = db.Column(db.Integer, nullable=False, default=1)  # Changed to Integer for whole numbers
+    overload_percentage = db.Column(db.Numeric(5, 3), nullable=True, default=1.15)  # Only for motors
+    continuous_load = db.Column(db.Boolean, default=True, nullable=False)  # NEC continuous load flag
+    vfd_type_id = db.Column(db.Integer, db.ForeignKey('t_vfdtype.vfd_type_id'), nullable=True)
+    
+    # Load-specific fields
+    power_rating = db.Column(db.Numeric(10, 3), nullable=True)  # Power in kVA or Amps for loads
+    power_unit = db.Column(db.String(10), default='kVA')  # 'kVA' or 'Amps'
+    phase_config = db.Column(db.String(10), default='three')  # 'single' or 'three'
+    
+    # Override options
+    nec_amps_override = db.Column(db.Boolean, default=False)
+    manual_amps = db.Column(db.Numeric(8, 3))  # Manual amp entry when overridden
+    vfd_override = db.Column(db.Boolean, default=False)
+    selected_vfd_part_id = db.Column(db.Integer, db.ForeignKey('parts.part_id'), nullable=True)
+    
+    # Metadata
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    project = db.relationship('Project', backref='motors')
+    selected_vfd = db.relationship('Parts', backref='motor_selections')
+    
+    @property
+    def motor_amps(self):
+        """Get motor amps - either from NEC table, manual override, or load calculation"""
+        if self.nec_amps_override and self.manual_amps:
+            return float(self.manual_amps)
+        elif self.load_type == 'load':
+            return self.calculated_load_amps
+        else:
+            # Motor type - use NEC table
+            if not self.hp:
+                return 0.0
+            nec_amps = NECAmpTable.get_motor_amps(self.hp, self.voltage)
+            return float(nec_amps) if nec_amps else 0.0
+    
+    @property
+    def calculated_load_amps(self):
+        """Calculate amps for loads based on power_rating, power_unit, voltage, and phase"""
+        if not self.power_rating or not self.voltage:
+            return 0.0
+            
+        power = float(self.power_rating)
+        voltage = float(self.voltage)
+        
+        if self.power_unit == 'Amps':
+            # Power is already in amps
+            return power
+        elif self.power_unit == 'kVA':
+            # Convert kVA to amps
+            if self.phase_config == 'three':
+                # Three-phase: Amps = (kVA × 1000) / (Voltage × √3)
+                import math
+                return (power * 1000) / (voltage * math.sqrt(3))
+            else:
+                # Single-phase: Amps = (kVA × 1000) / Voltage
+                return (power * 1000) / voltage
+        
+        return 0.0
+    
+    @property
+    def load_amps_per_phase(self):
+        """For single-phase loads balanced across 3 phases, return amps per phase"""
+        if self.load_type == 'load' and self.phase_config == 'single':
+            # Single-phase load balanced across 3 phases
+            return self.calculated_load_amps / 3
+        else:
+            # Three-phase load or motor
+            return self.calculated_load_amps
+    
+    @property
+    def total_amps(self):
+        """Calculate total amps: qty * motor_amps"""
+        return float(self.qty) * self.motor_amps
+    
+    @property
+    def drive_required_current(self):
+        """Calculate required current for VFD: motor_amps * overload_percentage"""
+        return self.motor_amps * float(self.overload_percentage)
+    
+    @property
+    def recommended_vfd(self):
+        """Get recommended VFD part based on required current and VFD type"""
+        if self.vfd_override and self.selected_vfd:
+            return self.selected_vfd
+            
+        if not self.vfd_type_id:
+            return None
+            
+        # Find VFDs that match the type and have sufficient rating
+        from sqlalchemy import and_, cast, Float
+        
+        vfd_query = db.session.query(Parts).join(TechData, Parts.part_id == TechData.part_id)\
+            .filter(and_(
+                Parts.description.contains(self.vfd_type.type_name),
+                cast(Parts.rating, Float) >= self.drive_required_current
+            ))\
+            .order_by(cast(Parts.rating, Float).asc())
+        
+        return vfd_query.first()  # Return the smallest sufficient VFD
+    
+    @property
+    def vfd_input_current(self):
+        """Get VFD input current from tech data"""
+        vfd = self.recommended_vfd
+        if vfd and vfd.tech_data:
+            return float(vfd.tech_data.input_current or 0.0)
+        return 0.0
+    
+    @property
+    def total_vfd_input_current(self):
+        """Calculate total VFD input current: input_current * qty"""
+        return self.vfd_input_current * float(self.qty)
+    
+    @property
+    def vfd_heat_loss(self):
+        """Get VFD heat loss from tech data multiplied by quantity"""
+        vfd = self.recommended_vfd
+        if vfd and vfd.tech_data:
+            return float(vfd.tech_data.heat_loss_w or 0.0) * float(self.qty)
+        return 0.0
+    
+    @property
+    def vfd_width(self):
+        """Get VFD width from tech data"""
+        vfd = self.recommended_vfd
+        if vfd and vfd.tech_data:
+            return float(vfd.tech_data.width_in or 0.0)
+        return 0.0
+    
+    @property
+    def total_width(self):
+        """Calculate total width including frame spacing"""
+        vfd = self.recommended_vfd
+        if not vfd or not vfd.tech_data:
+            return 0.0
+            
+        width = self.vfd_width
+        frame_size = int(vfd.tech_data.frame_size or 0)
+        
+        # Frame spacing logic from Excel: IF(frame>=4, 4.5+width, IF(frame=3, 4+width, IF(frame=2, 3.625+width)))
+        if frame_size >= 4:
+            spacing = 4.5
+        elif frame_size == 3:
+            spacing = 4.0
+        elif frame_size == 2:
+            spacing = 3.625
+        else:
+            spacing = 0.0
+            
+        return (spacing + width) * float(self.qty)
+    
+    def get_vfd_options(self):
+        """Get all VFD options for the selected type that meet current requirements"""
+        if not self.vfd_type_id:
+            return []
+            
+        from sqlalchemy import and_, cast, Float
+        
+        return db.session.query(Parts)\
+            .filter(and_(
+                Parts.description.contains(self.vfd_type.type_name),
+                cast(Parts.rating, Float) >= self.drive_required_current
+            ))\
+            .order_by(cast(Parts.rating, Float).asc())\
+            .all()
+    
+    def __repr__(self):
+        return f'<Motor {self.motor_name} ({self.hp}HP)>'

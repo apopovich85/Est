@@ -14,7 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid px-3">
             <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
-                <img src="{{ url_for('static', filename='images/stacked_RGB_300dpi.jpg') }}" alt="Logo" height="30" class="me-2">
+                <img src="{{ url_for('static', filename='images/stacked_RGB_300dpi.png') }}" alt="Logo" height="30" class="me-2">
                 Estimates Manager
             </a>
             <div class="navbar-nav ms-auto">
@@ -23,6 +23,35 @@
                 <a class="nav-link" href="{{ url_for('standard_assemblies.list_assemblies') }}">Standard Assemblies</a>
                 <a class="nav-link" href="{{ url_for('categories.list_categories') }}">Categories</a>
                 <a class="nav-link" href="{{ url_for('labor_rates.labor_rates_config') }}">Labor Rates</a>
+                
+                <!-- Wizards Dropdown -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="wizardsDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-magic me-1"></i>Wizards
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('operator_desk.wizard') }}">
+                                <i class="fas fa-desktop me-2"></i>Operator Desk Configuration
+                                <br><small class="text-muted">Configure control panels & I/O</small>
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-muted" href="#" onclick="return false;">
+                                <i class="fas fa-cog me-2"></i>Motor Control Center
+                                <br><small class="text-muted">Coming soon...</small>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-muted" href="#" onclick="return false;">
+                                <i class="fas fa-bolt me-2"></i>Distribution Panel
+                                <br><small class="text-muted">Coming soon...</small>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="partsDropdown" role="button" data-bs-toggle="dropdown">
                         Parts

@@ -98,8 +98,6 @@ class StyleFactory:
             'table_header_small': self.create_style('TableHeaderSmall', fontSize=10, leading=11, textColor=Config.WHITE, wordWrap='LTR', alignment=1),
             'table_header_large': self.create_style('TableHeaderLarge', fontSize=12, leading=14, textColor=Config.WHITE, wordWrap='LTR', alignment=1),
             'table_cell': self.create_style('TableCell', fontSize=8, leading=10, wordWrap='LTR'),
-            'table_cell_red': self.create_style('TableCellRed', fontSize=8, leading=10, wordWrap='LTR', textColor=Config.PRIMARY_RED, fontName='Helvetica-Bold'),
-            'table_cell_red_large': self.create_style('TableCellRedLarge', fontSize=12, leading=14, wordWrap='LTR', textColor=Config.PRIMARY_RED, fontName='Helvetica-Bold'),
             'preliminary_stamp': self.create_style('PreliminaryStamp', fontSize=14, fontName='Helvetica-Bold', alignment=1, spaceBefore=10, spaceAfter=10),
             'summary': self.create_style('Summary', fontSize=10),
             'info': self.base_styles['Normal']
@@ -237,7 +235,7 @@ class ChartFactory:
         """Create a clean pie chart without labels"""
         drawing = Drawing(*size)
         pie = Pie()
-        pie.x = 80  # Move pie chart more to the right
+        pie.x = 35
         pie.y = 35
         pie.width = size[0] - 70
         pie.height = size[1] - 70
@@ -281,7 +279,7 @@ class TableBuilder:
     def build_bom_table(self, bom_data):
         """Build main BOM table"""
         headers = ['#', 'Part Number', 'Description', 'Manufacturer', 'Qty', 'UOM', 'Unit Price', 'Total Price']
-        table_data = [self.content.create_header_paragraphs(headers, 'table_header_small')]
+        table_data = [self.content.create_header_paragraphs(headers)]
         
         total_value = 0
         for i, item in enumerate(bom_data, 1):
@@ -318,23 +316,16 @@ class TableBuilder:
         panel_shop_cost = float(estimate.total_panel_shop_cost or 0)
         combined_total = total_purchased_components + panel_shop_cost
         
-        # Add data rows (removed engineering hours)
+        # Add data rows
         table_data.extend([
             ['Total Purchased Components', self.content.format_currency(total_purchased_components)],
+            [f'Engineering Hours Total ({engineering_hours:.1f} hrs)', self.content.format_currency(engineering_cost)],
             [f'Panel Shop Hours Cost ({panel_shop_hours:.1f} hrs)', self.content.format_currency(panel_shop_cost)],
-            [Paragraph('Combined Total (Components + Panel Shop)', self.content.styles['table_cell_red_large']), 
-             Paragraph(self.content.format_currency(combined_total), self.content.styles['table_cell_red_large'])]
+            ['', ''],  # Separator
+            ['Combined Total (Components + Panel Shop)', self.content.format_currency(combined_total)]
         ])
         
-        # Create table with custom styling for the red line above combined total
-        table = self.style_engine.create_styled_table(table_data, Config.TABLE_WIDTHS['summary'], 'summary')
-        
-        # Add red line above the combined total row (last row)
-        table.setStyle(TableStyle([
-            ('LINEABOVE', (0, -1), (-1, -1), 2, Config.PRIMARY_RED)  # Red line above last row
-        ]))
-        
-        return table
+        return self.style_engine.create_styled_table(table_data, Config.TABLE_WIDTHS['summary'], 'summary')
     
     def build_category_table(self, categories_data, total_value, descriptions):
         """Build category breakdown table with descriptions"""

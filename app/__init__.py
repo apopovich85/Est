@@ -36,6 +36,10 @@ def create_app():
     from app.routes.categories import bp as categories_bp
     # Labor rates blueprint
     from app.routes.labor_rates import bp as labor_rates_bp
+    # Motors blueprint
+    from app.routes.motors import bp as motors_bp
+    # Operator desk blueprint
+    from app.routes.operator_desk import bp as operator_desk_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(projects_bp, url_prefix='/projects')
@@ -46,6 +50,8 @@ def create_app():
     app.register_blueprint(standard_assemblies_bp, url_prefix='/standard_assemblies')
     app.register_blueprint(categories_bp, url_prefix='/categories')
     app.register_blueprint(labor_rates_bp, url_prefix='/labor-rates')
+    app.register_blueprint(motors_bp)
+    app.register_blueprint(operator_desk_bp, url_prefix='/operator-desk')
 
     # Create tables
     with app.app_context():

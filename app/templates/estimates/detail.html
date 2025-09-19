@@ -134,7 +134,12 @@
 <!-- Assemblies Breakdown -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">Assembly Breakdown</h5>
+        <h5 class="card-title mb-0">
+            Assembly Breakdown
+            {% if assemblies and assemblies|length > 1 %}
+                <small class="text-muted ms-2"><i class="fas fa-arrows-alt"></i> Drag to reorder</small>
+            {% endif %}
+        </h5>
         <div class="btn-group">
             <a href="{{ url_for('standard_assemblies.apply_interface', estimate_id=estimate.estimate_id) }}" 
                class="btn btn-sm btn-success">
@@ -150,15 +155,28 @@
             </a>
         </div>
     </div>
-    <div class="card-body">
+    <div class="card-body" id="assemblies-container">
         {% if assemblies %}
             {% for assembly in assemblies %}
-            <div class="card mb-3">
+            <div class="card mb-3 assembly-item" 
+                 draggable="true" 
+                 data-assembly-id="{{ assembly.assembly_id }}"
+                 data-sort-order="{{ assembly.sort_order }}">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
+                        <div class="drag-handle me-2" style="cursor: grab; color: #6c757d;" title="Drag to reorder">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
                         <h6 class="card-title mb-0 me-3">{{ assembly.assembly_name }}</h6>
                         {% if assembly.standard_assembly_id %}
                         <div class="d-flex align-items-center">
+                            <label class="form-label mb-0 me-2 text-muted small">Version:</label>
+                            <select class="form-select form-select-sm me-2 assembly-version-select" 
+                                    style="width: 100px;"
+                                    data-assembly-id="{{ assembly.assembly_id }}"
+                                    data-current-version="{{ assembly.standard_assembly_version }}">
+                                <!-- Options will be loaded dynamically -->
+                            </select>
                             <label class="form-label mb-0 me-2 text-muted small">Qty:</label>
                             <input type="number" class="form-control form-control-sm assembly-quantity-input" 
                                    style="width: 80px;" min="1" step="1"
@@ -177,6 +195,14 @@
                         </div>
                     </div>
                     <div class="btn-group">
+                        {% if assembly.standard_assembly_id %}
+                        <button type="button" class="btn btn-sm btn-outline-success refresh-assembly-btn" 
+                                title="Refresh to current active version" 
+                                data-assembly-id="{{ assembly.assembly_id }}"
+                                data-standard-assembly-id="{{ assembly.standard_assembly_id }}">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        {% endif %}
                         <a href="{{ url_for('components.manage_components', assembly_id=assembly.assembly_id) }}" 
                            class="btn btn-sm btn-primary">
                             <i class="fas fa-table"></i> Manage Components
@@ -246,16 +272,17 @@
                     
                     {% if assembly.assembly_parts %}
                         <div class="table-responsive">
-                            <table class="table table-sm">
+                            <table class="table table-sm estimate-table table-layout-fixed">
                                 <thead>
                                     <tr>
                                         <th>Part</th>
+                                        <th>Item #</th>
                                         <th>Part #</th>
                                         <th>Manufacturer</th>
-                                        <th>Unit Price</th>
-                                        <th>Quantity</th>
-                                        <th>UOM</th>
-                                        <th>Total</th>
+                                        <th class="text-end">Unit Price</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-center">UOM</th>
+                                        <th class="text-end">Total</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -266,16 +293,26 @@
                                             <strong>{{ assembly_part.component_name }}</strong>
                                             {% if assembly_part.notes %}
                                                 <br><small class="text-muted">{{ assembly_part.notes }}</small>
-                                            {% elif assembly_part.part.description %}
-                                                <br><small class="text-muted">{{ assembly_part.part.description }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>{{ assembly_part.part_number or '-' }}</td>
+                                        <td>{{ assembly_part.part.master_item_number or '-' }}</td>
+                                        <td>{{ assembly_part.part.part_number or '-' }}</td>
                                         <td>{{ assembly_part.part.manufacturer or '-' }}</td>
                                         <td>${{ "{:,.2f}".format(assembly_part.unit_price) }}</td>
-                                        <td>{{ assembly_part.quantity }}</td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm component-quantity-input" 
+                                                   style="width: 80px;" step="0.001" min="0.001"
+                                                   value="{{ assembly_part.quantity }}"
+                                                   data-component-id="{{ assembly_part.assembly_part_id }}"
+                                                   data-original-quantity="{{ assembly_part.quantity }}"
+                                                   data-unit-price="{{ assembly_part.unit_price }}">
+                                        </td>
                                         <td>{{ assembly_part.unit_of_measure }}</td>
-                                        <td><strong>${{ "{:,.2f}".format(assembly_part.total_price) }}</strong></td>
+                                        <td>
+                                            <strong class="component-total" data-component-id="{{ assembly_part.assembly_part_id }}">
+                                                ${{ "{:,.2f}".format(assembly_part.total_price) }}
+                                            </strong>
+                                        </td>
                                         <td>
                                             <div class="btn-group" role="group">
                                                 <a href="{{ url_for('components.edit_component', component_id=assembly_part.assembly_part_id) }}" 
@@ -336,7 +373,21 @@
                 ${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}
             </small>
         </h5>
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Bulk Action Controls -->
+            <div id="bulkActionControls" class="d-none me-3">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllComponents()">
+                        <i class="fas fa-check-square"></i> All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllComponents()">
+                        <i class="fas fa-square"></i> None
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="bulkDeleteComponents()" id="bulkDeleteBtn">
+                        <i class="fas fa-trash"></i> Delete Selected (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
             <a href="{{ url_for('estimates.add_individual_component', estimate_id=estimate.estimate_id) }}" 
                class="btn btn-sm btn-info">
                 <i class="fas fa-plus"></i> Add Component
@@ -345,17 +396,21 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover individual-components-table table-layout-fixed">
                 <thead class="table-light">
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllComponents()">
+                        </th>
                         <th>Component</th>
+                        <th>Item #</th>
                         <th>Part #</th>
                         <th>Manufacturer</th>
                         <th>Category</th>
-                        <th>Unit Price</th>
-                        <th>Quantity</th>
-                        <th>UOM</th>
-                        <th>Total</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-center">Quantity</th>
+                        <th class="text-center">UOM</th>
+                        <th class="text-end">Total</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -363,18 +418,21 @@
                     {% for component in individual_components %}
                     <tr>
                         <td>
+                            <input type="checkbox" class="form-check-input component-checkbox" 
+                                   value="{{ component.estimate_component_id }}" 
+                                   onchange="updateBulkActions()">
+                        </td>
+                        <td>
                             <div>
                                 <strong>{{ component.component_name }}</strong>
-                                {% if component.description %}
-                                    <br><small class="text-muted">{{ component.description }}</small>
-                                {% endif %}
                                 {% if component.notes %}
                                     <br><small class="text-info"><i class="fas fa-sticky-note"></i> {{ component.notes }}</small>
                                 {% endif %}
                             </div>
                         </td>
-                        <td>{{ component.part_number or '-' }}</td>
-                        <td>{{ component.manufacturer or '-' }}</td>
+                        <td>{{ component.part.master_item_number if component.part else '-' }}</td>
+                        <td>{{ component.part.part_number if component.part else (component.part_number or '-') }}</td>
+                        <td>{{ component.part.manufacturer if component.part else (component.manufacturer or '-') }}</td>
                         <td>
                             {% if component.category %}
                                 <span class="badge bg-secondary">{{ component.category }}</span>
@@ -383,9 +441,20 @@
                             {% endif %}
                         </td>
                         <td class="text-end">${{ "{:,.2f}".format(component.unit_price) }}</td>
-                        <td class="text-center">{{ component.quantity }}</td>
+                        <td class="text-center">
+                            <input type="number" class="form-control form-control-sm individual-component-quantity-input" 
+                                   style="width: 80px;" step="0.001" min="0.001"
+                                   value="{{ component.quantity }}"
+                                   data-component-id="{{ component.estimate_component_id }}"
+                                   data-original-quantity="{{ component.quantity }}"
+                                   data-unit-price="{{ component.unit_price }}">
+                        </td>
                         <td class="text-center">{{ component.unit_of_measure }}</td>
-                        <td class="text-end"><strong class="text-success">${{ "{:,.2f}".format(component.total_price) }}</strong></td>
+                        <td class="text-end">
+                            <strong class="text-success individual-component-total" data-component-id="{{ component.estimate_component_id }}">
+                                ${{ "{:,.2f}".format(component.total_price) }}
+                            </strong>
+                        </td>
                         <td>
                             <div class="btn-group" role="group">
                                 <a href="{{ url_for('estimates.edit_individual_component', component_id=component.estimate_component_id) }}" 
@@ -405,7 +474,8 @@
                 </tbody>
                 <tfoot class="table-light">
                     <tr>
-                        <th colspan="7">Individual Components Total:</th>
+                        <th></th>
+                        <th colspan="8">Individual Components Total:</th>
                         <th class="text-end text-success">${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}</th>
                         <th></th>
                     </tr>
@@ -562,6 +632,53 @@ document.addEventListener('DOMContentLoaded', function() {
         
         input.addEventListener('blur', function() {
             updateAssemblyQuantity(this);
+        });
+    });
+    
+    // Load version dropdowns for standard assemblies
+    loadAssemblyVersions();
+    
+    // Handle assembly version changes
+    document.querySelectorAll('.assembly-version-select').forEach(select => {
+        select.addEventListener('change', function() {
+            changeAssemblyVersion(this);
+        });
+    });
+    
+    // Handle refresh assembly buttons
+    document.querySelectorAll('.refresh-assembly-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            refreshAssemblyToActive(this);
+        });
+    });
+    
+    // Handle component quantity changes
+    document.querySelectorAll('.component-quantity-input').forEach(input => {
+        input.addEventListener('input', function() {
+            updateComponentTotal(this);
+        });
+        
+        input.addEventListener('change', function() {
+            updateComponentQuantity(this);
+        });
+        
+        input.addEventListener('blur', function() {
+            updateComponentQuantity(this);
+        });
+    });
+    
+    // Handle individual component quantity changes
+    document.querySelectorAll('.individual-component-quantity-input').forEach(input => {
+        input.addEventListener('input', function() {
+            updateIndividualComponentTotal(this);
+        });
+        
+        input.addEventListener('change', function() {
+            updateIndividualComponentQuantity(this);
+        });
+        
+        input.addEventListener('blur', function() {
+            updateIndividualComponentQuantity(this);
         });
     });
 });
@@ -819,6 +936,599 @@ function exportBOMToPDF() {
     .catch(error => {
         console.error('Error exporting PDF:', error);
         showToast('error', 'Error', 'Failed to export BOM to PDF');
+    });
+}
+
+// Drag and Drop functionality for assemblies
+let draggedElement = null;
+let dragOverElement = null;
+let autoScrollInterval = null;
+let scrollSpeed = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const assemblyItems = document.querySelectorAll('.assembly-item');
+    
+    assemblyItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('dragenter', handleDragEnter);
+        item.addEventListener('dragleave', handleDragLeave);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+    
+    // Add mouse move listener for auto-scroll during drag
+    document.addEventListener('dragover', handleAutoScroll);
+});
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.style.opacity = '0.5';
+    this.classList.add('dragging');
+    
+    // Set drag effect
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault(); // Allows us to drop
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    if (this !== draggedElement) {
+        this.classList.add('drag-over');
+        dragOverElement = this;
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation(); // stops some browsers from redirecting
+    }
+    
+    if (draggedElement !== this) {
+        // Get the container
+        const container = document.getElementById('assemblies-container');
+        const allItems = Array.from(container.querySelectorAll('.assembly-item'));
+        
+        // Find positions
+        const draggedIndex = allItems.indexOf(draggedElement);
+        const targetIndex = allItems.indexOf(this);
+        
+        // Move the element
+        if (draggedIndex < targetIndex) {
+            // Moving down
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+        } else {
+            // Moving up
+            this.parentNode.insertBefore(draggedElement, this);
+        }
+        
+        // Update sort orders and send to server
+        updateSortOrders();
+    }
+    
+    // Clean up auto-scroll on drop
+    clearInterval(autoScrollInterval);
+    autoScrollInterval = null;
+    scrollSpeed = 0;
+    
+    this.classList.remove('drag-over');
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.style.opacity = '1';
+    this.classList.remove('dragging');
+    
+    // Clean up auto-scroll
+    clearInterval(autoScrollInterval);
+    autoScrollInterval = null;
+    scrollSpeed = 0;
+    
+    // Clean up drag-over classes
+    document.querySelectorAll('.assembly-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleAutoScroll(e) {
+    if (!draggedElement) return;
+    
+    const scrollThreshold = 100; // Distance from edge to trigger scroll
+    const maxScrollSpeed = 10;   // Maximum scroll speed
+    const viewportHeight = window.innerHeight;
+    const mouseY = e.clientY;
+    
+    // Calculate scroll speed based on distance from edges
+    let newScrollSpeed = 0;
+    
+    if (mouseY < scrollThreshold) {
+        // Near top edge - scroll up
+        const distance = scrollThreshold - mouseY;
+        newScrollSpeed = -Math.min(maxScrollSpeed, (distance / scrollThreshold) * maxScrollSpeed);
+    } else if (mouseY > viewportHeight - scrollThreshold) {
+        // Near bottom edge - scroll down
+        const distance = mouseY - (viewportHeight - scrollThreshold);
+        newScrollSpeed = Math.min(maxScrollSpeed, (distance / scrollThreshold) * maxScrollSpeed);
+    }
+    
+    // Only update if speed changed
+    if (newScrollSpeed !== scrollSpeed) {
+        scrollSpeed = newScrollSpeed;
+        
+        // Clear existing interval
+        if (autoScrollInterval) {
+            clearInterval(autoScrollInterval);
+            autoScrollInterval = null;
+        }
+        
+        // Start new interval if we need to scroll
+        if (scrollSpeed !== 0) {
+            autoScrollInterval = setInterval(() => {
+                window.scrollBy(0, scrollSpeed);
+            }, 16); // ~60fps
+        }
+    }
+}
+
+function updateSortOrders() {
+    const container = document.getElementById('assemblies-container');
+    const items = container.querySelectorAll('.assembly-item');
+    const updates = [];
+    
+    items.forEach((item, index) => {
+        const assemblyId = parseInt(item.dataset.assemblyId);
+        const newSortOrder = index + 1;
+        
+        updates.push({
+            assembly_id: assemblyId,
+            sort_order: newSortOrder
+        });
+        
+        // Update the data attribute
+        item.dataset.sortOrder = newSortOrder;
+    });
+    
+    // Send to server
+    fetch(`/estimates/{{ estimate.estimate_id }}/reorder-assemblies`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ updates: updates })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', 'Assembly order updated successfully');
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update assembly order');
+            // Reload page on error to reset order
+            setTimeout(() => window.location.reload(), 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating assembly order:', error);
+        showToast('error', 'Error', 'Network error updating assembly order');
+        // Reload page on error to reset order
+        setTimeout(() => window.location.reload(), 2000);
+    });
+}
+
+// Bulk selection functions for individual components
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.component-checkbox');
+    const checkedBoxes = document.querySelectorAll('.component-checkbox:checked');
+    const bulkControls = document.getElementById('bulkActionControls');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    // Update selected count
+    selectedCount.textContent = checkedBoxes.length;
+    
+    // Show/hide bulk controls based on selection
+    if (checkedBoxes.length > 0) {
+        bulkControls.classList.remove('d-none');
+    } else {
+        bulkControls.classList.add('d-none');
+    }
+    
+    // Update select all checkbox state
+    if (checkedBoxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkedBoxes.length === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+        selectAllCheckbox.checked = false;
+    }
+}
+
+function toggleAllComponents() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.component-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function selectAllComponents() {
+    const checkboxes = document.querySelectorAll('.component-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActions();
+}
+
+function clearAllComponents() {
+    const checkboxes = document.querySelectorAll('.component-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActions();
+}
+
+function bulkDeleteComponents() {
+    const checkedBoxes = document.querySelectorAll('.component-checkbox:checked');
+    const componentIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+    
+    if (componentIds.length === 0) {
+        showToast('warning', 'Warning', 'No components selected for deletion');
+        return;
+    }
+    
+    // Show confirmation dialog
+    const componentCount = componentIds.length;
+    const confirmMessage = `Are you sure you want to delete ${componentCount} selected component${componentCount !== 1 ? 's' : ''}?\n\nThis action cannot be undone.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // Disable the delete button during operation
+    const deleteBtn = document.getElementById('bulkDeleteBtn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    
+    // Send bulk delete request
+    fetch(`/estimates/{{ estimate.estimate_id }}/bulk-delete-components`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ component_ids: componentIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', `${componentCount} component${componentCount !== 1 ? 's' : ''} deleted successfully`);
+            // Reload the page to refresh the component list
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to delete components');
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting components:', error);
+        showToast('error', 'Error', 'Network error deleting components');
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
+    });
+}
+
+// Component Quantity Management Functions
+function updateComponentTotal(input) {
+    const componentId = input.dataset.componentId;
+    const quantity = parseFloat(input.value) || 0;
+    const unitPrice = parseFloat(input.dataset.unitPrice) || 0;
+    const total = quantity * unitPrice;
+    
+    const totalElement = document.querySelector(`.component-total[data-component-id="${componentId}"]`);
+    if (totalElement) {
+        totalElement.textContent = '$' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+}
+
+function updateComponentQuantity(input) {
+    const componentId = parseInt(input.dataset.componentId);
+    const newQuantity = parseFloat(input.value);
+    const originalQuantity = parseFloat(input.dataset.originalQuantity);
+    
+    // Only update if quantity actually changed
+    if (newQuantity === originalQuantity) {
+        return;
+    }
+    
+    if (!newQuantity || newQuantity <= 0) {
+        showToast('error', 'Invalid Quantity', 'Quantity must be greater than 0');
+        input.value = originalQuantity; // Reset to original
+        updateComponentTotal(input);
+        return;
+    }
+    
+    // Show loading state
+    const originalBg = input.style.backgroundColor;
+    input.disabled = true;
+    input.style.backgroundColor = '#fff3cd';
+    
+    // Send update request
+    fetch(`/components/${componentId}/update-quantity`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quantity: newQuantity })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update original quantity for future comparisons
+            input.dataset.originalQuantity = newQuantity;
+            showToast('success', 'Success', 'Component quantity updated');
+            
+            // Update assembly total if needed
+            updateAssemblyTotals();
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update quantity');
+            input.value = originalQuantity; // Reset on error
+            updateComponentTotal(input);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating component quantity:', error);
+        showToast('error', 'Error', 'Network error updating quantity');
+        input.value = originalQuantity; // Reset on error
+        updateComponentTotal(input);
+    })
+    .finally(() => {
+        input.disabled = false;
+        input.style.backgroundColor = originalBg;
+    });
+}
+
+function updateAssemblyTotals() {
+    // This could be enhanced to update assembly totals in real-time
+    // For now, we'll rely on the page refresh that might happen elsewhere
+    // or we could add logic to recalculate totals from all component totals
+}
+
+// Individual Component Quantity Management Functions
+function updateIndividualComponentTotal(input) {
+    const componentId = input.dataset.componentId;
+    const quantity = parseFloat(input.value) || 0;
+    const unitPrice = parseFloat(input.dataset.unitPrice) || 0;
+    const total = quantity * unitPrice;
+    
+    const totalElement = document.querySelector(`.individual-component-total[data-component-id="${componentId}"]`);
+    if (totalElement) {
+        totalElement.textContent = '$' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+}
+
+function updateIndividualComponentQuantity(input) {
+    const componentId = parseInt(input.dataset.componentId);
+    const newQuantity = parseFloat(input.value);
+    const originalQuantity = parseFloat(input.dataset.originalQuantity);
+    
+    // Only update if quantity actually changed
+    if (newQuantity === originalQuantity) {
+        return;
+    }
+    
+    if (!newQuantity || newQuantity <= 0) {
+        showToast('error', 'Invalid Quantity', 'Quantity must be greater than 0');
+        input.value = originalQuantity; // Reset to original
+        updateIndividualComponentTotal(input);
+        return;
+    }
+    
+    // Show loading state
+    const originalBg = input.style.backgroundColor;
+    input.disabled = true;
+    input.style.backgroundColor = '#fff3cd';
+    
+    // Send update request
+    fetch(`/estimates/individual-components/${componentId}/update-quantity`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quantity: newQuantity })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update original quantity for future comparisons
+            input.dataset.originalQuantity = newQuantity;
+            showToast('success', 'Success', 'Component quantity updated');
+            
+            // Update page totals if needed
+            updateIndividualComponentTotals();
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to update quantity');
+            input.value = originalQuantity; // Reset on error
+            updateIndividualComponentTotal(input);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating individual component quantity:', error);
+        showToast('error', 'Error', 'Network error updating quantity');
+        input.value = originalQuantity; // Reset on error
+        updateIndividualComponentTotal(input);
+    })
+    .finally(() => {
+        input.disabled = false;
+        input.style.backgroundColor = originalBg;
+    });
+}
+
+function updateIndividualComponentTotals() {
+    // This could be enhanced to update individual component section totals in real-time
+    // For now, we'll rely on the page refresh that might happen elsewhere
+    // or we could add logic to recalculate totals from all individual component totals
+}
+
+// Assembly Version Management Functions
+function loadAssemblyVersions() {
+    document.querySelectorAll('.assembly-version-select').forEach(select => {
+        const assemblyId = select.dataset.assemblyId;
+        const currentVersion = select.dataset.currentVersion;
+        
+        // Get the standard assembly ID from the refresh button (if it exists)
+        const refreshBtn = document.querySelector(`[data-assembly-id="${assemblyId}"].refresh-assembly-btn`);
+        if (!refreshBtn) return;
+        
+        const standardAssemblyId = refreshBtn.dataset.standardAssemblyId;
+        
+        // Load available versions
+        fetch(`/standard_assemblies/${standardAssemblyId}/versions`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    populateVersionDropdown(select, data.versions, currentVersion);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading assembly versions:', error);
+            });
+    });
+}
+
+function populateVersionDropdown(select, versions, currentVersion) {
+    select.innerHTML = '';
+    
+    versions.forEach(version => {
+        const option = document.createElement('option');
+        option.value = version.version;
+        option.textContent = `v${version.version}`;
+        if (version.is_active) {
+            option.textContent += ' (Active)';
+        }
+        if (version.version === currentVersion) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+function changeAssemblyVersion(select) {
+    const assemblyId = select.dataset.assemblyId;
+    const newVersion = select.value;
+    const currentVersion = select.dataset.currentVersion;
+    
+    if (newVersion === currentVersion) {
+        return; // No change
+    }
+    
+    const confirmMsg = `Are you sure you want to change this assembly to version ${newVersion}?\n\nThis will replace all components with those from the selected version.`;
+    
+    if (!confirm(confirmMsg)) {
+        // Reset to current version if user cancels
+        select.value = currentVersion;
+        return;
+    }
+    
+    // Show loading state
+    const originalText = select.style.backgroundColor;
+    select.disabled = true;
+    select.style.backgroundColor = '#fff3cd';
+    
+    // Send version change request
+    fetch(`/assemblies/${assemblyId}/change-version`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ version: newVersion })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', `Assembly updated to version ${newVersion}`);
+            // Update current version
+            select.dataset.currentVersion = newVersion;
+            // Reload page to show updated components
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to change version');
+            select.value = currentVersion; // Reset on error
+        }
+    })
+    .catch(error => {
+        console.error('Error changing version:', error);
+        showToast('error', 'Error', 'Network error changing version');
+        select.value = currentVersion; // Reset on error
+    })
+    .finally(() => {
+        select.disabled = false;
+        select.style.backgroundColor = originalText;
+    });
+}
+
+function refreshAssemblyToActive(button) {
+    const assemblyId = button.dataset.assemblyId;
+    const standardAssemblyId = button.dataset.standardAssemblyId;
+    
+    const confirmMsg = `Are you sure you want to refresh this assembly to the current active version?\n\nThis will replace all components with those from the latest active version.`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Show loading state
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    
+    // Send refresh request
+    fetch(`/assemblies/${assemblyId}/refresh-to-active`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', 'Assembly refreshed to active version');
+            // Reload page to show updated components
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to refresh assembly');
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error refreshing assembly:', error);
+        showToast('error', 'Error', 'Network error refreshing assembly');
+        button.disabled = false;
+        button.innerHTML = originalText;
     });
 }
 

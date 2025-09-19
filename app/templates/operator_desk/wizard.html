@@ -1,0 +1,1246 @@
+{% extends "base.html" %}
+
+{% block title %}Operator Desk Configuration Wizard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>Operator Desk Configuration Wizard</h3>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Home</a></li>
+                    <li class="breadcrumb-item active">Operator Desk Wizard</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Step Progress Indicator -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center step-indicator active" id="step1-indicator">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Basic Setup</h6>
+                        <small class="text-muted">Project & desk type</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center step-indicator" id="step2-indicator">
+                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="fas fa-hand-pointer"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Controls</h6>
+                        <small class="text-muted">Buttons & switches</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center step-indicator" id="step3-indicator">
+                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">HMI</h6>
+                        <small class="text-muted">Touchscreens</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center step-indicator" id="step4-indicator">
+                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="fas fa-toolbox"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Components</h6>
+                        <small class="text-muted">Standard package</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center step-indicator" id="step5-indicator">
+                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Review</h6>
+                        <small class="text-muted">Generate estimate</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="wizardForm">
+        <!-- Step 1: Basic Configuration -->
+        <div class="wizard-step fade-in" id="step1">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Basic Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="project-select" class="form-label">Project *</label>
+                                    <select class="form-select" id="project-select" required>
+                                        <option value="">Select Project...</option>
+                                        {% for project in projects %}
+                                        <option value="{{ project.project_id }}">{{ project.project_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="desk-name" class="form-label">Desk Name/ID *</label>
+                                    <input type="text" class="form-control" id="desk-name" placeholder="e.g., Main Operator Station" required>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="desk-type" class="form-label">Desk Type *</label>
+                                    <select class="form-select" id="desk-type" required>
+                                        <option value="">Select Type...</option>
+                                        <option value="floor_mount">Floor Mount</option>
+                                        <option value="pedestal_mount">Pedestal Mount</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0">Configuration Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong>Project:</strong> 
+                                <span id="preview-project" class="text-muted">Not selected</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Desk:</strong> 
+                                <span id="preview-desk" class="text-muted">Not specified</span>
+                            </div>
+                            <div class="mb-0">
+                                <strong>Type:</strong> 
+                                <span id="preview-type" class="text-muted">Not specified</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Operator Controls -->
+        <div class="wizard-step" id="step2" style="display: none;">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-hand-pointer me-2"></i>Operator Controls</h5>
+                            <small class="text-muted">AB 800T Series Components</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Control Type</th>
+                                            <th>Quantity</th>
+                                            <th>I/O Requirements</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <strong>Momentary Pushbuttons</strong>
+                                                <br><small class="text-muted">Standard push-to-operate buttons</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('momentary_pb', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="momentary_pb" value="0" min="0" max="50" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('momentary_pb', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">1 Digital Input each</small></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>Illuminated Pushbuttons</strong>
+                                                <br><small class="text-muted">Push buttons with LED indicators</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('illuminated_pb', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="illuminated_pb" value="0" min="0" max="50" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('illuminated_pb', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">1 Digital Input + 1 Output each</small></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>Pilot Lights</strong>
+                                                <br><small class="text-muted">Status indicator lights</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('pilot_light', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="pilot_light" value="0" min="0" max="50" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('pilot_light', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">1 Digital Output each</small></td>
+                                        </tr>
+                                        
+                                        <tr class="table-warning">
+                                            <td>
+                                                <strong>E-Stop Buttons</strong>
+                                                <br><small class="text-muted">Emergency stop (safety rated)</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('estop', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="estop" value="1" min="0" max="10" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('estop', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-warning">2 Safety Inputs + 1 Output each</small></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>2-Position Selectors</strong>
+                                                <br><small class="text-muted">On/Off, Hand/Auto switches</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('selector_2pos', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="selector_2pos" value="0" min="0" max="20" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('selector_2pos', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">1 Digital Input each</small></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>3-Position Selectors</strong>
+                                                <br><small class="text-muted">Hand/Off/Auto switches</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('selector_3pos', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="selector_3pos" value="0" min="0" max="20" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('selector_3pos', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">2 Digital Inputs each</small></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>Trap Key Switches</strong>
+                                                <br><small class="text-muted">Key-operated selector switches</small>
+                                            </td>
+                                            <td>
+                                                <div class="input-group" style="max-width: 150px;">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('trap_key', -1)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="number" class="form-control form-control-sm text-center" id="trap_key" value="0" min="0" max="10" onchange="calculateIO()">
+                                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="adjustQuantity('trap_key', 1)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td><small class="text-muted">1 Digital Input each</small></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-microchip me-2"></i>I/O Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="io-summary">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-microchip fa-2x mb-2"></i>
+                                    <p>Select components to see I/O requirements</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: HMI Configuration -->
+        <div class="wizard-step" id="step3" style="display: none;">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-desktop me-2"></i>HMI Configuration</h5>
+                            <small class="text-muted">Hope Industrial Touchscreens</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="hmi-count" class="form-label">Number of HMI Screens</label>
+                                <select class="form-select" id="hmi-count" onchange="generateHMIConfig()">
+                                    <option value="0">No HMI</option>
+                                    <option value="1" selected>1 Screen</option>
+                                    <option value="2">2 Screens</option>
+                                    <option value="3">3 Screens</option>
+                                    <option value="4">4 Screens</option>
+                                </select>
+                            </div>
+                            
+                            <div id="hmi-configurations">
+                                <!-- Dynamic HMI configuration forms will be generated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-desktop me-2"></i>HMI Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="hmi-summary">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-desktop fa-2x mb-2"></i>
+                                    <p>Configure HMI screens</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Standard Components -->
+        <div class="wizard-step" id="step4" style="display: none;">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-toolbox me-2"></i>Standard Components Package</h5>
+                            <small class="text-muted">Pre-selected components typically included</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Standard Package:</strong> These components are typically included in operator desk builds. You can adjust quantities or remove items as needed.
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-power-supply" checked>
+                                        <label class="form-check-label" for="std-power-supply">
+                                            <strong>24VDC Power Supply (5A)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-fuse-holders" checked>
+                                        <label class="form-check-label" for="std-fuse-holders">
+                                            <strong>Fuse Holders (4x)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-temp-switch" checked>
+                                        <label class="form-check-label" for="std-temp-switch">
+                                            <strong>Temperature Switch (100°F)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-cooling-fan" checked>
+                                        <label class="form-check-label" for="std-cooling-fan">
+                                            <strong>Cooling Fan (120CFM)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-receptacle" checked>
+                                        <label class="form-check-label" for="std-receptacle">
+                                            <strong>120VAC Receptacle (GFCI)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="std-lighting" checked>
+                                        <label class="form-check-label" for="std-lighting">
+                                            <strong>Internal LED Lighting</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0">Package Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Selected Components:</strong> <span id="selectedComponentCount">6</span></p>
+                            <p class="mb-0"><small class="text-muted">Terminal blocks and wire management will be automatically calculated based on I/O requirements.</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Review & Generate -->
+        <div class="wizard-step" id="step5" style="display: none;">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-check me-2"></i>Review Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-cog me-2"></i>Basic Configuration</h6>
+                                    <p><strong>Project:</strong> <span id="final-project">-</span></p>
+                                    <p><strong>Desk Name:</strong> <span id="final-desk-name">-</span></p>
+                                    <p><strong>Type:</strong> <span id="final-desk-type">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-hand-pointer me-2"></i>Control Summary</h6>
+                                    <div id="final-control-summary">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div id="final-io-summary">
+                                <!-- I/O summary will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BOM Preview Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>Parts BOM Preview</h5>
+                            <small class="text-muted">Complete Bill of Materials</small>
+                        </div>
+                        <div class="card-body">
+                            <div id="bom-preview-loading" class="text-center text-muted">
+                                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                                <p>Loading BOM preview...</p>
+                            </div>
+                            <div id="bom-preview-content" style="display: none;">
+                                <!-- BOM preview will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0">Ready to Generate</h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-file-invoice-dollar fa-3x text-success mb-2"></i>
+                                <p>Review your configuration and generate the estimate.</p>
+                            </div>
+                            
+                            <!-- Cost Summary -->
+                            <div id="cost-summary" class="alert alert-info mb-3" style="display: none;">
+                                <div class="row text-start">
+                                    <div class="col-6"><small>Materials:</small></div>
+                                    <div class="col-6 text-end"><small id="material-total">-</small></div>
+                                </div>
+                                <div class="row text-start">
+                                    <div class="col-6"><small>Labor:</small></div>
+                                    <div class="col-6 text-end"><small id="labor-total">-</small></div>
+                                </div>
+                                <hr class="my-2">
+                                <div class="row text-start">
+                                    <div class="col-6"><strong>Total:</strong></div>
+                                    <div class="col-6 text-end"><strong id="grand-total">-</strong></div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-lg w-100" id="generateEstimateBtn" onclick="generateEstimate()">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>Generate Estimate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="changeStep(-1)" disabled>
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                    
+                    <div class="text-center">
+                        <span id="step-counter" class="text-muted">Step 1 of 5</span>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">
+                        Next<i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Custom Styles for Wizard -->
+<style>
+.io-bar {
+    height: 25px;
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    display: flex;
+    margin-bottom: 0.5rem;
+}
+
+.io-used {
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0 0.5rem;
+}
+
+.io-spare {
+    background-color: var(--success-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0 0.5rem;
+}
+
+.wizard-step {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.step-indicator .rounded-circle {
+    transition: all 0.3s ease;
+}
+
+.step-indicator.active .rounded-circle {
+    background-color: var(--primary-color) !important;
+}
+
+.step-indicator.completed .rounded-circle {
+    background-color: var(--success-color) !important;
+}
+
+.power-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid var(--warning-color);
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    margin-top: 1rem;
+}
+
+.power-ok {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-left: 4px solid var(--success-color);
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    margin-top: 1rem;
+}
+</style>
+
+<script>
+let currentStep = 1;
+const totalSteps = 5;
+
+// Wizard navigation functions
+function changeStep(direction) {
+    if (direction === 1 && currentStep < totalSteps) {
+        if (validateCurrentStep()) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    } else if (direction === -1 && currentStep > 1) {
+        currentStep--;
+        showStep(currentStep);
+    }
+}
+
+function showStep(step) {
+    // Hide all steps
+    for (let i = 1; i <= totalSteps; i++) {
+        document.getElementById(`step${i}`).style.display = 'none';
+        document.getElementById(`step${i}-indicator`).classList.remove('active');
+        document.getElementById(`step${i}-indicator`).querySelector('.rounded-circle').className = 
+            document.getElementById(`step${i}-indicator`).querySelector('.rounded-circle').className.replace('bg-primary', 'bg-secondary');
+    }
+    
+    // Show current step
+    document.getElementById(`step${step}`).style.display = 'block';
+    document.getElementById(`step${step}-indicator`).classList.add('active');
+    document.getElementById(`step${step}-indicator`).querySelector('.rounded-circle').className = 
+        document.getElementById(`step${step}-indicator`).querySelector('.rounded-circle').className.replace('bg-secondary', 'bg-primary');
+    
+    // Update navigation buttons
+    document.getElementById('prevBtn').disabled = step === 1;
+    document.getElementById('nextBtn').style.display = step === totalSteps ? 'none' : 'block';
+    document.getElementById('step-counter').textContent = `Step ${step} of ${totalSteps}`;
+    
+    // Add generate button on last step
+    if (step === totalSteps) {
+        if (!document.getElementById('generateBtn')) {
+            const generateBtn = document.createElement('button');
+            generateBtn.id = 'generateBtn';
+            generateBtn.type = 'button';
+            generateBtn.className = 'btn btn-success';
+            generateBtn.innerHTML = '<i class="fas fa-file-invoice-dollar me-2"></i>Generate Estimate';
+            generateBtn.onclick = generateEstimate;
+            document.querySelector('.card-body .d-flex').appendChild(generateBtn);
+        }
+    }
+    
+    // Call step-specific actions
+    onStepChange(step);
+}
+
+function validateCurrentStep() {
+    if (currentStep === 1) {
+        const projectSelect = document.getElementById('project-select').value;
+        const deskName = document.getElementById('desk-name').value;
+        const deskType = document.getElementById('desk-type').value;
+        
+        if (!projectSelect || !deskName || !deskType) {
+            alert('Please fill in all required fields');
+            return false;
+        }
+        
+        updatePreview();
+    }
+    return true;
+}
+
+function onStepChange(step) {
+    if (step === 5) {
+        // Update final review display and load BOM preview
+        updateFinalReview();
+    }
+}
+
+function updatePreview() {
+    const projectSelect = document.getElementById('project-select');
+    const deskName = document.getElementById('desk-name').value;
+    const deskType = document.getElementById('desk-type').value;
+    
+    document.getElementById('preview-project').textContent = 
+        projectSelect.options[projectSelect.selectedIndex].text || 'Not selected';
+    document.getElementById('preview-desk').textContent = deskName || 'Not specified';
+    document.getElementById('preview-type').textContent = 
+        deskType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not specified';
+}
+
+function adjustQuantity(controlType, delta) {
+    const input = document.getElementById(controlType);
+    const currentValue = parseInt(input.value) || 0;
+    const newValue = Math.max(0, Math.min(parseInt(input.max), currentValue + delta));
+    input.value = newValue;
+    calculateIO();
+}
+
+function calculateIO() {
+    const controls = {};
+    const controlTypes = ['momentary_pb', 'illuminated_pb', 'pilot_light', 'estop', 'selector_2pos', 'selector_3pos', 'trap_key'];
+    
+    controlTypes.forEach(type => {
+        controls[type] = parseInt(document.getElementById(type).value) || 0;
+    });
+    
+    fetch('/operator-desk/api/calculate-io', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({ controls: controls })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayIOSummary(data.io_analysis);
+        }
+    })
+    .catch(error => {
+        console.error('Error calculating I/O:', error);
+    });
+}
+
+function displayIOSummary(ioAnalysis) {
+    const container = document.getElementById('io-summary');
+    
+    let html = '';
+    
+    if (ioAnalysis.standard_inputs.total > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Standard Digital Inputs</h6>
+                <div class="io-bar">
+                    <div class="io-used" style="width: ${(ioAnalysis.standard_inputs.used / ioAnalysis.standard_inputs.total) * 100}%">
+                        ${ioAnalysis.standard_inputs.used} Used
+                    </div>
+                    <div class="io-spare" style="width: ${(ioAnalysis.standard_inputs.spare / ioAnalysis.standard_inputs.total) * 100}%">
+                        ${ioAnalysis.standard_inputs.spare} Spare (${ioAnalysis.standard_inputs.spare_percent}%)
+                    </div>
+                </div>
+                <small class="text-muted">${ioAnalysis.standard_inputs.total} points total</small>
+            </div>
+        `;
+    }
+    
+    if (ioAnalysis.safety_inputs.total > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Safety Digital Inputs</h6>
+                <div class="io-bar">
+                    <div class="io-used" style="width: ${(ioAnalysis.safety_inputs.used / ioAnalysis.safety_inputs.total) * 100}%">
+                        ${ioAnalysis.safety_inputs.used} Used
+                    </div>
+                    <div class="io-spare" style="width: ${(ioAnalysis.safety_inputs.spare / ioAnalysis.safety_inputs.total) * 100}%">
+                        ${ioAnalysis.safety_inputs.spare} Spare (${ioAnalysis.safety_inputs.spare_percent}%)
+                    </div>
+                </div>
+                <small class="text-muted">${ioAnalysis.safety_inputs.total} points total</small>
+            </div>
+        `;
+    }
+    
+    if (ioAnalysis.outputs.total > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Digital Outputs</h6>
+                <div class="io-bar">
+                    <div class="io-used" style="width: ${(ioAnalysis.outputs.used / ioAnalysis.outputs.total) * 100}%">
+                        ${ioAnalysis.outputs.used} Used
+                    </div>
+                    <div class="io-spare" style="width: ${(ioAnalysis.outputs.spare / ioAnalysis.outputs.total) * 100}%">
+                        ${ioAnalysis.outputs.spare} Spare (${ioAnalysis.outputs.spare_percent}%)
+                    </div>
+                </div>
+                <small class="text-muted">${ioAnalysis.outputs.total} points total</small>
+            </div>
+        `;
+    }
+    
+    // Power analysis
+    const powerClass = ioAnalysis.power_analysis.expansion_power_needed ? 'power-warning' : 'power-ok';
+    const powerIcon = ioAnalysis.power_analysis.expansion_power_needed ? 'exclamation-triangle' : 'check-circle';
+    
+    html += `
+        <div class="${powerClass}">
+            <i class="fas fa-${powerIcon} me-2"></i>
+            <strong>Power:</strong> ${ioAnalysis.power_analysis.total_current_ma}mA
+            ${ioAnalysis.power_analysis.expansion_power_needed ? '<br><small>Expansion power supply added</small>' : '<br><small>Within normal limits</small>'}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function generateEstimate() {
+    const controls = {};
+    const controlTypes = ['momentary_pb', 'illuminated_pb', 'pilot_light', 'estop', 'selector_2pos', 'selector_3pos', 'trap_key'];
+    
+    controlTypes.forEach(type => {
+        controls[type] = parseInt(document.getElementById(type).value) || 0;
+    });
+    
+    // Collect standard components configuration
+    const standardComponents = {};
+    const componentIds = ['std-power-supply', 'std-fuse-holders', 'std-temp-switch', 'std-cooling-fan', 'std-receptacle', 'std-lighting'];
+    componentIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            const componentName = id.replace('std-', '').replace('-', '_');
+            standardComponents[componentName] = element.checked;
+        }
+    });
+    
+    // Collect HMI configuration
+    const hmiCount = parseInt(document.getElementById('hmi-count').value) || 0;
+    const hmiScreens = [];
+    for (let i = 1; i <= hmiCount; i++) {
+        const sizeElement = document.getElementById(`hmi-${i}-size`);
+        const panelMount = document.getElementById(`hmi-${i}-panel`);
+        const swingMount = document.getElementById(`hmi-${i}-swing`);
+        
+        if (sizeElement) {
+            hmiScreens.push({
+                size: sizeElement.value,
+                mounting: panelMount && panelMount.checked ? 'panel' : 'swing_arm'
+            });
+        }
+    }
+    
+    const wizardData = {
+        project_id: document.getElementById('project-select').value,
+        desk_name: document.getElementById('desk-name').value,
+        desk_type: document.getElementById('desk-type').value,
+        controls: controls,
+        standard_components: standardComponents,
+        hmi_screens: hmiScreens
+    };
+    
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+    
+    fetch('/operator-desk/generate-estimate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify(wizardData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Estimate generated successfully!');
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1000);
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-invoice-dollar me-2"></i>Generate Estimate';
+        }
+    })
+    .catch(error => {
+        alert('Error generating estimate');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-invoice-dollar me-2"></i>Generate Estimate';
+    });
+}
+
+function generateHMIConfig() {
+    const hmiCount = parseInt(document.getElementById('hmi-count').value);
+    const container = document.getElementById('hmi-configurations');
+    const summaryContainer = document.getElementById('hmi-summary');
+    
+    if (hmiCount === 0) {
+        container.innerHTML = '<p class="text-muted">No HMI screens selected.</p>';
+        summaryContainer.innerHTML = '<div class="text-center text-muted"><i class="fas fa-desktop fa-2x mb-2"></i><p>No HMI screens</p></div>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 1; i <= hmiCount; i++) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">HMI Screen ${i}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Screen Size</label>
+                            <select class="form-select" id="hmi-${i}-size">
+                                <option value="6">6 inch</option>
+                                <option value="9">9 inch</option>
+                                <option value="12" selected>12 inch</option>
+                                <option value="15">15 inch</option>
+                                <option value="21">21 inch</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mounting</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="hmi-${i}-mount" id="hmi-${i}-panel" value="panel" checked>
+                                <label class="form-check-label" for="hmi-${i}-panel">Panel Mount</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="hmi-${i}-mount" id="hmi-${i}-swing" value="swing_arm">
+                                <label class="form-check-label" for="hmi-${i}-swing">Swing Arm Mount</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Update summary
+    summaryContainer.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-desktop fa-2x text-primary mb-2"></i>
+            <p><strong>${hmiCount}</strong> HMI Screen${hmiCount > 1 ? 's' : ''} selected</p>
+        </div>
+    `;
+}
+
+function updateFinalReview() {
+    // Update basic configuration display
+    const projectSelect = document.getElementById('project-select');
+    const deskName = document.getElementById('desk-name').value;
+    const deskType = document.getElementById('desk-type').value;
+    
+    document.getElementById('final-project').textContent = 
+        projectSelect.options[projectSelect.selectedIndex].text || '-';
+    document.getElementById('final-desk-name').textContent = deskName || '-';
+    document.getElementById('final-desk-type').textContent = 
+        deskType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || '-';
+    
+    // Update control summary
+    const controls = {};
+    const controlTypes = ['momentary_pb', 'illuminated_pb', 'pilot_light', 'estop', 'selector_2pos', 'selector_3pos', 'trap_key'];
+    const controlNames = {
+        'momentary_pb': 'Momentary Pushbuttons',
+        'illuminated_pb': 'Illuminated Pushbuttons',
+        'pilot_light': 'Pilot Lights',
+        'estop': 'E-Stop Buttons',
+        'selector_2pos': '2-Position Selectors',
+        'selector_3pos': '3-Position Selectors',
+        'trap_key': 'Trap Key Switches'
+    };
+    
+    let controlSummaryHtml = '';
+    controlTypes.forEach(type => {
+        const qty = parseInt(document.getElementById(type).value) || 0;
+        if (qty > 0) {
+            controlSummaryHtml += `<p><strong>${controlNames[type]}:</strong> ${qty}</p>`;
+        }
+        controls[type] = qty;
+    });
+    
+    document.getElementById('final-control-summary').innerHTML = controlSummaryHtml;
+    
+    // Update final I/O summary (reuse the current I/O display)
+    const currentIOSummary = document.getElementById('io-summary').innerHTML;
+    document.getElementById('final-io-summary').innerHTML = '<h6><i class="fas fa-microchip me-2"></i>I/O Analysis</h6>' + currentIOSummary;
+    
+    // Load BOM preview
+    loadBOMPreview();
+}
+
+function loadBOMPreview() {
+    // Show loading state
+    document.getElementById('bom-preview-loading').style.display = 'block';
+    document.getElementById('bom-preview-content').style.display = 'none';
+    document.getElementById('cost-summary').style.display = 'none';
+    
+    // Collect current wizard configuration
+    const controls = {};
+    const controlTypes = ['momentary_pb', 'illuminated_pb', 'pilot_light', 'estop', 'selector_2pos', 'selector_3pos', 'trap_key'];
+    
+    controlTypes.forEach(type => {
+        controls[type] = parseInt(document.getElementById(type).value) || 0;
+    });
+    
+    // Collect standard components configuration
+    const standardComponents = {};
+    const componentMapping = {
+        'std-power-supply': 'power_supply',
+        'std-fuse-holders': 'fuse_holders', 
+        'std-temp-switch': 'temp_switch',
+        'std-cooling-fan': 'cooling_fan',
+        'std-receptacle': 'receptacle',
+        'std-lighting': 'lighting'
+    };
+    
+    Object.entries(componentMapping).forEach(([elementId, key]) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            standardComponents[key] = element.checked;
+        }
+    });
+    
+    // Collect HMI configuration
+    const hmiCount = parseInt(document.getElementById('hmi-count').value) || 0;
+    const hmiScreens = [];
+    for (let i = 1; i <= hmiCount; i++) {
+        const sizeElement = document.getElementById(`hmi-${i}-size`);
+        const panelMount = document.getElementById(`hmi-${i}-panel`);
+        
+        if (sizeElement) {
+            hmiScreens.push({
+                size: sizeElement.value,
+                mounting: panelMount && panelMount.checked ? 'panel' : 'swing_arm'
+            });
+        }
+    }
+    
+    const wizardData = {
+        project_id: document.getElementById('project-select').value,
+        desk_name: document.getElementById('desk-name').value,
+        desk_type: document.getElementById('desk-type').value,
+        controls: controls,
+        standard_components: standardComponents,
+        hmi_screens: hmiScreens
+    };
+    
+    // Call BOM preview API
+    fetch('/operator-desk/api/preview-bom', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify(wizardData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayBOMPreview(data.bom_preview);
+        } else {
+            document.getElementById('bom-preview-loading').innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Error loading BOM preview: ${data.error}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading BOM preview:', error);
+        document.getElementById('bom-preview-loading').innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>Error loading BOM preview</p>
+            </div>
+        `;
+    });
+}
+
+function displayBOMPreview(bomPreview) {
+    // Hide loading and show content
+    document.getElementById('bom-preview-loading').style.display = 'none';
+    document.getElementById('bom-preview-content').style.display = 'block';
+    
+    let html = '';
+    
+    // Display Assemblies
+    if (bomPreview.assemblies && bomPreview.assemblies.length > 0) {
+        html += '<h6 class="mb-3"><i class="fas fa-boxes me-2"></i>Assemblies</h6>';
+        
+        bomPreview.assemblies.forEach(assembly => {
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${assembly.assembly_name}</h6>
+                            <small>$${assembly.material_total.toFixed(2)} + $${assembly.labor_total.toFixed(2)} labor</small>
+                        </div>
+                        <small>${assembly.description}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Part</th>
+                                        <th>Part Number</th>
+                                        <th>Qty</th>
+                                        <th>Unit Price</th>
+                                        <th>Total</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            assembly.parts.forEach(part => {
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${part.name}</strong>
+                            <br><small class="text-muted">${part.manufacturer}</small>
+                        </td>
+                        <td><code>${part.part_number}</code></td>
+                        <td><span class="badge bg-secondary">${part.quantity}</span></td>
+                        <td>$${part.unit_price.toFixed(2)}</td>
+                        <td><strong>$${part.total_price.toFixed(2)}</strong></td>
+                        <td><small class="text-muted">${part.notes}</small></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h6>Labor Hours:</h6>
+                                <small>Engineering: ${assembly.labor_hours.engineering}h</small><br>
+                                <small>Panel Shop: ${assembly.labor_hours.panel_shop}h</small><br>
+                                <small>Machine Assembly: ${assembly.labor_hours.machine_assembly}h</small>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Assembly Total:</h6>
+                                <p class="mb-0">Materials: <strong>$${assembly.material_total.toFixed(2)}</strong></p>
+                                <p class="mb-0">Labor: <strong>$${assembly.labor_total.toFixed(2)}</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    // Display Individual Components
+    if (bomPreview.individual_components && bomPreview.individual_components.length > 0) {
+        html += '<h6 class="mb-3 mt-4"><i class="fas fa-cogs me-2"></i>Individual Components</h6>';
+        html += `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Part Number</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                            <th>Category</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        bomPreview.individual_components.forEach(component => {
+            html += `
+                <tr>
+                    <td>
+                        <strong>${component.name}</strong>
+                        <br><small class="text-muted">${component.manufacturer}</small>
+                    </td>
+                    <td><code>${component.part_number}</code></td>
+                    <td><span class="badge bg-info">${component.quantity}</span></td>
+                    <td>$${component.unit_price.toFixed(2)}</td>
+                    <td><strong>$${component.total_price.toFixed(2)}</strong></td>
+                    <td><small class="badge bg-light text-dark">${component.category}</small></td>
+                    <td><small class="text-muted">${component.notes}</small></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    // Display totals summary
+    if (bomPreview.totals) {
+        html += `
+            <div class="alert alert-success mt-4">
+                <h6 class="mb-2"><i class="fas fa-calculator me-2"></i>Cost Summary</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Materials Total:</strong><br>
+                        <h5 class="mb-0 text-primary">$${bomPreview.totals.material_total.toFixed(2)}</h5>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Labor Total:</strong><br>
+                        <h5 class="mb-0 text-info">$${bomPreview.totals.labor_total.toFixed(2)}</h5>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Grand Total:</strong><br>
+                        <h4 class="mb-0 text-success">$${bomPreview.totals.grand_total.toFixed(2)}</h4>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Update cost summary in sidebar
+        document.getElementById('material-total').textContent = '$' + bomPreview.totals.material_total.toFixed(2);
+        document.getElementById('labor-total').textContent = '$' + bomPreview.totals.labor_total.toFixed(2);
+        document.getElementById('grand-total').textContent = '$' + bomPreview.totals.grand_total.toFixed(2);
+        document.getElementById('cost-summary').style.display = 'block';
+    }
+    
+    document.getElementById('bom-preview-content').innerHTML = html;
+}
+
+// Initialize form listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('project-select').addEventListener('change', updatePreview);
+    document.getElementById('desk-name').addEventListener('input', updatePreview);
+    document.getElementById('desk-type').addEventListener('change', updatePreview);
+    
+    // Initialize HMI configuration
+    generateHMIConfig();
+    
+    // Initialize with default E-stop
+    calculateIO();
+});
+</script>
+{% endblock %}

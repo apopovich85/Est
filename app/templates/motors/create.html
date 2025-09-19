@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% block title %}Add Motor/Load - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Add Motor/Load - {{ project.project_name }}</h2>
+                <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Motor/Load List
+                </a>
+            </div>
+
+            <form method="POST" id="motorForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="row">
+                    <!-- Basic Motor Information -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Basic Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="load_type" class="form-label">Type <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="load_type" name="load_type" required>
+                                                <option value="motor" selected>Motor</option>
+                                                <option value="load">Load</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="motor_name" class="form-label">Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="motor_name" name="motor_name" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="location" class="form-label">Location</label>
+                                    <input type="text" class="form-control" id="location" name="location" placeholder="e.g., DRV01, Panel A">
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="encl_type" class="form-label">Enclosure Type</label>
+                                            <input type="text" class="form-control" id="encl_type" name="encl_type" placeholder="e.g., TEFC, ODP">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="frame" class="form-label">Frame</label>
+                                            <input type="text" class="form-control" id="frame" name="frame" placeholder="e.g., 56, 145T">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="speed_range" class="form-label">Speed Range</label>
+                                    <input type="text" class="form-control" id="speed_range" name="speed_range" placeholder="e.g., 1750 RPM">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="additional_notes" class="form-label">Additional Notes</label>
+                                    <textarea class="form-control" id="additional_notes" name="additional_notes" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motor/Load Specifications -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0" id="spec-header">Motor Specifications</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Motor-only fields -->
+                                <div id="motor-fields">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="hp" class="form-label">Horsepower (HP) <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="hp" name="hp" step="0.25" min="0.5">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="voltage" class="form-label">Voltage <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="voltage" name="voltage" required>
+                                                    <option value="">Select Voltage</option>
+                                                    {% for voltage_option in voltage_options %}
+                                                    <option value="{{ voltage_option }}">{{ voltage_option }}V</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Load-only fields -->
+                                <div id="load-fields" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="power_rating" class="form-label">Power <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="power_rating" name="power_rating" step="0.1" min="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="power_unit" class="form-label">Unit <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="power_unit" name="power_unit">
+                                                    <option value="kVA">kVA</option>
+                                                    <option value="Amps">Amps</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="phase_config" class="form-label">Phase <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="phase_config" name="phase_config">
+                                                    <option value="three">Three-phase</option>
+                                                    <option value="single">Single-phase</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="voltage_load" class="form-label">Voltage <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="voltage_load" name="voltage_load">
+                                            <option value="">Select Voltage</option>
+                                            {% for voltage_option in voltage_options %}
+                                            <option value="{{ voltage_option }}">{{ voltage_option }}V</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="qty" class="form-label">Quantity <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="qty" name="qty" min="1" value="1" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4" id="overload-field">
+                                        <div class="mb-3">
+                                            <label for="overload_percentage" class="form-label">Overload % <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="overload_percentage" name="overload_percentage" 
+                                                   step="0.01" min="1.00" max="2.00" value="1.15">
+                                            <div class="form-text">Usually 1.15 (115%) or 1.25 (125%)</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="continuous_load" class="form-label">Continuous Load</label>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox" id="continuous_load" name="continuous_load" checked>
+                                                <label class="form-check-label" for="continuous_load">
+                                                    Continuous (125%)
+                                                </label>
+                                            </div>
+                                            <div class="form-text">
+                                                <strong>NEC Article 100:</strong> A load where maximum current is expected to continue for 3 hours or more
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- NEC Amps Override -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nec_amps_override" name="nec_amps_override">
+                                        <label class="form-check-label" for="nec_amps_override">
+                                            Override NEC Motor Amps
+                                        </label>
+                                    </div>
+                                    <div id="manual_amps_group" class="mt-2" style="display: none;">
+                                        <label for="manual_amps" class="form-label">Manual Amps</label>
+                                        <input type="number" class="form-control" id="manual_amps" name="manual_amps" step="0.1" min="0">
+                                        <div class="form-text">Override calculated NEC amps (for non-standard motors)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VFD Selection (Motor only) -->
+                <div class="row" id="vfd-section">
+                    <div class="col-12">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">VFD Selection</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="vfd_type_id" class="form-label">VFD Type</label>
+                                            <select class="form-select" id="vfd_type_id" name="vfd_type_id">
+                                                <option value="">Select VFD Type</option>
+                                                {% for vfd_type in vfd_types %}
+                                                <option value="{{ vfd_type.vfd_type_id }}">{{ vfd_type.type_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculated Values Display -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Calculated Values</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Motor Amps (NEC)</label>
+                                            <div id="motor_amps_display" class="form-control-plaintext">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Total Amps</label>
+                                            <div id="total_amps_display" class="form-control-plaintext">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Drive Required</label>
+                                            <div id="drive_required_display" class="form-control-plaintext">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label">Recommended VFD</label>
+                                            <div id="recommended_vfd_display" class="form-control-plaintext">-</div>
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox" id="vfd_override" name="vfd_override">
+                                                <label class="form-check-label" for="vfd_override">
+                                                    Override Recommended VFD
+                                                </label>
+                                            </div>
+                                            <div id="vfd_override_group" class="mt-2" style="display: none;">
+                                                <select class="form-select" id="selected_vfd_part_id" name="selected_vfd_part_id">
+                                                    <option value="">Select VFD</option>
+                                                </select>
+                                                <div class="form-text">Choose a specific VFD instead of auto-selection</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+                       class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Motor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle load type switching
+    const loadTypeSelect = document.getElementById('load_type');
+    const motorFields = document.getElementById('motor-fields');
+    const loadFields = document.getElementById('load-fields');
+    const specHeader = document.getElementById('spec-header');
+    const vfdSection = document.getElementById('vfd-section');
+    const overloadField = document.getElementById('overload-field');
+    
+    loadTypeSelect.addEventListener('change', function() {
+        const isLoad = this.value === 'load';
+        
+        if (isLoad) {
+            motorFields.style.display = 'none';
+            loadFields.style.display = 'block';
+            vfdSection.style.display = 'none';
+            overloadField.style.display = 'none';
+            specHeader.textContent = 'Load Specifications';
+            
+            // Make load fields required
+            document.getElementById('power_rating').required = true;
+            document.getElementById('voltage_load').required = true;
+            // Make motor fields optional
+            document.getElementById('hp').required = false;
+            document.getElementById('voltage').required = false;
+            document.getElementById('overload_percentage').required = false;
+        } else {
+            motorFields.style.display = 'block';
+            loadFields.style.display = 'none';
+            vfdSection.style.display = 'block';
+            overloadField.style.display = 'block';
+            specHeader.textContent = 'Motor Specifications';
+            
+            // Make motor fields required
+            document.getElementById('hp').required = true;
+            document.getElementById('voltage').required = true;
+            document.getElementById('overload_percentage').required = true;
+            // Make load fields optional
+            document.getElementById('power_rating').required = false;
+            document.getElementById('voltage_load').required = false;
+        }
+        
+        updateCalculations();
+    });
+
+    // Toggle NEC amps override
+    const necOverrideCheckbox = document.getElementById('nec_amps_override');
+    const manualAmpsGroup = document.getElementById('manual_amps_group');
+    
+    necOverrideCheckbox.addEventListener('change', function() {
+        manualAmpsGroup.style.display = this.checked ? 'block' : 'none';
+        updateCalculations();
+    });
+
+    // Toggle VFD override
+    const vfdOverrideCheckbox = document.getElementById('vfd_override');
+    const vfdOverrideGroup = document.getElementById('vfd_override_group');
+    
+    vfdOverrideCheckbox.addEventListener('change', function() {
+        vfdOverrideGroup.style.display = this.checked ? 'block' : 'none';
+        updateVFDOptions();
+    });
+
+    // Update calculations when values change
+    const calcInputs = ['hp', 'voltage', 'voltage_load', 'qty', 'overload_percentage', 'manual_amps', 'power_rating', 'power_unit', 'phase_config'];
+    calcInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', updateCalculations);
+            element.addEventListener('change', updateCalculations);
+        }
+    });
+
+    // Update VFD options when type changes
+    document.getElementById('vfd_type_id').addEventListener('change', updateVFDOptions);
+
+    function updateCalculations() {
+        const loadType = document.getElementById('load_type').value;
+        const qty = parseInt(document.getElementById('qty').value) || 1;
+        const necOverride = document.getElementById('nec_amps_override').checked;
+        const manualAmps = parseFloat(document.getElementById('manual_amps').value);
+        
+        if (necOverride && manualAmps) {
+            const totalAmps = qty * manualAmps;
+            document.getElementById('motor_amps_display').textContent = manualAmps.toFixed(1) + 'A (Override)';
+            document.getElementById('total_amps_display').textContent = totalAmps.toFixed(1) + 'A';
+            document.getElementById('drive_required_display').textContent = loadType === 'motor' ? (manualAmps * parseFloat(document.getElementById('overload_percentage').value || 1.15)).toFixed(1) + 'A' : 'N/A';
+            return;
+        }
+        
+        if (loadType === 'load') {
+            // Load calculations
+            const powerRating = parseFloat(document.getElementById('power_rating').value);
+            const powerUnit = document.getElementById('power_unit').value;
+            const phaseConfig = document.getElementById('phase_config').value;
+            const voltage = parseFloat(document.getElementById('voltage_load').value);
+            
+            if (!powerRating || !voltage) {
+                document.getElementById('motor_amps_display').textContent = '-';
+                document.getElementById('total_amps_display').textContent = '-';
+                document.getElementById('drive_required_display').textContent = 'N/A';
+                return;
+            }
+            
+            let loadAmps = 0;
+            if (powerUnit === 'Amps') {
+                loadAmps = powerRating;
+            } else if (powerUnit === 'kVA') {
+                if (phaseConfig === 'three') {
+                    loadAmps = (powerRating * 1000) / (voltage * Math.sqrt(3));
+                } else {
+                    loadAmps = (powerRating * 1000) / voltage;
+                }
+            }
+            
+            const totalAmps = qty * loadAmps;
+            const ampsPerPhase = phaseConfig === 'single' ? loadAmps / 3 : loadAmps;
+            
+            document.getElementById('motor_amps_display').textContent = loadAmps.toFixed(1) + 'A' + 
+                (phaseConfig === 'single' ? ' (' + ampsPerPhase.toFixed(1) + 'A/phase)' : '');
+            document.getElementById('total_amps_display').textContent = totalAmps.toFixed(1) + 'A';
+            document.getElementById('drive_required_display').textContent = 'N/A';
+            
+        } else {
+            // Motor calculations
+            const hp = parseFloat(document.getElementById('hp').value);
+            const voltage = parseFloat(document.getElementById('voltage').value);
+            const overload = parseFloat(document.getElementById('overload_percentage').value) || 1.15;
+            
+            if (!hp || !voltage) {
+                document.getElementById('motor_amps_display').textContent = '-';
+                document.getElementById('total_amps_display').textContent = '-';
+                document.getElementById('drive_required_display').textContent = '-';
+                return;
+            }
+            
+            // Fetch NEC amps
+            fetch(`/motors/api/motor_amps?hp=${hp}&voltage=${voltage}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.amps) {
+                        const motorAmps = data.amps;
+                        const totalAmps = qty * motorAmps;
+                        const driveRequired = motorAmps * overload;
+                        
+                        document.getElementById('motor_amps_display').textContent = motorAmps.toFixed(1) + 'A';
+                        document.getElementById('total_amps_display').textContent = totalAmps.toFixed(1) + 'A';
+                        document.getElementById('drive_required_display').textContent = driveRequired.toFixed(1) + 'A';
+                        
+                        updateRecommendedVFD(driveRequired);
+                        updateVFDOptions();
+                    } else {
+                        document.getElementById('motor_amps_display').textContent = 'Not Found';
+                        document.getElementById('total_amps_display').textContent = '-';
+                        document.getElementById('drive_required_display').textContent = '-';
+                    }
+                });
+        }
+    }
+
+    function updateRecommendedVFD(requiredCurrent) {
+        const vfdTypeId = document.getElementById('vfd_type_id').value;
+        if (!vfdTypeId || !requiredCurrent) {
+            document.getElementById('recommended_vfd_display').textContent = '-';
+            return;
+        }
+
+        fetch(`/motors/api/vfd_options_by_type?vfd_type_id=${vfdTypeId}&required_current=${requiredCurrent}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const recommended = data[0]; // First one is the smallest sufficient
+                    document.getElementById('recommended_vfd_display').textContent = 
+                        `${recommended.part_number} (${recommended.rating}A)`;
+                } else {
+                    document.getElementById('recommended_vfd_display').textContent = 'None Available';
+                }
+            });
+    }
+
+    function updateVFDOptions() {
+        const vfdTypeId = document.getElementById('vfd_type_id').value;
+        const driveRequiredText = document.getElementById('drive_required_display').textContent;
+        const driveRequired = parseFloat(driveRequiredText.replace('A', '')) || 0;
+        
+        const vfdSelect = document.getElementById('selected_vfd_part_id');
+        vfdSelect.innerHTML = '<option value="">Select VFD</option>';
+
+        if (!vfdTypeId) return;
+
+        fetch(`/motors/api/vfd_options_by_type?vfd_type_id=${vfdTypeId}&required_current=${driveRequired}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(vfd => {
+                    const option = document.createElement('option');
+                    option.value = vfd.part_id;
+                    option.textContent = `${vfd.part_number} - ${vfd.rating}A - $${vfd.current_price.toFixed(2)}`;
+                    vfdSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching VFD options:', error);
+            });
+    }
+    
+});
+</script>
+{% endblock %}
