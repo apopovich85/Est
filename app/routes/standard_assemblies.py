@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from app.models import StandardAssembly, StandardAssemblyComponent, AssemblyVersion, Parts, Assembly, AssemblyPart, Estimate, Project, AssemblyCategory, PartCategory
 from app import db, csrf
 from datetime import datetime
@@ -58,9 +58,18 @@ def get_assembly_versions(standard_assembly_id):
         
         versions_data = []
         for version in versions:
+            # Get version notes from AssemblyVersion table if it exists
+            version_record = AssemblyVersion.query.filter_by(
+                standard_assembly_id=version.standard_assembly_id,
+                version_number=version.version
+            ).first()
+            
+            version_notes = version_record.notes if version_record and version_record.notes else ''
+            
             versions_data.append({
                 'standard_assembly_id': version.standard_assembly_id,
                 'version': version.version,
+                'version_notes': version_notes,
                 'is_active': version.is_active,
                 'is_template': version.is_template,
                 'created_at': version.created_at.isoformat() if version.created_at else None
@@ -434,17 +443,41 @@ def apply_interface():
 @csrf.exempt
 def apply_to_estimate(assembly_id, estimate_id):
     """Apply a standard assembly to an estimate with optional quantity multiplier"""
+    print(f"=== APPLY ASSEMBLY REQUEST ===")
+    print(f"Assembly ID: {assembly_id}, Estimate ID: {estimate_id}")
+    print(f"Request method: {request.method}")
+    print(f"Content-Type: {request.content_type}")
+    print(f"Is JSON: {request.is_json}")
+    print(f"Raw data: {request.data}")
+    
     try:
         standard_assembly = StandardAssembly.query.get_or_404(assembly_id)
         estimate = Estimate.query.get_or_404(estimate_id)
         
+        print(f"Found assembly: {standard_assembly.name}")
+        print(f"Found estimate: {estimate.estimate_name}")
+        
         # Get quantity from request data
         quantity_multiplier = 1
-        if request.is_json and request.json:
-            quantity_multiplier = max(1, int(request.json.get('quantity', 1)))
+        json_data = None
+        
+        if request.is_json:
+            try:
+                json_data = request.get_json(force=False, silent=True)
+                print(f"DEBUG: JSON data parsed successfully: {json_data}")
+            except Exception as json_error:
+                print(f"DEBUG: JSON parsing failed: {str(json_error)}")
+                json_data = None
+        
+        if json_data:
+            quantity_multiplier = max(1, int(json_data.get('quantity', 1)))
             print(f"DEBUG: Received quantity: {quantity_multiplier}")
         else:
-            print(f"DEBUG: No JSON data received. Content-Type: {request.content_type}")
+            print(f"DEBUG: No valid JSON data. Content-Type: {request.content_type}")
+            print(f"DEBUG: Request form data: {request.form}")
+            print(f"DEBUG: Raw request data: {request.data}")
+            # Use default quantity of 1
+            
     except Exception as e:
         print(f"ERROR: Exception in apply_to_estimate setup: {str(e)}")
         import traceback
@@ -481,18 +514,34 @@ def apply_to_estimate(assembly_id, estimate_id):
         db.session.flush()  # Get the assembly ID
         
         # Copy all components from standard assembly with quantity multiplier
-        for std_component in standard_assembly.components:
-            assembly_part = AssemblyPart(
-                assembly_id=new_assembly.assembly_id,
-                part_id=std_component.part_id,
-                quantity=std_component.quantity * quantity_multiplier,
-                unit_of_measure=std_component.unit_of_measure,
-                notes=std_component.notes,
-                sort_order=std_component.sort_order
-            )
-            db.session.add(assembly_part)
+        components = standard_assembly.components
+        print(f"DEBUG: Found {len(components)} components to copy")
         
+        if not components:
+            print(f"WARNING: Standard assembly {assembly_id} has no components!")
+        
+        for i, std_component in enumerate(components):
+            print(f"DEBUG: Processing component {i+1}/{len(components)}: Part ID {std_component.part_id}")
+            
+            try:
+                assembly_part = AssemblyPart(
+                    assembly_id=new_assembly.assembly_id,
+                    part_id=std_component.part_id,
+                    quantity=std_component.quantity * quantity_multiplier,
+                    unit_of_measure=std_component.unit_of_measure,
+                    notes=std_component.notes,
+                    sort_order=std_component.sort_order
+                )
+                db.session.add(assembly_part)
+                print(f"DEBUG: Added assembly part for part ID {std_component.part_id}")
+                
+            except Exception as part_error:
+                print(f"ERROR: Failed to create assembly part for component {i+1}: {str(part_error)}")
+                raise
+        
+        print(f"DEBUG: Committing transaction...")
         db.session.commit()
+        print(f"DEBUG: Transaction committed successfully")
         
         # Create success message based on quantity
         message = f'Standard assembly "{standard_assembly.name}"'
@@ -962,4 +1011,101 @@ def bulk_delete_assemblies():
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/version/<int:assembly_id>/name', methods=['POST'])
+def update_version_name(assembly_id):
+    """Update the name/notes for a specific assembly version"""
+    try:
+        data = request.get_json()
+        new_name = data.get('name', '').strip()
+        version_number = data.get('version')
+        
+        if not version_number:
+            return jsonify({'success': False, 'error': 'Version number is required'})
+        
+        # Find the AssemblyVersion record for this specific assembly and version
+        version_record = AssemblyVersion.query.filter_by(
+            standard_assembly_id=assembly_id,
+            version_number=version_number
+        ).first()
+        
+        if not version_record:
+            # Create a new AssemblyVersion record if it doesn't exist
+            version_record = AssemblyVersion(
+                standard_assembly_id=assembly_id,
+                version_number=version_number,
+                notes=new_name,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(version_record)
+        else:
+            # Update existing record
+            version_record.notes = new_name
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Version name updated successfully',
+            'version': version_number,
+            'name': new_name
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating version name: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/version/<int:assembly_id>/description', methods=['POST'])
+def update_version_description(assembly_id):
+    """Update the description for a specific assembly version"""
+    try:
+        data = request.get_json()
+        new_description = data.get('description', '').strip()
+        
+        # Update the StandardAssembly record directly
+        assembly = StandardAssembly.query.get_or_404(assembly_id)
+        assembly.description = new_description
+        assembly.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Description updated successfully',
+            'description': new_description
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating version description: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp.route('/api/<int:assembly_id>/info')
+def api_get_assembly_info(assembly_id):
+    """Get detailed information for a standard assembly"""
+    try:
+        assembly = StandardAssembly.query.get_or_404(assembly_id)
+        
+        return jsonify({
+            'success': True,
+            'assembly_id': assembly.standard_assembly_id,
+            'name': assembly.name,
+            'description': assembly.description or '',
+            'version': assembly.version,
+            'is_active': assembly.is_active,
+            'created_at': assembly.created_at.isoformat() if assembly.created_at else None,
+            'updated_at': assembly.updated_at.isoformat() if assembly.updated_at else None,
+            'created_by': assembly.created_by or '',
+            'category': assembly.category.name if assembly.category else '',
+            'total_cost': float(assembly.total_cost),
+            'component_count': assembly.component_count
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting assembly info: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -34,47 +34,6 @@ def create_assembly(estimate_id):
     
     return render_template('assemblies/create.html', estimate=estimate)
 
-@bp.route('/manage_hours/<int:estimate_id>')
-def manage_hours(estimate_id):
-    """Manage time estimates for all assemblies in an estimate"""
-    estimate = Estimate.query.get_or_404(estimate_id)
-    assemblies = Assembly.query.filter_by(estimate_id=estimate_id).order_by(Assembly.sort_order).all()
-    
-    return render_template('assemblies/manage_hours.html', estimate=estimate, assemblies=assemblies)
-
-@bp.route('/update_hours/<int:estimate_id>', methods=['POST'])
-@csrf.exempt
-def update_hours(estimate_id):
-    """Update time estimates for multiple assemblies"""
-    estimate = Estimate.query.get_or_404(estimate_id)
-    
-    try:
-        # Process each assembly's time data
-        for assembly in estimate.assemblies:
-            assembly_id = assembly.assembly_id
-            
-            # Get form data for this assembly
-            engineering_hours = request.form.get(f'engineering_hours_{assembly_id}', 0)
-            panel_shop_hours = request.form.get(f'panel_shop_hours_{assembly_id}', 0)
-            machine_assembly_hours = request.form.get(f'machine_assembly_hours_{assembly_id}', 0)
-            estimated_by = request.form.get(f'estimated_by_{assembly_id}', '')
-            time_estimate_notes = request.form.get(f'time_estimate_notes_{assembly_id}', '')
-            
-            # Update assembly with new values
-            assembly.engineering_hours = float(engineering_hours or 0)
-            assembly.panel_shop_hours = float(panel_shop_hours or 0)
-            assembly.machine_assembly_hours = float(machine_assembly_hours or 0)
-            assembly.estimated_by = estimated_by
-            assembly.time_estimate_notes = time_estimate_notes
-        
-        db.session.commit()
-        flash('Time estimates updated successfully!', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating time estimates: {str(e)}', 'error')
-    
-    return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
 
 @bp.route('/delete/<int:assembly_id>', methods=['POST'])
 @csrf.exempt
@@ -192,11 +151,6 @@ def refresh_assembly_to_active(assembly_id):
         if not active_standard:
             return jsonify({'success': False, 'error': 'No active version found for this standard assembly'}), 400
         
-        # Store existing quantities before updating
-        existing_quantities = {}
-        for assembly_part in assembly.assembly_parts:
-            existing_quantities[assembly_part.part_id] = float(assembly_part.quantity)
-        
         # Delete existing assembly parts
         for assembly_part in assembly.assembly_parts:
             db.session.delete(assembly_part)
@@ -207,11 +161,8 @@ def refresh_assembly_to_active(assembly_id):
         ).order_by(StandardAssemblyComponent.sort_order).all()
         
         for std_component in active_components:
-            # Use existing quantity if part was already in assembly, otherwise use standard quantity * assembly quantity
-            if std_component.part_id in existing_quantities:
-                quantity_to_use = existing_quantities[std_component.part_id]
-            else:
-                quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
+            # Always recalculate quantity based on standard quantity * assembly quantity
+            quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
             
             new_assembly_part = AssemblyPart(
                 assembly_id=assembly.assembly_id,
@@ -274,11 +225,6 @@ def change_assembly_version(assembly_id):
         if not target_standard:
             return jsonify({'success': False, 'error': f'Version {new_version} not found'}), 404
         
-        # Store existing quantities before updating
-        existing_quantities = {}
-        for assembly_part in assembly.assembly_parts:
-            existing_quantities[assembly_part.part_id] = float(assembly_part.quantity)
-        
         # Delete existing assembly parts
         for assembly_part in assembly.assembly_parts:
             db.session.delete(assembly_part)
@@ -289,11 +235,8 @@ def change_assembly_version(assembly_id):
         ).order_by(StandardAssemblyComponent.sort_order).all()
         
         for std_component in target_components:
-            # Use existing quantity if part was already in assembly, otherwise use standard quantity * assembly quantity
-            if std_component.part_id in existing_quantities:
-                quantity_to_use = existing_quantities[std_component.part_id]
-            else:
-                quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
+            # Always recalculate quantity based on standard quantity * assembly quantity
+            quantity_to_use = float(std_component.quantity) * float(assembly.quantity or 1.0)
             
             new_assembly_part = AssemblyPart(
                 assembly_id=assembly.assembly_id,
@@ -314,6 +257,81 @@ def change_assembly_version(assembly_id):
             'success': True,
             'message': f'Assembly changed to version {new_version}',
             'new_version': new_version
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:assembly_id>/copy', methods=['POST'])
+@csrf.exempt
+def copy_assembly(assembly_id):
+    """Copy an assembly to another estimate"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        target_estimate_id = data.get('target_estimate_id')
+        assembly_name = data.get('assembly_name', '').strip()
+        copy_components = data.get('copy_components', True)
+        
+        if not target_estimate_id or not assembly_name:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        # Get source assembly
+        source_assembly = Assembly.query.get_or_404(assembly_id)
+        
+        # Verify target estimate exists
+        target_estimate = Estimate.query.get(target_estimate_id)
+        if not target_estimate:
+            return jsonify({'success': False, 'error': 'Target estimate not found'}), 404
+        
+        # Get the highest sort order for target estimate
+        max_sort = db.session.query(db.func.max(Assembly.sort_order))\
+            .filter_by(estimate_id=target_estimate_id).scalar() or 0
+        
+        # Create new assembly
+        new_assembly = Assembly(
+            estimate_id=target_estimate_id,
+            assembly_name=assembly_name,
+            description=source_assembly.description,
+            sort_order=max_sort + 1,
+            standard_assembly_id=source_assembly.standard_assembly_id,
+            standard_assembly_version=source_assembly.standard_assembly_version,
+            quantity=source_assembly.quantity or 1
+        )
+        
+        db.session.add(new_assembly)
+        db.session.flush()  # Get the new assembly ID
+        
+        components_copied = 0
+        
+        # Copy assembly parts if requested
+        if copy_components and source_assembly.assembly_parts:
+            for source_part in source_assembly.assembly_parts:
+                new_part = AssemblyPart(
+                    assembly_id=new_assembly.assembly_id,
+                    part_id=source_part.part_id,
+                    quantity=source_part.quantity,
+                    unit_of_measure=source_part.unit_of_measure,
+                    sort_order=source_part.sort_order,
+                    notes=source_part.notes
+                )
+                db.session.add(new_part)
+                components_copied += 1
+        
+        db.session.commit()
+        
+        message = f'Assembly copied successfully!'
+        if copy_components:
+            message += f' {components_copied} components copied.'
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'new_assembly_id': new_assembly.assembly_id,
+            'components_copied': components_copied
         })
         
     except Exception as e:

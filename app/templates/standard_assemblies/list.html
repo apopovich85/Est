@@ -201,10 +201,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="createVersionForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <p>Create a new version of <strong id="versionAssemblyName"></strong>?</p>
                     <div class="mb-3">
-                        <label for="versionNotes" class="form-label">Version Notes</label>
+                        <label for="versionNotes" class="form-label">Version Name</label>
                         <textarea class="form-control" id="versionNotes" name="notes" rows="3"
                                 placeholder="Describe what changed in this version..."></textarea>
                     </div>
@@ -260,7 +261,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <script>
 // Global variables
 let currentAssemblyId = null;

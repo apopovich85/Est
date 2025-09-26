@@ -22,22 +22,25 @@
             </div>
         </div>
         <p class="text-muted mb-0">
-            Estimate #{{ estimate.estimate_number }} | 
+            Estimate #{{ estimate.estimate_number }} | Rev. {{ estimate.revision_number }} | 
             Project: <a href="{{ url_for('projects.detail_project', project_id=estimate.project_id) }}">
                 {{ estimate.project.project_name }}
             </a>
         </p>
     </div>
     <div>
-        {% if assemblies or individual_components %}
-        <a href="{{ url_for('estimates.manage_all_hours', estimate_id=estimate.estimate_id) }}" 
-           class="btn btn-warning me-2">
-            <i class="fas fa-clock"></i> Manage Hours
-        </a>
-        {% endif %}
         <button type="button" class="btn btn-success me-2" onclick="showBOMModal()">
             <i class="fas fa-file-invoice"></i> Bill of Materials
         </button>
+        <div class="btn-group me-2" role="group">
+            <button type="button" class="btn btn-info" onclick="showRevisionModal()">
+                <i class="fas fa-code-branch"></i> Create Revision
+            </button>
+            <a href="{{ url_for('estimates.revision_history', estimate_id=estimate.estimate_id) }}" 
+               class="btn btn-outline-info">
+                <i class="fas fa-history"></i> History
+            </a>
+        </div>
         <a href="{{ url_for('assemblies.create_assembly', estimate_id=estimate.estimate_id) }}" 
            class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Assembly
@@ -72,6 +75,53 @@
                         </small>
                     </dd>
                 </dl>
+                
+                <!-- Labor Hours Section -->
+                <hr>
+                <form method="POST" action="{{ url_for('estimates.update_labor_hours', estimate_id=estimate.estimate_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <h6 class="mb-3">
+                        <i class="fas fa-clock text-primary"></i> Labor Hours
+                        <button type="submit" class="btn btn-sm btn-primary float-end">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="engineering_hours" class="form-label">Engineering</label>
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
+                                   id="engineering_hours" name="engineering_hours" 
+                                   value="{{ estimate.engineering_hours or 0 }}"
+                                   onchange="updateLaborCosts()">
+                            <small class="text-primary">${{ estimate.engineering_rate|round(0)|int }}/hr = ${{ estimate.total_engineering_cost|round(0)|int }}</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="panel_shop_hours" class="form-label">Panel Shop</label>
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
+                                   id="panel_shop_hours" name="panel_shop_hours" 
+                                   value="{{ estimate.panel_shop_hours or 0 }}"
+                                   onchange="updateLaborCosts()">
+                            <small class="text-warning">${{ estimate.panel_shop_rate|round(0)|int }}/hr = ${{ estimate.total_panel_shop_cost|round(0)|int }}</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="machine_assembly_hours" class="form-label">Assembly</label>
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
+                                   id="machine_assembly_hours" name="machine_assembly_hours" 
+                                   value="{{ estimate.machine_assembly_hours or 0 }}"
+                                   onchange="updateLaborCosts()">
+                            <small class="text-success">${{ estimate.machine_assembly_rate|round(0)|int }}/hr = ${{ estimate.total_machine_assembly_cost|round(0)|int }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="text-center">
+                                <strong>Total: {{ estimate.total_hours|round(1) }} hrs = ${{ estimate.total_labor_cost|round(0)|int }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -84,17 +134,17 @@
             <div class="card-body">
                 <div class="text-center">
                     <!-- Grand Total -->
-                    <h2 class="text-dark mb-1">${{ "{:,.2f}".format(estimate.grand_total) }}</h2>
+                    <h2 class="text-dark mb-1" id="grandTotal">{{ estimate.grand_total|currency }}</h2>
                     <p class="text-muted mb-3">Grand Total</p>
                     
                     <!-- Breakdown -->
                     <div class="row mb-3">
                         <div class="col-6">
-                            <h4 class="text-success mb-0">${{ "{:,.2f}".format(estimate.calculated_total) }}</h4>
+                            <h4 class="text-success mb-0" id="materialsTotal">{{ estimate.calculated_total|currency }}</h4>
                             <small class="text-muted">Materials</small>
                         </div>
                         <div class="col-6">
-                            <h4 class="text-info mb-0">${{ "{:,.2f}".format(estimate.total_labor_cost) }}</h4>
+                            <h4 class="text-info mb-0" id="laborTotal">{{ estimate.total_labor_cost|currency }}</h4>
                             <small class="text-muted">Labor</small>
                         </div>
                     </div>
@@ -104,23 +154,23 @@
                     <div class="row text-center">
                         {% if estimate.total_engineering_hours > 0 %}
                         <div class="col-4">
-                            <small class="text-primary">{{ "{:.1f}".format(estimate.total_engineering_hours) }}h</small>
+                            <small class="text-primary">{{ estimate.total_engineering_hours|round(1) }}h</small>
                             <br><small class="text-muted">Eng</small>
-                            <br><small class="text-primary">${{ "{:,.0f}".format(estimate.total_engineering_cost) }}</small>
+                            <br><small class="text-primary">${{ estimate.total_engineering_cost|round(0)|int }}</small>
                         </div>
                         {% endif %}
                         {% if estimate.total_panel_shop_hours > 0 %}
                         <div class="col-4">
-                            <small class="text-warning">{{ "{:.1f}".format(estimate.total_panel_shop_hours) }}h</small>
+                            <small class="text-warning">{{ estimate.total_panel_shop_hours|round(1) }}h</small>
                             <br><small class="text-muted">Panel</small>
-                            <br><small class="text-warning">${{ "{:,.0f}".format(estimate.total_panel_shop_cost) }}</small>
+                            <br><small class="text-warning">${{ estimate.total_panel_shop_cost|round(0)|int }}</small>
                         </div>
                         {% endif %}
                         {% if estimate.total_machine_assembly_hours > 0 %}
                         <div class="col-4">
-                            <small class="text-success">{{ "{:.1f}".format(estimate.total_machine_assembly_hours) }}h</small>
+                            <small class="text-success">{{ estimate.total_machine_assembly_hours|round(1) }}h</small>
                             <br><small class="text-muted">Mach</small>
-                            <br><small class="text-success">${{ "{:,.0f}".format(estimate.total_machine_assembly_cost) }}</small>
+                            <br><small class="text-success">${{ estimate.total_machine_assembly_cost|round(0)|int }}</small>
                         </div>
                         {% endif %}
                     </div>
@@ -158,65 +208,85 @@
     <div class="card-body" id="assemblies-container">
         {% if assemblies %}
             {% for assembly in assemblies %}
-            <div class="card mb-3 assembly-item" 
-                 draggable="true" 
+            <div class="card mb-3 assembly-item assembly-card" 
                  data-assembly-id="{{ assembly.assembly_id }}"
                  data-sort-order="{{ assembly.sort_order }}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <div class="drag-handle me-2" style="cursor: grab; color: #6c757d;" title="Drag to reorder">
-                            <i class="fas fa-grip-vertical"></i>
-                        </div>
-                        <h6 class="card-title mb-0 me-3">{{ assembly.assembly_name }}</h6>
-                        {% if assembly.standard_assembly_id %}
+                <div class="card-header py-3">
+                    <!-- Top row: Assembly name and total -->
+                    <div class="d-flex align-items-center justify-content-between mb-2">
                         <div class="d-flex align-items-center">
-                            <label class="form-label mb-0 me-2 text-muted small">Version:</label>
-                            <select class="form-select form-select-sm me-2 assembly-version-select" 
-                                    style="width: 100px;"
-                                    data-assembly-id="{{ assembly.assembly_id }}"
-                                    data-current-version="{{ assembly.standard_assembly_version }}">
-                                <!-- Options will be loaded dynamically -->
-                            </select>
-                            <label class="form-label mb-0 me-2 text-muted small">Qty:</label>
-                            <input type="number" class="form-control form-control-sm assembly-quantity-input" 
-                                   style="width: 80px;" min="1" step="1"
-                                   value="{{ assembly.quantity or 1 }}"
-                                   data-assembly-id="{{ assembly.assembly_id }}"
-                                   data-original-quantity="{{ assembly.quantity or 1 }}">
+                            <div class="drag-handle-area d-flex align-items-center" draggable="true" 
+                                 style="cursor: grab; padding: 5px;" title="Drag to reorder">
+                                <div class="drag-handle me-2" style="color: #6c757d;">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </div>
+                                <h6 class="card-title mb-0">{{ assembly.assembly_name }}</h6>
+                            </div>
                         </div>
-                        {% endif %}
+                        
+                        <!-- Materials cost aligned with table Total column -->
+                        <div class="d-flex align-items-center">
+                            <div class="text-end me-3">
+                                <div class="fw-bold text-dark assembly-total">
+                                    Materials: {{ assembly.calculated_total|currency }}
+                                </div>
+                            </div>
+                            <form method="POST" action="{{ url_for('assemblies.delete_assembly', assembly_id=assembly.assembly_id) }}" 
+                                  style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this assembly and all its components?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Assembly">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                    <div class="text-end">
-                        <div class="small">
-                            <span class="text-muted">Materials: ${{ "{:,.2f}".format(assembly.calculated_total) }}</span>
-                            {% if assembly.total_labor_cost > 0 %}
-                                <span class="text-info">Labor: ${{ "{:,.2f}".format(assembly.total_labor_cost) }}</span>
+                    
+                    <!-- Bottom row: Controls and actions -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            {% if assembly.standard_assembly_id %}
+                            <div class="d-flex align-items-center me-4">
+                                <label class="form-label mb-0 me-2 text-muted small">Version:</label>
+                                <select class="form-select form-select-sm me-3 assembly-version-select" 
+                                        style="width: 280px;"
+                                        data-assembly-id="{{ assembly.assembly_id }}"
+                                        data-current-version="{{ assembly.standard_assembly_version }}">
+                                    <!-- Options will be loaded dynamically -->
+                                </select>
+                                <label class="form-label mb-0 me-2 text-muted small">Qty:</label>
+                                <input type="number" class="form-control form-control-sm assembly-quantity-input" 
+                                       style="width: 80px;" min="1" step="1"
+                                       value="{{ assembly.quantity or 1 }}"
+                                       data-assembly-id="{{ assembly.assembly_id }}"
+                                       data-original-quantity="{{ assembly.quantity or 1 }}">
+                            </div>
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="btn-group">
-                        {% if assembly.standard_assembly_id %}
-                        <button type="button" class="btn btn-sm btn-outline-success refresh-assembly-btn" 
-                                title="Refresh to current active version" 
-                                data-assembly-id="{{ assembly.assembly_id }}"
-                                data-standard-assembly-id="{{ assembly.standard_assembly_id }}">
-                            <i class="fas fa-sync"></i> Refresh
-                        </button>
-                        {% endif %}
-                        <a href="{{ url_for('components.manage_components', assembly_id=assembly.assembly_id) }}" 
-                           class="btn btn-sm btn-primary">
-                            <i class="fas fa-table"></i> Manage Components
-                        </a>
-                        <a href="{{ url_for('components.create_component', assembly_id=assembly.assembly_id) }}" 
-                           class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-plus"></i> Add Component
-                        </a>
-                        <form method="POST" action="{{ url_for('assemblies.delete_assembly', assembly_id=assembly.assembly_id) }}" 
-                              style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this assembly and all its components?')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Assembly">
-                                <i class="fas fa-trash"></i>
+
+                        <!-- Action buttons -->
+                        <div class="btn-group">
+                            {% if assembly.standard_assembly_id %}
+                            <button type="button" class="btn btn-sm btn-outline-success refresh-assembly-btn" 
+                                    title="Refresh to current active version" 
+                                    data-assembly-id="{{ assembly.assembly_id }}"
+                                    data-standard-assembly-id="{{ assembly.standard_assembly_id }}">
+                                <i class="fas fa-sync"></i> Refresh
                             </button>
-                        </form>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary copy-assembly-btn" 
+                                    title="Copy assembly to another estimate" 
+                                    data-assembly-id="{{ assembly.assembly_id }}"
+                                    data-assembly-name="{{ assembly.assembly_name }}">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                            <a href="{{ url_for('components.manage_components', assembly_id=assembly.assembly_id) }}" 
+                               class="btn btn-sm btn-primary">
+                                <i class="fas fa-table"></i> Manage Components
+                            </a>
+                            <a href="{{ url_for('components.create_component', assembly_id=assembly.assembly_id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-plus"></i> Add Component
+                            </a>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -224,71 +294,49 @@
                         <p class="text-muted">{{ assembly.description }}</p>
                     {% endif %}
                     
-                    <!-- Time Estimation Details -->
-                    {% if assembly.total_hours > 0 %}
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="bg-light p-3 rounded">
-                                <div class="row">
-                                    {% if assembly.engineering_hours > 0 %}
-                                    <div class="col-md-4">
-                                        <div class="text-center">
-                                            <span class="badge bg-primary mb-1">Engineering</span>
-                                            <br><small>{{ "{:.2f}".format(assembly.engineering_hours) }} hrs @ $145/hr</small>
-                                            <br><strong class="text-primary">${{ "{:,.2f}".format(assembly.calculated_engineering_cost) }}</strong>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                    {% if assembly.panel_shop_hours > 0 %}
-                                    <div class="col-md-4">
-                                        <div class="text-center">
-                                            <span class="badge bg-warning mb-1">Panel Shop</span>
-                                            <br><small>{{ "{:.2f}".format(assembly.panel_shop_hours) }} hrs @ $125/hr</small>
-                                            <br><strong class="text-warning">${{ "{:,.2f}".format(assembly.calculated_panel_shop_cost) }}</strong>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                    {% if assembly.machine_assembly_hours > 0 %}
-                                    <div class="col-md-4">
-                                        <div class="text-center">
-                                            <span class="badge bg-success mb-1">Machine Assembly</span>
-                                            <br><small>{{ "{:.2f}".format(assembly.machine_assembly_hours) }} hrs @ $125/hr</small>
-                                            <br><strong class="text-success">${{ "{:,.2f}".format(assembly.calculated_machine_assembly_cost) }}</strong>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% if assembly.estimated_by %}
-                                    <hr class="my-2">
-                                    <small class="text-muted">Estimated by: {{ assembly.estimated_by }}</small>
-                                {% endif %}
-                                {% if assembly.time_estimate_notes %}
-                                    <br><small class="text-muted">{{ assembly.time_estimate_notes }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                     
                     {% if assembly.assembly_parts %}
                         <div class="table-responsive">
-                            <table class="table table-sm estimate-table table-layout-fixed">
+                            <table class="table table-sm estimate-table table-layout-fixed sortable-table" data-assembly-id="{{ assembly.assembly_id }}">
                                 <thead>
                                     <tr>
-                                        <th>Part</th>
-                                        <th>Item #</th>
-                                        <th>Part #</th>
-                                        <th>Manufacturer</th>
-                                        <th class="text-end">Unit Price</th>
-                                        <th class="text-center">Quantity</th>
-                                        <th class="text-center">UOM</th>
-                                        <th class="text-end">Total</th>
+                                        <th class="sortable" data-column="part" style="cursor: pointer;">
+                                            Part <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable" data-column="item_number" style="cursor: pointer;">
+                                            Item # <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable" data-column="part_number" style="cursor: pointer;">
+                                            Part # <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable" data-column="manufacturer" style="cursor: pointer;">
+                                            Manufacturer <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable text-end" data-column="unit_price" style="cursor: pointer;">
+                                            Unit Price <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable text-center" data-column="quantity" style="cursor: pointer;">
+                                            Quantity <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable text-center" data-column="uom" style="cursor: pointer;">
+                                            UOM <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
+                                        <th class="sortable text-end" data-column="total" style="cursor: pointer;">
+                                            Total <i class="fas fa-sort text-muted sort-icon"></i>
+                                        </th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for assembly_part in assembly.assembly_parts %}
-                                    <tr>
+                                    <tr data-part="{{ assembly_part.component_name|lower }}"
+                                        data-item-number="{{ assembly_part.part.master_item_number or '' }}"
+                                        data-part-number="{{ assembly_part.part.part_number or '' }}"
+                                        data-manufacturer="{{ assembly_part.part.manufacturer or '' }}"
+                                        data-unit-price="{{ assembly_part.unit_price }}"
+                                        data-quantity="{{ assembly_part.quantity }}"
+                                        data-uom="{{ assembly_part.unit_of_measure }}"
+                                        data-total="{{ assembly_part.total_price }}">
                                         <td>
                                             <strong>{{ assembly_part.component_name }}</strong>
                                             {% if assembly_part.notes %}
@@ -298,19 +346,19 @@
                                         <td>{{ assembly_part.part.master_item_number or '-' }}</td>
                                         <td>{{ assembly_part.part.part_number or '-' }}</td>
                                         <td>{{ assembly_part.part.manufacturer or '-' }}</td>
-                                        <td>${{ "{:,.2f}".format(assembly_part.unit_price) }}</td>
+                                        <td>{{ assembly_part.unit_price|currency }}</td>
                                         <td>
                                             <input type="number" class="form-control form-control-sm component-quantity-input" 
-                                                   style="width: 80px;" step="0.001" min="0.001"
-                                                   value="{{ assembly_part.quantity }}"
+                                                   style="width: 80px;" step="1" min="1"
+                                                   value="{{ assembly_part.quantity|round|int }}"
                                                    data-component-id="{{ assembly_part.assembly_part_id }}"
-                                                   data-original-quantity="{{ assembly_part.quantity }}"
+                                                   data-original-quantity="{{ assembly_part.quantity|round|int }}"
                                                    data-unit-price="{{ assembly_part.unit_price }}">
                                         </td>
                                         <td>{{ assembly_part.unit_of_measure }}</td>
                                         <td>
                                             <strong class="component-total" data-component-id="{{ assembly_part.assembly_part_id }}">
-                                                ${{ "{:,.2f}".format(assembly_part.total_price) }}
+                                                {{ assembly_part.total_price|currency }}
                                             </strong>
                                         </td>
                                         <td>
@@ -370,7 +418,7 @@
             <i class="fas fa-microchip"></i> Individual Components
             <small class="text-muted ms-2">
                 {{ individual_components|length }} component{{ 's' if individual_components|length != 1 else '' }} • 
-                ${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}
+                {{ individual_components|sum(attribute='total_price')|currency }}
             </small>
         </h5>
         <div class="d-flex align-items-center gap-2">
@@ -440,19 +488,19 @@
                                 -
                             {% endif %}
                         </td>
-                        <td class="text-end">${{ "{:,.2f}".format(component.unit_price) }}</td>
+                        <td class="text-end">{{ component.unit_price|currency }}</td>
                         <td class="text-center">
                             <input type="number" class="form-control form-control-sm individual-component-quantity-input" 
-                                   style="width: 80px;" step="0.001" min="0.001"
-                                   value="{{ component.quantity }}"
+                                   style="width: 80px;" step="1" min="1"
+                                   value="{{ component.quantity|round|int }}"
                                    data-component-id="{{ component.estimate_component_id }}"
-                                   data-original-quantity="{{ component.quantity }}"
+                                   data-original-quantity="{{ component.quantity|round|int }}"
                                    data-unit-price="{{ component.unit_price }}">
                         </td>
                         <td class="text-center">{{ component.unit_of_measure }}</td>
                         <td class="text-end">
                             <strong class="text-success individual-component-total" data-component-id="{{ component.estimate_component_id }}">
-                                ${{ "{:,.2f}".format(component.total_price) }}
+                                {{ component.total_price|currency }}
                             </strong>
                         </td>
                         <td>
@@ -476,7 +524,7 @@
                     <tr>
                         <th></th>
                         <th colspan="8">Individual Components Total:</th>
-                        <th class="text-end text-success">${{ "{:,.2f}".format(individual_components|sum(attribute='total_price')) }}</th>
+                        <th class="text-end text-success">{{ individual_components|sum(attribute='total_price')|currency }}</th>
                         <th></th>
                     </tr>
                 </tfoot>
@@ -500,6 +548,65 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Create Revision Modal -->
+<div class="modal fade" id="revisionModal" tabindex="-1" aria-labelledby="revisionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="revisionModalLabel">
+                    <i class="fas fa-code-branch"></i> Create New Revision
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('estimates.create_revision', estimate_id=estimate.estimate_id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Current Revision:</strong> Rev. {{ estimate.revision_number }}
+                        <br>
+                        <small>Creating a new revision will increment to Rev. {{ estimate.revision_number + 1 }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="changes_summary" class="form-label">
+                            <strong>Changes Summary <span class="text-danger">*</span></strong>
+                        </label>
+                        <input type="text" class="form-control" id="changes_summary" name="changes_summary" 
+                               placeholder="Brief description of what changed" required maxlength="255">
+                        <div class="form-text">Briefly describe what was modified (required)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="detailed_changes" class="form-label">
+                            <strong>Detailed Changes</strong>
+                        </label>
+                        <textarea class="form-control" id="detailed_changes" name="detailed_changes" rows="4"
+                                  placeholder="Detailed description of changes made to this estimate"></textarea>
+                        <div class="form-text">Optional: Provide detailed information about what was changed</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="created_by" class="form-label">
+                            <strong>Created By</strong>
+                        </label>
+                        <input type="text" class="form-control" id="created_by" name="created_by" 
+                               placeholder="Your name" value="System">
+                        <div class="form-text">Who is creating this revision</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-code-branch"></i> Create Revision {{ estimate.revision_number + 1 }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- Bill of Materials Modal -->
 <div class="modal fade" id="bomModal" tabindex="-1" aria-labelledby="bomModalLabel" aria-hidden="true">
@@ -619,7 +726,156 @@
     </div>
 </div>
 
+<!-- Copy Assembly Modal -->
+<div class="modal fade" id="copyAssemblyModal" tabindex="-1" aria-labelledby="copyAssemblyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="copyAssemblyModalLabel">
+                    <i class="fas fa-copy"></i> Copy Assembly
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="copyAssemblyForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="targetEstimate" class="form-label">
+                            <strong>Target Estimate</strong>
+                        </label>
+                        <select class="form-select" id="targetEstimate" name="target_estimate_id" required>
+                            <option value="">Select estimate...</option>
+                            <!-- Options will be loaded dynamically -->
+                        </select>
+                        <div class="form-text">Choose the estimate to copy this assembly to</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="copyAssemblyName" class="form-label">
+                            <strong>Assembly Name</strong>
+                        </label>
+                        <input type="text" class="form-control" id="copyAssemblyName" name="assembly_name" 
+                               placeholder="Assembly name" required>
+                        <div class="form-text">You can rename the assembly in the target estimate</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="copyWithComponents" name="copy_components" checked>
+                            <label class="form-check-label" for="copyWithComponents">
+                                Copy all components and parts
+                            </label>
+                        </div>
+                        <div class="form-text">Uncheck to copy only the assembly structure without components</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-copy"></i> Copy Assembly
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+
+<style>
+/* Table Sorting Styles */
+.sortable {
+    user-select: none;
+    position: relative;
+}
+
+.sortable:hover {
+    background-color: #f8f9fa;
+}
+
+.sort-icon {
+    font-size: 0.8em;
+    margin-left: 5px;
+    transition: color 0.2s ease;
+}
+
+.sortable:hover .sort-icon {
+    color: #007bff !important;
+}
+
+/* Highlight sorted column */
+.sortable[data-sort-direction] {
+    background-color: #e3f2fd;
+}
+
+/* Better table appearance */
+.sortable-table thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-top: 1px solid #dee2e6;
+}
+
+.sortable-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsive table improvements */
+.table-responsive {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .sortable {
+        font-size: 0.9em;
+    }
+    
+    .sort-icon {
+        font-size: 0.7em;
+    }
+}
+
+/* Drag and Drop Styling */
+.drag-handle-area {
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.drag-handle-area:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.drag-handle-area:active {
+    cursor: grabbing !important;
+}
+
+.assembly-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.assembly-item.drag-over {
+    border-color: #007bff;
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+}
+
+.drag-handle {
+    transition: color 0.2s ease;
+}
+
+.drag-handle-area:hover .drag-handle {
+    color: #007bff !important;
+}
+
+/* Prevent text selection during drag */
+.drag-handle-area {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+</style>
 
 {% block scripts %}
 <script>
@@ -652,6 +908,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Handle copy assembly buttons
+    document.querySelectorAll('.copy-assembly-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            openCopyAssemblyModal(this);
+        });
+    });
+    
     // Handle component quantity changes
     document.querySelectorAll('.component-quantity-input').forEach(input => {
         input.addEventListener('input', function() {
@@ -681,6 +944,82 @@ document.addEventListener('DOMContentLoaded', function() {
             updateIndividualComponentQuantity(this);
         });
     });
+    
+    // Initialize table sorting
+    initializeTableSorting();
+    
+    // Handle copy assembly form submission
+    const copyAssemblyForm = document.getElementById('copyAssemblyForm');
+    if (copyAssemblyForm) {
+        copyAssemblyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const assemblyId = form.dataset.assemblyId;
+            const targetEstimateId = form.target_estimate_id.value;
+            const assemblyName = form.assembly_name.value;
+            const copyComponents = form.copy_components.checked;
+            
+            if (!targetEstimateId || !assemblyName) {
+                showToast('error', 'Error', 'Please fill in all required fields');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copying...';
+            
+            // Send copy request
+            fetch(`/assemblies/${assemblyId}/copy`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    target_estimate_id: parseInt(targetEstimateId),
+                    assembly_name: assemblyName,
+                    copy_components: copyComponents
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('success', 'Success', `Assembly copied successfully!`);
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('copyAssemblyModal'));
+                    modal.hide();
+                    
+                    // If copied to different estimate, offer to navigate
+                    if (parseInt(targetEstimateId) !== {{ estimate.estimate_id }}) {
+                        setTimeout(() => {
+                            if (confirm('Would you like to view the target estimate with the copied assembly?')) {
+                                window.open(`/estimates/${targetEstimateId}`, '_blank');
+                            }
+                        }, 1000);
+                    } else {
+                        // If copied to current estimate, reload page
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    }
+                } else {
+                    showToast('error', 'Error', data.error || 'Failed to copy assembly');
+                }
+            })
+            .catch(error => {
+                console.error('Error copying assembly:', error);
+                showToast('error', 'Error', 'Network error copying assembly');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
 });
 
 function updateAssemblyQuantity(input) {
@@ -725,10 +1064,11 @@ function updateAssemblyQuantity(input) {
             
             showToast('success', 'Updated', `Assembly quantity updated to ${newQuantity}`);
             
-            // Reload the page to show updated totals
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // Update individual component quantities in the assembly table
+            updateComponentQuantitiesForAssembly(assemblyId, originalQuantity, newQuantity);
+            
+            // Update totals without page reload
+            updateAssemblyTotals();
         } else {
             // Revert on error
             input.value = originalQuantity;
@@ -745,6 +1085,54 @@ function updateAssemblyQuantity(input) {
         setTimeout(() => {
             input.style.backgroundColor = originalBg;
         }, 2000);
+    });
+}
+
+function updateComponentQuantitiesForAssembly(assemblyId, oldAssemblyQty, newAssemblyQty) {
+    // Find the assembly card
+    const assemblyCard = document.querySelector(`[data-assembly-id="${assemblyId}"]`);
+    if (!assemblyCard) return;
+    
+    // Find all component quantity inputs in this assembly
+    const componentInputs = assemblyCard.querySelectorAll('.component-quantity-input');
+    
+    componentInputs.forEach(input => {
+        // Get the original base quantity (before any assembly multiplier)
+        const currentDisplayedQty = parseInt(input.value);
+        
+        // Calculate the base quantity by dividing by the old assembly quantity
+        const baseQuantity = Math.round(currentDisplayedQty / oldAssemblyQty);
+        
+        // Calculate the new displayed quantity
+        const newDisplayedQty = baseQuantity * newAssemblyQty;
+        
+        // Update the input value
+        input.value = Math.round(newDisplayedQty);
+        
+        // Update the data attribute
+        input.dataset.originalQuantity = Math.round(newDisplayedQty);
+        
+        // Update the component total if it exists
+        const componentTotal = assemblyCard.querySelector(`.component-total[data-component-id="${input.dataset.componentId}"]`);
+        if (componentTotal) {
+            const unitPrice = parseFloat(input.dataset.unitPrice) || 0;
+            const newTotal = unitPrice * newDisplayedQty;
+            componentTotal.textContent = `$${newTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+    });
+    
+    // Also update the data attributes in the table rows for sorting
+    const tableRows = assemblyCard.querySelectorAll('tr[data-quantity]');
+    tableRows.forEach(row => {
+        const currentQty = parseFloat(row.dataset.quantity);
+        const baseQty = currentQty / oldAssemblyQty;
+        const newQty = baseQty * newAssemblyQty;
+        row.dataset.quantity = newQty;
+        
+        // Update total price data attribute
+        const unitPrice = parseFloat(row.dataset.unitPrice) || 0;
+        const newTotal = unitPrice * newQty;
+        row.dataset.total = newTotal;
     });
 }
 
@@ -947,14 +1335,20 @@ let scrollSpeed = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     const assemblyItems = document.querySelectorAll('.assembly-item');
+    const dragHandles = document.querySelectorAll('.drag-handle-area');
     
+    // Add drag events only to drag handle areas
+    dragHandles.forEach(handle => {
+        handle.addEventListener('dragstart', handleDragStart);
+        handle.addEventListener('dragend', handleDragEnd);
+    });
+    
+    // Add drop events to assembly items
     assemblyItems.forEach(item => {
-        item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragover', handleDragOver);
         item.addEventListener('dragenter', handleDragEnter);
         item.addEventListener('dragleave', handleDragLeave);
         item.addEventListener('drop', handleDrop);
-        item.addEventListener('dragend', handleDragEnd);
     });
     
     // Add mouse move listener for auto-scroll during drag
@@ -962,13 +1356,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function handleDragStart(e) {
-    draggedElement = this;
-    this.style.opacity = '0.5';
-    this.classList.add('dragging');
+    // Find the parent assembly item
+    const assemblyItem = this.closest('.assembly-item');
+    draggedElement = assemblyItem;
+    
+    // Visual feedback
+    assemblyItem.style.opacity = '0.5';
+    assemblyItem.classList.add('dragging');
+    this.style.cursor = 'grabbing';
     
     // Set drag effect
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.outerHTML);
+    e.dataTransfer.setData('text/html', assemblyItem.outerHTML);
 }
 
 function handleDragOver(e) {
@@ -1028,8 +1427,15 @@ function handleDrop(e) {
 }
 
 function handleDragEnd(e) {
-    this.style.opacity = '1';
-    this.classList.remove('dragging');
+    // Find the parent assembly item and reset its appearance
+    const assemblyItem = this.closest('.assembly-item');
+    if (assemblyItem) {
+        assemblyItem.style.opacity = '1';
+        assemblyItem.classList.remove('dragging');
+    }
+    
+    // Reset cursor
+    this.style.cursor = 'grab';
     
     // Clean up auto-scroll
     clearInterval(autoScrollInterval);
@@ -1308,9 +1714,61 @@ function updateComponentQuantity(input) {
 }
 
 function updateAssemblyTotals() {
-    // This could be enhanced to update assembly totals in real-time
-    // For now, we'll rely on the page refresh that might happen elsewhere
-    // or we could add logic to recalculate totals from all component totals
+    // Fetch updated totals from the server
+    const estimateId = {{ estimate.estimate_id }};
+    
+    fetch(`/estimates/${estimateId}/totals`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the total display elements
+                const grandTotalElement = document.getElementById('grandTotal');
+                const materialsTotalElement = document.getElementById('materialsTotal');
+                const laborTotalElement = document.getElementById('laborTotal');
+                
+                if (grandTotalElement) {
+                    grandTotalElement.textContent = data.totals.grand_total;
+                }
+                if (materialsTotalElement) {
+                    materialsTotalElement.textContent = data.totals.materials_total;
+                }
+                if (laborTotalElement) {
+                    laborTotalElement.textContent = data.totals.labor_total;
+                }
+                
+                // Also update any assembly totals that are displayed in the cards
+                updateAssemblyCardTotals();
+                
+            } else {
+                console.error('Failed to fetch updated totals:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching updated totals:', error);
+        });
+}
+
+function updateAssemblyCardTotals() {
+    // Recalculate each assembly's total based on component quantities
+    document.querySelectorAll('.assembly-card').forEach(card => {
+        const assemblyId = card.dataset.assemblyId;
+        if (!assemblyId) return;
+        
+        let assemblyTotal = 0;
+        
+        // Find all component totals for this assembly
+        card.querySelectorAll('.component-total').forEach(totalElement => {
+            const totalText = totalElement.textContent.replace(/[$,]/g, '');
+            const totalValue = parseFloat(totalText) || 0;
+            assemblyTotal += totalValue;
+        });
+        
+        // Update the assembly total display
+        const assemblyTotalElement = card.querySelector('.assembly-total');
+        if (assemblyTotalElement) {
+            assemblyTotalElement.textContent = '$' + assemblyTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+    });
 }
 
 // Individual Component Quantity Management Functions
@@ -1421,10 +1879,18 @@ function populateVersionDropdown(select, versions, currentVersion) {
     versions.forEach(version => {
         const option = document.createElement('option');
         option.value = version.version;
-        option.textContent = `v${version.version}`;
-        if (version.is_active) {
-            option.textContent += ' (Active)';
+        
+        // Concatenate version number with comment/notes
+        let displayText = `v${version.version}`;
+        if (version.version_notes && version.version_notes.trim()) {
+            displayText += ` - ${version.version_notes.trim()}`;
         }
+        
+        if (version.is_active) {
+            displayText += ' (Active)';
+        }
+        
+        option.textContent = displayText;
         if (version.version === currentVersion) {
             option.selected = true;
         }
@@ -1530,6 +1996,206 @@ function refreshAssemblyToActive(button) {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+// Copy Assembly Functions
+function openCopyAssemblyModal(button) {
+    const assemblyId = button.dataset.assemblyId;
+    const assemblyName = button.dataset.assemblyName;
+    
+    // Check if form exists
+    const form = document.getElementById('copyAssemblyForm');
+    const nameInput = document.getElementById('copyAssemblyName');
+    const modal = document.getElementById('copyAssemblyModal');
+    
+    if (!form || !nameInput || !modal) {
+        console.error('Copy assembly modal elements not found');
+        showToast('error', 'Error', 'Copy assembly modal not properly loaded');
+        return;
+    }
+    
+    // Store assembly ID for form submission
+    form.dataset.assemblyId = assemblyId;
+    
+    // Set default assembly name
+    nameInput.value = assemblyName + ' (Copy)';
+    
+    // Load available estimates
+    loadAvailableEstimates();
+    
+    // Show modal
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+}
+
+function loadAvailableEstimates() {
+    const select = document.getElementById('targetEstimate');
+    const currentEstimateId = {{ estimate.estimate_id }};
+    
+    // Clear existing options except the first one
+    while (select.children.length > 1) {
+        select.removeChild(select.lastChild);
+    }
+    
+    // Add loading option
+    const loadingOption = document.createElement('option');
+    loadingOption.textContent = 'Loading estimates...';
+    loadingOption.disabled = true;
+    select.appendChild(loadingOption);
+    
+    // Fetch available estimates
+    fetch('/estimates/api/list')
+        .then(response => response.json())
+        .then(data => {
+            // Remove loading option
+            select.removeChild(loadingOption);
+            
+            // Add current estimate first
+            const currentOption = document.createElement('option');
+            currentOption.value = currentEstimateId;
+            currentOption.textContent = '{{ estimate.estimate_name }} (Current)';
+            select.appendChild(currentOption);
+            
+            // Add other estimates
+            data.estimates.forEach(estimate => {
+                if (estimate.estimate_id !== currentEstimateId) {
+                    const option = document.createElement('option');
+                    option.value = estimate.estimate_id;
+                    option.textContent = `${estimate.estimate_name} - ${estimate.project_name}`;
+                    select.appendChild(option);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading estimates:', error);
+            select.removeChild(loadingOption);
+            const errorOption = document.createElement('option');
+            errorOption.textContent = 'Error loading estimates';
+            errorOption.disabled = true;
+            select.appendChild(errorOption);
+        });
+}
+
+// Revision Management Functions
+function showRevisionModal() {
+    const modalElement = document.getElementById('revisionModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+}
+
+// Update labor costs in real-time
+function updateLaborCosts() {
+    const engineeringHours = parseFloat(document.getElementById('engineering_hours').value) || 0;
+    const panelShopHours = parseFloat(document.getElementById('panel_shop_hours').value) || 0;
+    const machineAssemblyHours = parseFloat(document.getElementById('machine_assembly_hours').value) || 0;
+    
+    const engineeringRate = {{ estimate.engineering_rate }};
+    const panelShopRate = {{ estimate.panel_shop_rate }};
+    const machineAssemblyRate = {{ estimate.machine_assembly_rate }};
+    
+    // Update individual costs
+    const engineeringCost = engineeringHours * engineeringRate;
+    const panelShopCost = panelShopHours * panelShopRate;
+    const machineAssemblyCost = machineAssemblyHours * machineAssemblyRate;
+    
+    // Update totals
+    const totalHours = engineeringHours + panelShopHours + machineAssemblyHours;
+    const totalCost = engineeringCost + panelShopCost + machineAssemblyCost;
+    
+    // Update display
+    document.querySelector('#engineering_hours').nextElementSibling.innerHTML = `$${engineeringRate}/hr = $${engineeringCost.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
+    document.querySelector('#panel_shop_hours').nextElementSibling.innerHTML = `$${panelShopRate}/hr = $${panelShopCost.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
+    document.querySelector('#machine_assembly_hours').nextElementSibling.innerHTML = `$${machineAssemblyRate}/hr = $${machineAssemblyCost.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
+    
+    // Update total
+    const totalElement = document.querySelector('strong');
+    if (totalElement && totalElement.textContent.includes('Total:')) {
+        totalElement.textContent = `Total: ${totalHours.toFixed(1)} hrs = $${totalCost.toLocaleString('en-US', {minimumFractionDigits: 0})}`;
+    }
+}
+
+// Table Sorting Functionality
+function initializeTableSorting() {
+    // Add click event listeners to all sortable headers
+    document.querySelectorAll('.sortable-table .sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const table = this.closest('.sortable-table');
+            const column = this.dataset.column;
+            sortTable(table, column, this);
+        });
+    });
+}
+
+function sortTable(table, column, headerElement) {
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Get current sort direction
+    let sortDirection = headerElement.dataset.sortDirection || 'asc';
+    
+    // Reset all sort icons in this table
+    table.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.className = 'fas fa-sort text-muted sort-icon';
+    });
+    
+    // Toggle sort direction
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    headerElement.dataset.sortDirection = sortDirection;
+    
+    // Update sort icon
+    const sortIcon = headerElement.querySelector('.sort-icon');
+    if (sortDirection === 'asc') {
+        sortIcon.className = 'fas fa-sort-up text-primary sort-icon';
+    } else {
+        sortIcon.className = 'fas fa-sort-down text-primary sort-icon';
+    }
+    
+    // Sort the rows
+    rows.sort((a, b) => {
+        let aVal = getSortValue(a, column);
+        let bVal = getSortValue(b, column);
+        
+        // Handle different data types
+        if (column === 'unit_price' || column === 'quantity' || column === 'total') {
+            aVal = parseFloat(aVal) || 0;
+            bVal = parseFloat(bVal) || 0;
+        } else {
+            aVal = aVal.toString().toLowerCase();
+            bVal = bVal.toString().toLowerCase();
+        }
+        
+        if (sortDirection === 'asc') {
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+    });
+    
+    // Reattach sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function getSortValue(row, column) {
+    switch(column) {
+        case 'part':
+            return row.dataset.part || '';
+        case 'item_number':
+            return row.dataset.itemNumber || '';
+        case 'part_number':
+            return row.dataset.partNumber || '';
+        case 'manufacturer':
+            return row.dataset.manufacturer || '';
+        case 'unit_price':
+            return row.dataset.unitPrice || 0;
+        case 'quantity':
+            return row.dataset.quantity || 0;
+        case 'uom':
+            return row.dataset.uom || '';
+        case 'total':
+            return row.dataset.total || 0;
+        default:
+            return '';
+    }
 }
 
 </script>

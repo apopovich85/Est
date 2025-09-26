@@ -18,77 +18,47 @@
 
 <!-- Component Details -->
 <div class="row mb-4">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Component Details</h5>
+                <h5 class="card-title mb-0">Component Information</h5>
             </div>
             <div class="card-body">
                 <dl class="row">
-                    <dt class="col-sm-4">Part Number:</dt>
-                    <dd class="col-sm-8">{{ component.part_number or 'N/A' }}</dd>
+                    <dt class="col-sm-3">Component:</dt>
+                    <dd class="col-sm-9">{{ component.component_name }}</dd>
                     
-                    <dt class="col-sm-4">Current Price:</dt>
-                    <dd class="col-sm-8"><strong>${{ "{:,.2f}".format(component.unit_price) }}</strong></dd>
+                    <dt class="col-sm-3">Current Price:</dt>
+                    <dd class="col-sm-9">${{ "%.2f"|format(component.unit_price) }}</dd>
                     
-                    <dt class="col-sm-4">Quantity:</dt>
-                    <dd class="col-sm-8">{{ component.quantity }} {{ component.unit_of_measure }}</dd>
+                    <dt class="col-sm-3">Quantity:</dt>
+                    <dd class="col-sm-9">{{ component.quantity }} {{ component.unit_of_measure }}</dd>
                     
-                    <dt class="col-sm-4">Total:</dt>
-                    <dd class="col-sm-8"><strong>${{ "{:,.2f}".format(component.total_price) }}</strong></dd>
+                    <dt class="col-sm-3">Total Value:</dt>
+                    <dd class="col-sm-9">${{ "%.2f"|format(component.total_price) }}</dd>
                 </dl>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Price Statistics</h5>
-            </div>
-            <div class="card-body">
-                {% if history %}
-                    {% set prices = history | map(attribute='new_price') | list %}
-                    <dl class="row">
-                        <dt class="col-sm-4">Highest:</dt>
-                        <dd class="col-sm-8">${{ "{:,.2f}".format(prices | max) }}</dd>
-                        
-                        <dt class="col-sm-4">Lowest:</dt>
-                        <dd class="col-sm-8">${{ "{:,.2f}".format(prices | min) }}</dd>
-                        
-                        <dt class="col-sm-4">Average:</dt>
-                        <dd class="col-sm-8">${{ "{:,.2f}".format((prices | sum) / (prices | length)) }}</dd>
-                        
-                        <dt class="col-sm-4">Changes:</dt>
-                        <dd class="col-sm-8">{{ history | length }} price updates</dd>
-                    </dl>
-                {% else %}
-                    <p class="text-muted">No price history available yet.</p>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
 <!-- Price History Chart -->
-{% if history %}
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="card-title mb-0">Price Trend Chart</h5>
+        <h5 class="card-title mb-0">Price Trend</h5>
     </div>
     <div class="card-body">
         <canvas id="priceChart" width="400" height="200"></canvas>
     </div>
 </div>
-{% endif %}
 
 <!-- Price History Table -->
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0">Price Change Log</h5>
+        <h5 class="card-title mb-0">Price History</h5>
     </div>
     <div class="card-body">
-        {% if history %}
+        {% if price_history %}
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
@@ -97,24 +67,46 @@
                             <th>Old Price</th>
                             <th>New Price</th>
                             <th>Change</th>
-                            <th>% Change</th>
+                            <th>Change %</th>
                             <th>Reason</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for record in history %}
+                        {% for record in price_history %}
                         <tr>
-                            <td>{{ record.changed_at.strftime('%Y-%m-%d %I:%M %p') }}</td>
-                            <td>${{ "{:,.2f}".format(record.old_price or 0) }}</td>
-                            <td>${{ "{:,.2f}".format(record.new_price) }}</td>
-                            <td class="{{ 'text-success' if record.new_price > (record.old_price or 0) else 'text-danger' if record.new_price < (record.old_price or 0) else '' }}">
-                                {% set change = record.new_price - (record.old_price or 0) %}
-                                {% if change > 0 %}+{% endif %}${{ "{:,.2f}".format(change) }}
+                            <td>{{ record.changed_at.strftime('%Y-%m-%d %H:%M') if record.changed_at else 'N/A' }}</td>
+                            <td>
+                                {% if record.old_price %}
+                                    ${{ "%.2f"|format(record.old_price) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
                             </td>
-                            <td class="{{ 'text-success' if record.new_price > (record.old_price or 0) else 'text-danger' if record.new_price < (record.old_price or 0) else '' }}">
-                                {% if record.old_price and record.old_price != 0 %}
-                                    {% set pct_change = ((record.new_price - record.old_price) / record.old_price * 100) %}
-                                    {% if pct_change > 0 %}+{% endif %}{{ "{:.1f}".format(pct_change) }}%
+                            <td>${{ "%.2f"|format(record.new_price) if record.new_price else 'N/A' }}</td>
+                            <td>
+                                {% if record.old_price and record.new_price %}
+                                    {% set change = record.new_price - record.old_price %}
+                                    {% if change > 0 %}
+                                        <span class="text-success">+${{ "%.2f"|format(change) }}</span>
+                                    {% elif change < 0 %}
+                                        <span class="text-danger">-${{ "%.2f"|format(-change) }}</span>
+                                    {% else %}
+                                        <span class="text-muted">$0.00</span>
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.old_price and record.new_price and record.old_price > 0 %}
+                                    {% set change_pct = ((record.new_price - record.old_price) / record.old_price) * 100 %}
+                                    {% if change_pct > 0 %}
+                                        <span class="text-success">+{{ "%.1f"|format(change_pct) }}%</span>
+                                    {% elif change_pct < 0 %}
+                                        <span class="text-danger">{{ "%.1f"|format(change_pct) }}%</span>
+                                    {% else %}
+                                        <span class="text-muted">0.0%</span>
+                                    {% endif %}
                                 {% else %}
                                     N/A
                                 {% endif %}
@@ -129,74 +121,63 @@
             <div class="text-center py-5">
                 <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted">No Price History</h5>
-                <p class="text-# Flask Templates and Static Files
-
-## templates/base.html
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Project Estimates Manager{% endblock %}</title>
-    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
-                <i class="fas fa-calculator me-2"></i>
-                Estimates Manager
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link" href="{{ url_for('main.dashboard') }}">
-                        <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                    </a>
-                    <a class="nav-link" href="{{ url_for('projects.list_projects') }}">
-                        <i class="fas fa-folder me-1"></i>Projects
-                    </a>
-                </div>
+                <p class="text-muted">This component has no recorded price changes.</p>
             </div>
-        </div>
-    </nav>
-
-    <!-- Flash Messages -->
-    <div class="container mt-3">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% endif %}
     </div>
+</div>
+{% endblock %}
 
-    <!-- Main Content -->
-    <main class="container my-4">
-        {% block content %}{% endblock %}
-    </main>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+// Price chart functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    // Sample data - in a real implementation, this would come from the server
+    const chartData = {
+        labels: [
+            {% for record in price_history %}
+                '{{ record.changed_at.strftime("%m/%d") if record.changed_at else "N/A" }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Price',
+            data: [
+                {% for record in price_history %}
+                    {{ record.new_price if record.new_price else 0 }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    };
 
-    <!-- Footer -->
-    <footer class="bg-light text-center py-3 mt-5">
-        <div class="container">
-            <small>&copy; 2024 Project Estimates Manager. Built with Flask.</small>
-        </div>
-    </footer>
-
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    {% block scripts %}{% endblock %}
-</body>
-</html>
+    new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Price History Over Time'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

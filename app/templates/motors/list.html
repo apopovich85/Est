@@ -12,6 +12,10 @@
                        class="btn btn-outline-secondary me-2">
                         <i class="fas fa-arrow-left"></i> Back to Project
                     </a>
+                    <a href="{{ url_for('motors.copy_motors_form', project_id=project.project_id) }}" 
+                       class="btn btn-outline-primary me-2">
+                        <i class="fas fa-copy"></i> Copy Motors
+                    </a>
                     <a href="{{ url_for('motors.create_motor_form', project_id=project.project_id) }}" 
                        class="btn btn-primary">
                         <i class="fas fa-plus"></i> Add Motor/Load

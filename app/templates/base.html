@@ -11,22 +11,22 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #000000;">
         <div class="container-fluid px-3">
-            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
+            <a class="navbar-brand fw-bold text-white" href="{{ url_for('main.dashboard') }}">
                 <img src="{{ url_for('static', filename='images/stacked_RGB_300dpi.png') }}" alt="Logo" height="30" class="me-2">
                 Estimates Manager
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-                <a class="nav-link" href="{{ url_for('projects.list_projects') }}">Projects</a>
-                <a class="nav-link" href="{{ url_for('standard_assemblies.list_assemblies') }}">Standard Assemblies</a>
-                <a class="nav-link" href="{{ url_for('categories.list_categories') }}">Categories</a>
-                <a class="nav-link" href="{{ url_for('labor_rates.labor_rates_config') }}">Labor Rates</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('projects.list_projects') }}">Projects</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('standard_assemblies.list_assemblies') }}">Standard Assemblies</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('categories.list_categories') }}">Categories</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('labor_rates.labor_rates_config') }}">Labor Rates</a>
                 
                 <!-- Wizards Dropdown -->
                 <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="wizardsDropdown" role="button" data-bs-toggle="dropdown">
+                    <a class="nav-link dropdown-toggle fw-bold text-white" href="#" id="wizardsDropdown" role="button" data-bs-toggle="dropdown">
                         <i class="fas fa-magic me-1"></i>Wizards
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -53,7 +53,7 @@
                 </div>
                 
                 <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="partsDropdown" role="button" data-bs-toggle="dropdown">
+                    <a class="nav-link dropdown-toggle fw-bold text-white" href="#" id="partsDropdown" role="button" data-bs-toggle="dropdown">
                         Parts
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">

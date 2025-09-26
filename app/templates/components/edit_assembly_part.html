@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Edit Component - {{ assembly_part.component_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Edit Component</h2>
+                <div>
+                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=assembly_part.assembly.estimate_id) }}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Estimate
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Component Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('components.edit_component', component_id=assembly_part.assembly_part_id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                
+                                <!-- Part Selection -->
+                                {% if similar_parts %}
+                                <div class="mb-3">
+                                    <label for="part_id" class="form-label">
+                                        Select Part 
+                                        {% if similar_parts|length == 1 %}
+                                        (Showing all parts - current category "{{ assembly_part.part.category }}" has only one part)
+                                        {% else %}
+                                        from Category "{{ assembly_part.part.category }}"
+                                        {% endif %}
+                                    </label>
+                                    <select class="form-select" id="part_id" name="part_id" onchange="updatePartInfo()">
+                                        {% for part in similar_parts %}
+                                        <option value="{{ part.part_id }}" 
+                                                {% if part.part_id == assembly_part.part_id %}selected{% endif %}
+                                                data-part-number="{{ part.part_number or '' }}"
+                                                data-description="{{ part.description or '' }}"
+                                                data-price="{{ part.current_price }}"
+                                                data-manufacturer="{{ part.manufacturer or '' }}"
+                                                data-model="{{ part.model or '' }}"
+                                                data-rating="{{ part.rating or '' }}"
+                                                data-category="{{ part.category or '' }}">
+                                            [{{ part.category or 'No Category' }}] {{ part.part_number or 'No Part Number' }} - {{ part.description or 'No Description' }}
+                                            {% if part.current_price %} - ${{ part.current_price }}{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        {% if similar_parts|length == 1 %}
+                                        Current category only has this part. Select from any category to substitute.
+                                        {% else %}
+                                        Select a different part to substitute in this assembly.
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% else %}
+                                <input type="hidden" name="part_id" value="{{ assembly_part.part_id }}">
+                                {% endif %}
+
+                                <!-- Part Information Display -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Part Number</label>
+                                        <input type="text" class="form-control" id="display_part_number" value="{{ assembly_part.part_number }}" readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Component Name</label>
+                                        <input type="text" class="form-control" id="display_component_name" value="{{ assembly_part.component_name }}" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Description</label>
+                                    <textarea class="form-control" id="display_description" rows="2" readonly>{{ assembly_part.description }}</textarea>
+                                </div>
+
+                                <!-- Editable Fields -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label for="unit_price" class="form-label">Unit Price <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" step="0.01" class="form-control" id="unit_price" name="unit_price" 
+                                                   value="{{ assembly_part.unit_price }}" required>
+                                        </div>
+                                        <small class="form-text text-muted">Changes affect all assemblies using this part</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.001" class="form-control" id="quantity" name="quantity" 
+                                               value="{{ assembly_part.quantity }}" required min="0.001">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="unit_of_measure" class="form-label">Unit of Measure</label>
+                                        <select class="form-select" id="unit_of_measure" name="unit_of_measure">
+                                            <option value="EA" {% if assembly_part.unit_of_measure == 'EA' %}selected{% endif %}>Each (EA)</option>
+                                            <option value="FT" {% if assembly_part.unit_of_measure == 'FT' %}selected{% endif %}>Feet (FT)</option>
+                                            <option value="LF" {% if assembly_part.unit_of_measure == 'LF' %}selected{% endif %}>Linear Feet (LF)</option>
+                                            <option value="SF" {% if assembly_part.unit_of_measure == 'SF' %}selected{% endif %}>Square Feet (SF)</option>
+                                            <option value="LBS" {% if assembly_part.unit_of_measure == 'LBS' %}selected{% endif %}>Pounds (LBS)</option>
+                                            <option value="HR" {% if assembly_part.unit_of_measure == 'HR' %}selected{% endif %}>Hours (HR)</option>
+                                            <option value="LOT" {% if assembly_part.unit_of_measure == 'LOT' %}selected{% endif %}>Lot (LOT)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Assembly Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Notes specific to this assembly...">{{ assembly_part.notes }}</textarea>
+                                    <small class="form-text text-muted">These notes are specific to this assembly instance</small>
+                                </div>
+
+                                <!-- Total Calculation -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Total Price</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="text" class="form-control" id="total_price" 
+                                                   value="{{ '%.2f'|format(assembly_part.total_price) }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=assembly_part.assembly.estimate_id) }}" 
+                                       class="btn btn-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Component
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Part Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Manufacturer:</strong></td>
+                                    <td id="side_manufacturer">{{ assembly_part.part.manufacturer or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Category:</strong></td>
+                                    <td id="side_category">{{ assembly_part.part.category or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Model:</strong></td>
+                                    <td id="side_model">{{ assembly_part.part.model or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Rating:</strong></td>
+                                    <td id="side_rating">{{ assembly_part.part.rating or '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Vendor:</strong></td>
+                                    <td id="side_vendor">{{ assembly_part.part.vendor or '-' }}</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="mt-3">
+                                <a href="{{ url_for('components.master_parts_database') }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-database"></i> View Parts Database
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Assembly Context</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Project:</strong><br>{{ assembly_part.assembly.estimate.project.project_name }}</p>
+                            <p><strong>Estimate:</strong><br>{{ assembly_part.assembly.estimate.estimate_name }}</p>
+                            <p><strong>Assembly:</strong><br>{{ assembly_part.assembly.assembly_name }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-calculate total price
+function updateTotal() {
+    const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const total = unitPrice * quantity;
+    document.getElementById('total_price').value = total.toFixed(2);
+}
+
+// Update part information when selection changes
+function updatePartInfo() {
+    const partSelect = document.getElementById('part_id');
+    if (!partSelect) return;
+    
+    const selectedOption = partSelect.options[partSelect.selectedIndex];
+    
+    // Update display fields
+    document.getElementById('display_part_number').value = selectedOption.dataset.partNumber || '';
+    document.getElementById('display_component_name').value = selectedOption.dataset.description || '';
+    document.getElementById('display_description').value = selectedOption.dataset.description || '';
+    
+    // Update unit price
+    const newPrice = parseFloat(selectedOption.dataset.price) || 0;
+    document.getElementById('unit_price').value = newPrice.toFixed(2);
+    
+    // Update side panel
+    document.getElementById('side_manufacturer').textContent = selectedOption.dataset.manufacturer || '-';
+    document.getElementById('side_category').textContent = selectedOption.dataset.category || '-';
+    document.getElementById('side_model').textContent = selectedOption.dataset.model || '-';
+    document.getElementById('side_rating').textContent = selectedOption.dataset.rating || '-';
+    
+    // Update total
+    updateTotal();
+    
+    // Show warning about part change
+    if (selectedOption.value != '{{ assembly_part.part_id }}') {
+        if (!document.getElementById('part_change_warning')) {
+            const warning = document.createElement('div');
+            warning.id = 'part_change_warning';
+            warning.className = 'alert alert-warning mt-2';
+            warning.innerHTML = '<i class="fas fa-exclamation-triangle"></i> You are changing to a different part. This will affect this assembly component only.';
+            partSelect.parentNode.appendChild(warning);
+        }
+    } else {
+        const warning = document.getElementById('part_change_warning');
+        if (warning) warning.remove();
+    }
+}
+
+document.getElementById('unit_price').addEventListener('input', updateTotal);
+document.getElementById('quantity').addEventListener('input', updateTotal);
+
+// Add search functionality to part selection
+{% if similar_parts %}
+document.addEventListener('DOMContentLoaded', function() {
+    const partSelect = document.getElementById('part_id');
+    if (partSelect) {
+        // Make it searchable with Select2 if available, otherwise add basic search
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery(partSelect).select2({
+                placeholder: "Search for a part...",
+                allowClear: false,
+                width: '100%'
+            });
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

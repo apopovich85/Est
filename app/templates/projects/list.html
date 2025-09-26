@@ -21,6 +21,7 @@
                             <th>Client</th>
                             <th>Status</th>
                             <th>Estimates</th>
+                            <th class="text-end">Material Cost</th>
                             <th class="text-end">Total Cost</th>
                             <th class="text-center">Engineering</th>
                             <th class="text-center">Panel Shop</th>
@@ -47,6 +48,7 @@
                                 </span>
                             </td>
                             <td>{{ project.estimates|length }}</td>
+                            <td class="text-end">${{ "{:,.2f}".format(project.total_project_material_cost()) }}</td>
                             <td class="text-end">${{ "{:,.2f}".format(project.total_project_grand_total()) }}</td>
                             <td class="text-center">
                                 {% if project.total_project_engineering_hours() > 0 %}

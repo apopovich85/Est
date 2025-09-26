@@ -122,17 +122,30 @@
         <div id="assembliesGrid" class="row">
             {% for assembly in assemblies %}
             <div class="col-lg-6 col-xl-4 mb-4 assembly-card" 
+                 id="assembly-card-{{ assembly.standard_assembly_id }}"
                  data-category="{{ assembly.category }}" 
                  data-name="{{ assembly.name.lower() }}"
                  data-cost="{{ assembly.total_cost }}"
-                 data-components="{{ assembly.component_count }}">
+                 data-components="{{ assembly.component_count }}"
+                 data-assembly-id="{{ assembly.standard_assembly_id }}">
                 <div class="card h-100">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="card-title mb-1">{{ assembly.name }}</h6>
-                            <small class="text-muted">{{ assembly.category }}</small>
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="card-title mb-1">{{ assembly.name }}</h6>
+                                <small class="text-muted">{{ assembly.category.name }}</small>
+                            </div>
                         </div>
-                        <span class="badge bg-primary">v{{ assembly.version }}</span>
+                        <div class="d-flex align-items-center">
+                            <label class="form-label mb-0 me-2 text-muted small">Version:</label>
+                            <select class="form-select form-select-sm assembly-version-select" 
+                                    style="width: 200px;"
+                                    data-assembly-id="{{ assembly.standard_assembly_id }}"
+                                    data-current-version="{{ assembly.version }}"
+                                    data-card-container="assembly-card-{{ assembly.standard_assembly_id }}">
+                                <!-- Options will be loaded dynamically -->
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="card-body">
@@ -143,18 +156,20 @@
                         <div class="row text-center mb-3">
                             <div class="col-6">
                                 <div class="border-end">
-                                    <div class="h6 text-primary mb-0">{{ assembly.component_count }}</div>
+                                    <div class="h6 text-primary mb-0 component-count" 
+                                         data-assembly-id="{{ assembly.standard_assembly_id }}">{{ assembly.component_count }}</div>
                                     <small class="text-muted">Components</small>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="h6 text-success mb-0">${{ "{:,.2f}".format(assembly.total_cost) }}</div>
+                                <div class="h6 text-success mb-0 total-cost" 
+                                     data-assembly-id="{{ assembly.standard_assembly_id }}">${{ "{:,.2f}".format(assembly.total_cost) }}</div>
                                 <small class="text-muted">Total Cost</small>
                             </div>
                         </div>
                         
                         <!-- Preview Components -->
-                        <div class="mb-3">
+                        <div class="mb-3 key-components" data-assembly-id="{{ assembly.standard_assembly_id }}">
                             <div class="small text-muted mb-1">Key Components:</div>
                             {% for component in assembly.components[:3] %}
                                 <div class="small text-truncate">
@@ -288,6 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
     
     setupEventHandlers();
+    loadAssemblyVersions();
     
     // Initialize based on URL parameters
     if (selectedProjectId) {
@@ -857,25 +873,52 @@ function applyAssemblyToEstimate() {
     
     console.log('Applying assembly:', currentAssemblyForApply.id, 'to estimate:', selectedEstimateId, 'with quantity:', quantity);
     
-    fetch(`/standard_assemblies/apply/${currentAssemblyForApply.id}/to/${selectedEstimateId}`, {
+    const requestUrl = `/standard_assemblies/apply/${currentAssemblyForApply.id}/to/${selectedEstimateId}`;
+    const requestBody = JSON.stringify({ quantity: quantity });
+    
+    console.log('Request URL:', requestUrl);
+    console.log('Request body:', requestBody);
+    console.log('Current assembly data:', currentAssemblyForApply);
+    
+    fetch(requestUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            quantity: quantity
-        })
+        body: requestBody
     })
     .then(response => {
         console.log('Response status:', response.status);
         console.log('Response headers:', response.headers);
+        console.log('Response content-type:', response.headers.get('content-type'));
+        
         if (!response.ok) {
             return response.text().then(text => {
                 console.error('Error response body:', text);
-                throw new Error(`HTTP ${response.status}: ${text}`);
+                console.error('Response status:', response.status);
+                console.error('Response status text:', response.statusText);
+                
+                // Try to parse as JSON for better error handling
+                try {
+                    const errorData = JSON.parse(text);
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                } catch (parseError) {
+                    // If not JSON, show the raw text
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`);
+                }
             });
         }
-        return response.json();
+        
+        return response.text().then(text => {
+            console.log('Raw response text:', text);
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                console.error('Failed to parse JSON response:', parseError);
+                console.error('Response text was:', text);
+                throw new Error(`Invalid JSON response: ${parseError.message}. Response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+            }
+        });
     })
     .then(data => {
         if (data.success) {
@@ -901,7 +944,25 @@ function applyAssemblyToEstimate() {
     })
     .catch(error => {
         console.error('Error applying assembly:', error);
-        showToast('error', 'Error', 'Failed to apply assembly');
+        console.error('Error stack:', error.stack);
+        
+        // Show more detailed error message to user
+        let errorMessage = 'Failed to apply assembly';
+        if (error.message) {
+            if (error.message.includes('Invalid JSON response')) {
+                errorMessage = 'Server returned invalid response. Please try again or contact support.';
+            } else if (error.message.includes('HTTP 400')) {
+                errorMessage = 'Invalid request. Please check your selection and try again.';
+            } else if (error.message.includes('HTTP 404')) {
+                errorMessage = 'Assembly or estimate not found. Please refresh the page and try again.';
+            } else if (error.message.includes('HTTP 500')) {
+                errorMessage = 'Server error occurred. Please try again or contact support.';
+            } else {
+                errorMessage = `Error: ${error.message}`;
+            }
+        }
+        
+        showToast('error', 'Apply Failed', errorMessage);
     })
     .finally(() => {
         btn.innerHTML = originalText;
@@ -1076,6 +1137,146 @@ function showToast(type, title, message) {
     document.body.appendChild(toast);
     
     setTimeout(() => toast.remove(), 5000);
+}
+
+// Assembly Version Management Functions
+function loadAssemblyVersions() {
+    document.querySelectorAll('.assembly-version-select').forEach(select => {
+        const assemblyId = select.dataset.assemblyId;
+        const currentVersion = select.dataset.currentVersion;
+        
+        // Load available versions
+        fetch(`/standard_assemblies/${assemblyId}/versions`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    populateVersionDropdown(select, data.versions, currentVersion);
+                    
+                    // Add change event listener
+                    select.addEventListener('change', function() {
+                        const selectedVersion = this.value;
+                        loadVersionComponentsForCard(selectedVersion, assemblyId);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading assembly versions:', error);
+            });
+    });
+}
+
+function populateVersionDropdown(select, versions, currentVersion) {
+    select.innerHTML = '';
+    
+    versions.forEach(version => {
+        const option = document.createElement('option');
+        option.value = version.version;
+        
+        // Concatenate version number with comment/notes
+        let displayText = `v${version.version}`;
+        if (version.version_notes && version.version_notes.trim()) {
+            displayText += ` - ${version.version_notes.trim()}`;
+        }
+        
+        if (version.is_active) {
+            displayText += ' (Active)';
+        }
+        
+        option.textContent = displayText;
+        option.dataset.assemblyId = version.standard_assembly_id; // Store specific assembly ID for this version
+        if (version.version === currentVersion) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+function loadVersionComponentsForCard(selectedVersion, baseAssemblyId) {
+    // First get the versions to find the specific assembly ID for the selected version
+    fetch(`/standard_assemblies/${baseAssemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Now get the components for this specific version
+                    return fetch(`/standard_assemblies/api/${selectedVersionData.standard_assembly_id}/components`);
+                } else {
+                    throw new Error('Selected version not found');
+                }
+            } else {
+                throw new Error('Failed to load version information');
+            }
+        })
+        .then(response => response.json())
+        .then(components => {
+            updateAssemblyCard(baseAssemblyId, components, selectedVersion);
+        })
+        .catch(error => {
+            console.error('Error loading version components:', error);
+            showToast('error', 'Error', 'Failed to load components for selected version');
+        });
+}
+
+function updateAssemblyCard(assemblyId, components, selectedVersion) {
+    const componentCount = components ? components.length : 0;
+    const totalCost = components ? components.reduce((sum, comp) => sum + comp.total_price, 0) : 0;
+    
+    // Update component count
+    const componentCountElement = document.querySelector(`.component-count[data-assembly-id="${assemblyId}"]`);
+    if (componentCountElement) {
+        componentCountElement.textContent = componentCount;
+    }
+    
+    // Update total cost
+    const totalCostElement = document.querySelector(`.total-cost[data-assembly-id="${assemblyId}"]`);
+    if (totalCostElement) {
+        totalCostElement.textContent = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+    
+    // Update key components preview
+    const keyComponentsElement = document.querySelector(`.key-components[data-assembly-id="${assemblyId}"]`);
+    if (keyComponentsElement) {
+        if (!components || components.length === 0) {
+            keyComponentsElement.innerHTML = `
+                <div class="small text-muted mb-1">Key Components:</div>
+                <div class="small text-muted">No components in this version</div>
+            `;
+        } else {
+            const preview = components.slice(0, 3);
+            const remaining = Math.max(0, components.length - 3);
+            
+            keyComponentsElement.innerHTML = `
+                <div class="small text-muted mb-1">Key Components:</div>
+                ${preview.map(component => 
+                    `<div class="small text-truncate">• ${component.part_number || 'N/A'} (${component.quantity} ${component.unit_of_measure})</div>`
+                ).join('')}
+                ${remaining > 0 ? `<div class="small text-muted">... and ${remaining} more</div>` : ''}
+            `;
+        }
+    }
+    
+    // Update the card's data attributes for filtering/sorting
+    const card = document.getElementById(`assembly-card-${assemblyId}`);
+    if (card) {
+        card.dataset.cost = totalCost;
+        card.dataset.components = componentCount;
+    }
+    
+    // Update apply button data
+    const applyButton = document.querySelector(`[data-assembly-id="${assemblyId}"].apply-assembly-btn`);
+    if (applyButton) {
+        applyButton.dataset.assemblyCost = totalCost;
+        
+        // Update the assembly ID to point to the specific version assembly ID
+        const versionSelect = document.querySelector(`.assembly-version-select[data-assembly-id="${assemblyId}"]`);
+        if (versionSelect) {
+            const selectedOption = versionSelect.options[versionSelect.selectedIndex];
+            if (selectedOption && selectedOption.dataset.assemblyId) {
+                applyButton.dataset.assemblyId = selectedOption.dataset.assemblyId;
+            }
+        }
+    }
 }
 </script>
 {% endblock %}

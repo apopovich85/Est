@@ -2,6 +2,32 @@
 
 {% block title %}{{ project.project_name }} - Projects{% endblock %}
 
+{% block extra_head %}
+<style>
+.drag-over {
+    border-top: 3px solid #007bff !important;
+    background-color: rgba(0, 123, 255, 0.1) !important;
+}
+
+.draggable-row {
+    transition: background-color 0.2s ease;
+}
+
+.draggable-row:hover .drag-handle {
+    color: #007bff !important;
+}
+
+.drag-handle:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-radius: 4px;
+}
+
+.draggable-row.dragging {
+    opacity: 0.4;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -88,10 +114,20 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">Estimates</h5>
-        <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
-           class="btn btn-sm btn-primary">
-            <i class="fas fa-plus"></i> New Estimate
-        </a>
+        <div>
+            <a href="{{ url_for('projects.export_project', project_id=project.project_id) }}" 
+               class="btn btn-sm btn-success me-2">
+                <i class="fas fa-file-excel"></i> Export Overview
+            </a>
+            <a href="{{ url_for('projects.export_consolidated_report', project_id=project.project_id) }}" 
+               class="btn btn-sm btn-info me-2">
+                <i class="fas fa-chart-pie"></i> BOM Report
+            </a>
+            <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
+               class="btn btn-sm btn-primary">
+                <i class="fas fa-plus"></i> New Estimate
+            </a>
+        </div>
     </div>
     <div class="card-body">
         {% if estimates %}
@@ -99,10 +135,11 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <th width="30"></th>
                             <th>Estimate Number</th>
                             <th>Name</th>
+                            <th class="text-center">Revision</th>
                             <th class="text-end">Material Cost</th>
-                            <th class="text-end">Labor Cost</th>
                             <th class="text-center">Engineering</th>
                             <th class="text-center">Panel Shop</th>
                             <th class="text-center">Machine Assy</th>
@@ -112,9 +149,12 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="estimatesTableBody">
                         {% for estimate in estimates %}
-                        <tr>
+                        <tr class="draggable-row" data-estimate-id="{{ estimate.estimate_id }}">
+                            <td class="drag-handle" style="cursor: grab; text-align: center; color: #6c757d;">
+                                <i class="fas fa-grip-vertical"></i>
+                            </td>
                             <td>
                                 <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
                                    class="text-decoration-none">
@@ -141,14 +181,13 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-end">${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
-                            <td class="text-end">
-                                {% if estimate.total_labor_cost > 0 %}
-                                    ${{ "{:,.2f}".format(estimate.total_labor_cost) }}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
+                            <td class="text-center">
+                                <span class="badge bg-{% if estimate.revision_number == 0 %}secondary{% else %}info{% endif %}" 
+                                      title="Current revision level">
+                                    Rev. {{ estimate.revision_number }}
+                                </span>
                             </td>
+                            <td class="text-end">${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
                             <td class="text-center">
                                 {% if estimate.total_engineering_hours > 0 %}
                                     {{ "{:.1f}".format(estimate.total_engineering_hours) }}h
@@ -181,6 +220,10 @@
                                        class="btn btn-sm btn-outline-primary">View</a>
                                     <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}" 
                                        class="btn btn-sm btn-outline-secondary">Copy</a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}')">
+                                        Delete
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -189,6 +232,9 @@
                     <tfoot class="table-light">
                         <tr>
                             <th colspan="4" class="text-end">Project Totals:</th>
+                            <th class="text-end">
+                                <strong class="text-primary">${{ "{:,.2f}".format(project.total_project_material_cost()) }}</strong>
+                            </th>
                             <th class="text-center">
                                 {% if project.total_project_engineering_hours() > 0 %}
                                     <strong class="text-primary">{{ "{:.1f}".format(project.total_project_engineering_hours()) }}h</strong>
@@ -307,6 +353,145 @@ document.addEventListener('DOMContentLoaded', function() {
                 cancelEditEstimateNameInTable(parseInt(estimateId));
             }
         }
+    });
+});
+
+// Delete estimate function
+function deleteEstimate(estimateId, estimateName) {
+    const confirmMsg = `Are you sure you want to delete the estimate "${estimateName}"?\n\nThis action cannot be undone and will delete all associated assemblies and components.`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Create a form and submit it for the delete request
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/estimates/${estimateId}/delete`;
+    
+    // Add CSRF token if available
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfToken.getAttribute('content');
+        form.appendChild(csrfInput);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Drag and drop functionality for estimates
+let dragSrcEl = null;
+
+function handleDragStart(e) {
+    this.style.opacity = '0.4';
+    dragSrcEl = this;
+    
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (dragSrcEl !== this) {
+        this.parentNode.removeChild(dragSrcEl);
+        
+        const dropHTML = e.dataTransfer.getData('text/html');
+        this.insertAdjacentHTML('beforebegin', dropHTML);
+        
+        const addedElement = this.previousSibling;
+        addedElement.addEventListener('dragstart', handleDragStart, false);
+        addedElement.addEventListener('dragenter', handleDragEnter, false);
+        addedElement.addEventListener('dragover', handleDragOver, false);
+        addedElement.addEventListener('dragleave', handleDragLeave, false);
+        addedElement.addEventListener('drop', handleDrop, false);
+        addedElement.addEventListener('dragend', handleDragEnd, false);
+        
+        // Update the order
+        updateEstimateOrder();
+    }
+    
+    this.classList.remove('drag-over');
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.style.opacity = '';
+    
+    const allRows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+    allRows.forEach(function(row) {
+        row.classList.remove('drag-over');
+    });
+}
+
+function updateEstimateOrder() {
+    const rows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+    const estimateIds = Array.from(rows).map(row => parseInt(row.dataset.estimateId));
+    
+    fetch('/estimates/api/reorder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estimate_ids: estimateIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Success', 'Estimates reordered successfully');
+        } else {
+            showToast('error', 'Error', data.error || 'Failed to reorder estimates');
+            // Reload page to reset order on error
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Error reordering estimates:', error);
+        showToast('error', 'Error', 'Failed to reorder estimates');
+        // Reload page to reset order on error
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    });
+}
+
+// Initialize drag and drop when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+    
+    rows.forEach(function(row) {
+        row.draggable = true;
+        row.addEventListener('dragstart', handleDragStart, false);
+        row.addEventListener('dragenter', handleDragEnter, false);
+        row.addEventListener('dragover', handleDragOver, false);
+        row.addEventListener('dragleave', handleDragLeave, false);
+        row.addEventListener('drop', handleDrop, false);
+        row.addEventListener('dragend', handleDragEnd, false);
     });
 });
 </script>

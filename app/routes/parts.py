@@ -330,7 +330,8 @@ def search_parts():
         )
     
     if category:
-        parts_query = parts_query.filter(Parts.category == category)
+        # Join with part_categories table and filter by category name
+        parts_query = parts_query.join(PartCategory).filter(PartCategory.name == category)
     
     if manufacturer:
         parts_query = parts_query.filter(Parts.manufacturer == manufacturer)
@@ -349,6 +350,7 @@ def search_parts():
     } for part in parts])
 
 @bp.route('/api/categories', methods=['GET', 'POST'])
+@csrf.exempt
 def handle_categories():
     """Get all active categories or create a new category"""
     if request.method == 'GET':
@@ -699,6 +701,7 @@ def manage_category(category_id):
         return jsonify({'success': True})
 
 @bp.route('/api/categories/new', methods=['POST'])
+@csrf.exempt
 def create_category():
     """Create a new category"""
     data = request.get_json()

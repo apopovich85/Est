@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Revision History - {{ estimate.estimate_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-history"></i> Revision History</h1>
+        <p class="text-muted mb-0">
+            Estimate: <strong>{{ estimate.estimate_name }}</strong> | 
+            Current Revision: <strong>Rev. {{ estimate.revision_number }}</strong>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('estimates.export_revision_report_pdf', estimate_id=estimate.estimate_id) }}" 
+           class="btn btn-success me-2">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+           class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Estimate
+        </a>
+    </div>
+</div>
+
+<!-- Estimate Info Card -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Estimate Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Estimate Number:</dt>
+                            <dd class="col-sm-8"><code>{{ estimate.estimate_number }}</code></dd>
+                            
+                            <dt class="col-sm-4">Estimate Name:</dt>
+                            <dd class="col-sm-8">{{ estimate.estimate_name }}</dd>
+                            
+                            <dt class="col-sm-4">Project:</dt>
+                            <dd class="col-sm-8">
+                                <a href="{{ url_for('projects.detail_project', project_id=estimate.project_id) }}">
+                                    {{ estimate.project.project_name }}
+                                </a>
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Current Revision:</dt>
+                            <dd class="col-sm-8"><span class="badge bg-success">Rev. {{ estimate.revision_number }}</span></dd>
+                            
+                            <dt class="col-sm-4">Created:</dt>
+                            <dd class="col-sm-8">{{ estimate.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                            
+                            <dt class="col-sm-4">Last Updated:</dt>
+                            <dd class="col-sm-8">{{ estimate.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Revision History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-code-branch"></i> Revision History
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if revisions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 80px;" class="text-center">Revision</th>
+                                    <th style="width: 150px;" class="text-center">Date Created</th>
+                                    <th>Changes Summary</th>
+                                    <th style="width: 120px;" class="text-center">Created By</th>
+                                    <th style="width: 100px;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for revision in revisions %}
+                                <tr {% if revision.revision_number == estimate.revision_number %}class="table-success"{% endif %}>
+                                    <td class="text-center">
+                                        <span class="badge {% if revision.revision_number == estimate.revision_number %}bg-success{% else %}bg-secondary{% endif %}">
+                                            Rev. {{ revision.revision_number }}
+                                        </span>
+                                        {% if revision.revision_number == estimate.revision_number %}
+                                            <br><small class="text-success fw-bold">Current</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div>{{ revision.created_at.strftime('%m/%d/%Y') }}</div>
+                                        <small class="text-muted">{{ revision.created_at.strftime('%I:%M %p') }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ revision.changes_summary or 'No summary provided' }}</strong>
+                                        {% if revision.detailed_changes and revision.detailed_changes.strip() %}
+                                            <br>
+                                            <button class="btn btn-sm btn-outline-info mt-1" type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#details-{{ revision.revision_id }}" 
+                                                    aria-expanded="false">
+                                                <i class="fas fa-eye"></i> View Details
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {{ revision.created_by or 'Unknown' }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if revision.detailed_changes and revision.detailed_changes.strip() %}
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#details-{{ revision.revision_id }}" 
+                                                    aria-expanded="false">
+                                                <i class="fas fa-info"></i>
+                                            </button>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% if revision.detailed_changes and revision.detailed_changes.strip() %}
+                                <tr class="collapse" id="details-{{ revision.revision_id }}">
+                                    <td colspan="5" class="bg-light">
+                                        <div class="p-3">
+                                            <h6 class="text-info mb-2">
+                                                <i class="fas fa-list-ul"></i> Detailed Changes for Rev. {{ revision.revision_number }}
+                                            </h6>
+                                            <div class="border-start border-info border-3 ps-3">
+                                                {{ revision.detailed_changes | replace('\n', '<br>') | safe }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Summary Statistics -->
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Total Revisions</h6>
+                                    <h4 class="mb-0 text-primary">{{ revisions|length }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Current Revision</h6>
+                                    <h4 class="mb-0 text-success">{{ estimate.revision_number }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">First Created</h6>
+                                    <h4 class="mb-0 text-info">{{ estimate.created_at.strftime('%m/%d/%Y') }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-3">
+                                    <h6 class="text-muted mb-1">Last Modified</h6>
+                                    <h4 class="mb-0 text-warning">{{ estimate.updated_at.strftime('%m/%d/%Y') }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Revision History</h5>
+                        <p class="text-muted">This estimate doesn't have any revision records yet.</p>
+                        <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+                           class="btn btn-primary">
+                            <i class="fas fa-code-branch"></i> Create First Revision
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus the first collapsible element if there's only one revision with details
+    const detailButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    if (detailButtons.length === 1) {
+        // Optionally auto-expand the first detail section
+        // detailButtons[0].click();
+    }
+});
+</script>
+{% endblock %}

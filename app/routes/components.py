@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Component, PriceHistory, Assembly, Parts, Estimate, Project, PartsPriceHistory, AssemblyPart, PartCategory
+from app.models import Component, PriceHistory, Assembly, Parts, Estimate, Project, PartsPriceHistory, AssemblyPart, PartCategory, EstimateComponent, StandardAssemblyComponent, TechData, Motor
 from app import db, csrf
 from datetime import datetime
 
@@ -62,7 +62,13 @@ def get_part_data(part_id):
 
 @bp.route('/<int:component_id>/edit', methods=['GET', 'POST'])
 def edit_component(component_id):
-    """Edit an existing component"""
+    """Edit an existing component (handles both Component and AssemblyPart)"""
+    # Try to find in AssemblyPart first (new system)
+    assembly_part = AssemblyPart.query.get(component_id)
+    if assembly_part:
+        return edit_assembly_part(assembly_part)
+    
+    # Fall back to old Component system
     component = Component.query.get_or_404(component_id)
     
     if request.method == 'POST':
@@ -98,6 +104,73 @@ def edit_component(component_id):
             flash(f'Error updating component: {str(e)}', 'error')
     
     return render_template('components/edit.html', component=component)
+
+def edit_assembly_part(assembly_part):
+    """Edit an AssemblyPart (new system)"""
+    if request.method == 'POST':
+        try:
+            # Check if part was changed
+            new_part_id = request.form.get('part_id', type=int)
+            if new_part_id and new_part_id != assembly_part.part_id:
+                # Changing to a different part
+                new_part = Parts.query.get_or_404(new_part_id)
+                assembly_part.part_id = new_part_id
+                flash(f'Part changed to: {new_part.description or new_part.part_number}', 'info')
+            
+            # Update assembly part fields
+            assembly_part.quantity = float(request.form['quantity'])
+            assembly_part.unit_of_measure = request.form.get('unit_of_measure', 'EA')
+            assembly_part.notes = request.form.get('notes', '')
+            
+            # Handle price update if not changing parts
+            if not new_part_id or new_part_id == assembly_part.part_id:
+                old_price = assembly_part.unit_price
+                new_price = float(request.form['unit_price'])
+                
+                if old_price != new_price:
+                    # Track price history for the part
+                    price_history = PartsPriceHistory(
+                        part_id=assembly_part.part_id,
+                        old_price=old_price,
+                        new_price=new_price,
+                        changed_reason='Assembly component edit'
+                    )
+                    db.session.add(price_history)
+                    
+                    # Update the part price
+                    assembly_part.part.update_price(
+                        new_price=new_price,
+                        reason='Assembly component edit',
+                        source='manual'
+                    )
+            
+            assembly_part.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Component updated successfully!', 'success')
+            return redirect(url_for('estimates.detail_estimate', estimate_id=assembly_part.assembly.estimate_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating component: {str(e)}', 'error')
+    
+    # Get similar parts for selection (same category)
+    similar_parts = []
+    if assembly_part.part.category_id:
+        # First try same category
+        similar_parts = Parts.query.filter_by(category_id=assembly_part.part.category_id)\
+            .order_by(Parts.description, Parts.part_number)\
+            .all()
+        
+        # If only one part in category (the current one), expand to show all parts for flexibility
+        if len(similar_parts) <= 1:
+            similar_parts = Parts.query.order_by(Parts.category_id, Parts.description, Parts.part_number)\
+                .limit(50)\
+                .all()  # Show top 50 parts from all categories
+    
+    return render_template('components/edit_assembly_part.html', 
+                         assembly_part=assembly_part,
+                         similar_parts=similar_parts)
 
 @bp.route('/<int:component_id>/price-history')
 def price_history(component_id):
@@ -652,6 +725,33 @@ def api_delete_database_part(part_id):
     """API endpoint to delete any part from the database"""
     try:
         part = Parts.query.get_or_404(part_id)
+        
+        # First delete all assembly_parts that reference this part
+        assembly_parts = AssemblyPart.query.filter_by(part_id=part_id).all()
+        for assembly_part in assembly_parts:
+            db.session.delete(assembly_part)
+        
+        # Delete all estimate_components that reference this part
+        estimate_components = EstimateComponent.query.filter_by(part_id=part_id).all()
+        for estimate_component in estimate_components:
+            db.session.delete(estimate_component)
+        
+        # Delete all standard_assembly_components that reference this part
+        standard_assembly_components = StandardAssemblyComponent.query.filter_by(part_id=part_id).all()
+        for standard_assembly_component in standard_assembly_components:
+            db.session.delete(standard_assembly_component)
+        
+        # Delete all tech_data entries that reference this part
+        tech_data_entries = TechData.query.filter_by(part_id=part_id).all()
+        for tech_data in tech_data_entries:
+            db.session.delete(tech_data)
+        
+        # Clear VFD references in motors (set to NULL since it's nullable)
+        motors_with_vfd = Motor.query.filter_by(selected_vfd_part_id=part_id).all()
+        for motor in motors_with_vfd:
+            motor.selected_vfd_part_id = None
+        
+        # Then delete the part itself
         db.session.delete(part)
         db.session.commit()
         
@@ -669,6 +769,32 @@ def api_bulk_delete_database_parts():
         data = request.get_json()
         part_ids = data.get('part_ids', [])
         
+        # First delete all assembly_parts that reference these parts
+        assembly_parts = AssemblyPart.query.filter(AssemblyPart.part_id.in_(part_ids)).all()
+        for assembly_part in assembly_parts:
+            db.session.delete(assembly_part)
+        
+        # Delete all estimate_components that reference these parts
+        estimate_components = EstimateComponent.query.filter(EstimateComponent.part_id.in_(part_ids)).all()
+        for estimate_component in estimate_components:
+            db.session.delete(estimate_component)
+        
+        # Delete all standard_assembly_components that reference these parts
+        standard_assembly_components = StandardAssemblyComponent.query.filter(StandardAssemblyComponent.part_id.in_(part_ids)).all()
+        for standard_assembly_component in standard_assembly_components:
+            db.session.delete(standard_assembly_component)
+        
+        # Delete all tech_data entries that reference these parts
+        tech_data_entries = TechData.query.filter(TechData.part_id.in_(part_ids)).all()
+        for tech_data in tech_data_entries:
+            db.session.delete(tech_data)
+        
+        # Clear VFD references in motors (set to NULL since it's nullable)
+        motors_with_vfd = Motor.query.filter(Motor.selected_vfd_part_id.in_(part_ids)).all()
+        for motor in motors_with_vfd:
+            motor.selected_vfd_part_id = None
+        
+        # Then delete the parts themselves
         parts = Parts.query.filter(Parts.part_id.in_(part_ids)).all()
         for part in parts:
             db.session.delete(part)
@@ -843,4 +969,27 @@ def update_component_quantity(component_id):
         return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/parts-by-category/<string:category>')
+def api_parts_by_category(category):
+    """API endpoint to get parts by category for component substitution"""
+    try:
+        parts = Parts.query.filter_by(category=category)\
+            .order_by(Parts.description, Parts.part_number)\
+            .all()
+        
+        return jsonify([{
+            'part_id': p.part_id,
+            'part_number': p.part_number or '',
+            'description': p.description or '',
+            'current_price': float(p.current_price),
+            'manufacturer': p.manufacturer or '',
+            'model': p.model or '',
+            'rating': p.rating or '',
+            'vendor': p.vendor or '',
+            'display_name': f"{p.part_number or 'No Part Number'} - {p.description or 'No Description'}"
+        } for p in parts])
+        
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -635,3 +635,126 @@ def get_bom_filename(estimate):
     """Generate a standardized filename for BOM PDF"""
     safe_name = estimate.estimate_name.replace(" ", "_").replace("/", "_")
     return f"BOM_{estimate.estimate_number}_{safe_name}.pdf"
+
+
+def generate_revision_report_pdf(estimate, revisions):
+    """Generate a professional revision history report PDF"""
+    buffer = BytesIO()
+    doc = BaseDocTemplate(buffer, pagesize=A4)
+    
+    # Setup page templates
+    frame = Frame(
+        Config.PAGE_MARGINS['portrait']['side'], 
+        Config.PAGE_MARGINS['portrait']['side'],
+        Config.PAGE_MARGINS['portrait']['width'], 
+        Config.PAGE_MARGINS['portrait']['height'],
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0
+    )
+    
+    template = PageTemplate(id='normal', frames=frame)
+    doc.addPageTemplates([template])
+    
+    # Initialize document builder
+    assembler = DocumentAssembler()
+    story = []
+    
+    # Add header
+    story.extend([
+        assembler.logo_builder.build_header(),
+        Spacer(1, 30),
+        Paragraph("REVISION HISTORY REPORT", assembler.styles['main_title']),
+        Spacer(1, 20)
+    ])
+    
+    # Add estimate information
+    estimate_info_data = [
+        ['Estimate Number:', estimate.estimate_number],
+        ['Estimate Name:', estimate.estimate_name],
+        ['Project:', estimate.project.project_name],
+        ['Current Revision:', f"Rev. {estimate.revision_number}"],
+        ['Report Generated:', datetime.now().strftime('%B %d, %Y at %I:%M %p')]
+    ]
+    
+    estimate_info_table = Table(estimate_info_data, colWidths=[2*inch, 4*inch])
+    estimate_info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    
+    story.extend([
+        estimate_info_table,
+        Spacer(1, 30),
+        Paragraph("Revision History", assembler.styles['section_title']),
+        Spacer(1, 15)
+    ])
+    
+    # Build revision history table
+    if revisions:
+        revision_data = [['Rev.', 'Date', 'Summary', 'Created By']]
+        
+        for revision in revisions:
+            revision_data.append([
+                str(revision.revision_number),
+                revision.created_at.strftime('%m/%d/%Y'),
+                revision.changes_summary or 'No summary provided',
+                revision.created_by or 'Unknown'
+            ])
+        
+        revision_table = Table(revision_data, colWidths=[0.8*inch, 1.2*inch, 3.5*inch, 1.5*inch])
+        revision_table.setStyle(TableStyle([
+            # Header row
+            ('BACKGROUND', (0, 0), (-1, 0), Config.PRIMARY_RED),
+            ('TEXTCOLOR', (0, 0), (-1, 0), Config.WHITE),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            
+            # Data rows
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Rev column
+            ('ALIGN', (1, 1), (1, -1), 'CENTER'),  # Date column
+            ('ALIGN', (2, 1), (2, -1), 'LEFT'),    # Summary column
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Created By column
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+            
+            # Grid
+            ('GRID', (0, 0), (-1, -1), 1, Config.BLACK),
+            
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [Config.WHITE, Config.GRAY])
+        ]))
+        
+        story.append(revision_table)
+        
+        # Add detailed changes if available
+        story.extend([
+            Spacer(1, 30),
+            Paragraph("Detailed Changes", assembler.styles['section_title']),
+            Spacer(1, 15)
+        ])
+        
+        for revision in revisions:
+            if revision.detailed_changes and revision.detailed_changes.strip():
+                story.extend([
+                    Paragraph(f"<b>Revision {revision.revision_number} ({revision.created_at.strftime('%m/%d/%Y')}):</b>", 
+                             assembler.styles['subsection_title']),
+                    Paragraph(revision.detailed_changes, assembler.styles['body']),
+                    Spacer(1, 15)
+                ])
+    else:
+        story.append(Paragraph("No revisions found for this estimate.", assembler.styles['body']))
+    
+    # Build and return PDF
+    doc.build(story)
+    buffer.seek(0)
+    return buffer

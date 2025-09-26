@@ -88,6 +88,10 @@ class Project(db.Model):
         """Calculate total labor cost across all estimates in project"""
         return sum(estimate.total_labor_cost for estimate in self.estimates)
     
+    def total_project_material_cost(self):
+        """Calculate total material cost across all estimates in project"""
+        return sum(estimate.calculated_total for estimate in self.estimates)
+    
     def total_project_grand_total(self):
         """Calculate total project value including materials and labor"""
         return sum(estimate.grand_total for estimate in self.estimates)
@@ -101,6 +105,8 @@ class Estimate(db.Model):
     estimate_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     total_value = db.Column(db.Numeric(12, 2), default=0.00)
+    sort_order = db.Column(db.Integer, default=0)
+    revision_number = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -110,9 +116,15 @@ class Estimate(db.Model):
     machine_assembly_rate = db.Column(db.Numeric(8, 2), default=125.00)
     rate_snapshot_date = db.Column(db.Date)
     
+    # Simple labor hours tracking at estimate level
+    engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
+    
     # Relationships
     assemblies = db.relationship('Assembly', backref='estimate', cascade='all, delete-orphan')
     individual_components = db.relationship('EstimateComponent', backref='estimate', cascade='all, delete-orphan')
+    revisions = db.relationship('EstimateRevision', backref='estimate', cascade='all, delete-orphan')
     
     @property
     def calculated_total(self):
@@ -123,24 +135,18 @@ class Estimate(db.Model):
     
     @property
     def total_engineering_hours(self):
-        """Calculate total engineering hours across all assemblies and individual components"""
-        assembly_hours = sum(float(assembly.engineering_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(component.total_engineering_hours for component in self.individual_components)
-        return assembly_hours + component_hours
+        """Get engineering hours from the estimate level field"""
+        return float(self.engineering_hours or 0)
     
     @property
     def total_panel_shop_hours(self):
-        """Calculate total panel shop hours across all assemblies and individual components"""
-        assembly_hours = sum(float(assembly.panel_shop_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(component.total_panel_shop_hours for component in self.individual_components)
-        return assembly_hours + component_hours
+        """Get panel shop hours from the estimate level field"""
+        return float(self.panel_shop_hours or 0)
     
     @property
     def total_machine_assembly_hours(self):
-        """Calculate total machine assembly hours across all assemblies and individual components"""
-        assembly_hours = sum(float(assembly.machine_assembly_hours or 0) for assembly in self.assemblies)
-        component_hours = sum(component.total_machine_assembly_hours for component in self.individual_components)
-        return assembly_hours + component_hours
+        """Get machine assembly hours from the estimate level field"""
+        return float(self.machine_assembly_hours or 0)
     
     @property
     def total_hours(self):
@@ -149,24 +155,18 @@ class Estimate(db.Model):
     
     @property
     def total_engineering_cost(self):
-        """Calculate total engineering cost across all assemblies and individual components"""
-        assembly_cost = sum(assembly.calculated_engineering_cost for assembly in self.assemblies)
-        component_cost = sum(component.calculated_engineering_cost for component in self.individual_components)
-        return assembly_cost + component_cost
+        """Calculate total engineering cost from estimate hours and rate"""
+        return float(self.engineering_hours or 0) * float(self.engineering_rate or 145.0)
     
     @property
     def total_panel_shop_cost(self):
-        """Calculate total panel shop cost across all assemblies and individual components"""
-        assembly_cost = sum(assembly.calculated_panel_shop_cost for assembly in self.assemblies)
-        component_cost = sum(component.calculated_panel_shop_cost for component in self.individual_components)
-        return assembly_cost + component_cost
+        """Calculate total panel shop cost from estimate hours and rate"""
+        return float(self.panel_shop_hours or 0) * float(self.panel_shop_rate or 125.0)
     
     @property
     def total_machine_assembly_cost(self):
-        """Calculate total machine assembly cost across all assemblies and individual components"""
-        assembly_cost = sum(assembly.calculated_machine_assembly_cost for assembly in self.assemblies)
-        component_cost = sum(component.calculated_machine_assembly_cost for component in self.individual_components)
-        return assembly_cost + component_cost
+        """Calculate total machine assembly cost from estimate hours and rate"""
+        return float(self.machine_assembly_hours or 0) * float(self.machine_assembly_rate or 125.0)
     
     @property
     def total_labor_cost(self):
@@ -178,8 +178,41 @@ class Estimate(db.Model):
         """Calculate grand total including materials and labor"""
         return self.calculated_total + self.total_labor_cost
     
+    def create_revision(self, changes_summary=None, detailed_changes=None, created_by=None):
+        """Create a new revision of this estimate"""
+        # Increment revision number
+        self.revision_number += 1
+        
+        # Create revision history record
+        revision = EstimateRevision(
+            estimate_id=self.estimate_id,
+            revision_number=self.revision_number,
+            changes_summary=changes_summary,
+            detailed_changes=detailed_changes,
+            created_by=created_by
+        )
+        
+        db.session.add(revision)
+        self.updated_at = datetime.utcnow()
+        
+        return revision
+    
+    def get_revision_history(self):
+        """Get all revisions for this estimate"""
+        return EstimateRevision.query.filter_by(estimate_id=self.estimate_id)\
+            .order_by(EstimateRevision.revision_number.desc()).all()
+    
+    @property
+    def current_revision_summary(self):
+        """Get the most recent revision summary"""
+        latest_revision = EstimateRevision.query.filter_by(
+            estimate_id=self.estimate_id, 
+            revision_number=self.revision_number
+        ).first()
+        return latest_revision.changes_summary if latest_revision else None
+    
     def __repr__(self):
-        return f'<Estimate {self.estimate_number}>'
+        return f'<Estimate {self.estimate_number} Rev.{self.revision_number}>'
 
 class Assembly(db.Model):
     __tablename__ = 'assemblies'
@@ -197,17 +230,6 @@ class Assembly(db.Model):
     standard_assembly_version = db.Column(db.String(20), nullable=True)  # Version used when created
     quantity = db.Column(db.Numeric(10, 3), default=1.0)  # How many of this assembly (for standard assembly multiplier)
     
-    # Time estimation fields
-    engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    estimated_by = db.Column(db.String(100))
-    time_estimate_notes = db.Column(db.Text)
-    
-    # Labor cost fields (calculated from hours * rates)
-    engineering_cost = db.Column(db.Numeric(10, 2), default=0.0)
-    panel_shop_cost = db.Column(db.Numeric(10, 2), default=0.0)
-    machine_assembly_cost = db.Column(db.Numeric(10, 2), default=0.0)
     
     # Relationships - now uses AssemblyPart instead of Component
     assembly_parts = db.relationship('AssemblyPart', backref='assembly', cascade='all, delete-orphan')
@@ -218,37 +240,9 @@ class Assembly(db.Model):
         return sum(ap.total_price for ap in self.assembly_parts)
     
     @property
-    def total_hours(self):
-        """Calculate total hours across all labor types"""
-        return float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
-    
-    @property
-    def calculated_engineering_cost(self):
-        """Calculate engineering cost based on hours * estimate's engineering rate"""
-        rate = float(self.estimate.engineering_rate) if self.estimate else 145.0
-        return float(self.engineering_hours or 0) * rate
-    
-    @property
-    def calculated_panel_shop_cost(self):
-        """Calculate panel shop cost based on hours * estimate's panel shop rate"""
-        rate = float(self.estimate.panel_shop_rate) if self.estimate else 125.0
-        return float(self.panel_shop_hours or 0) * rate
-    
-    @property
-    def calculated_machine_assembly_cost(self):
-        """Calculate machine assembly cost based on hours * estimate's machine assembly rate"""
-        rate = float(self.estimate.machine_assembly_rate) if self.estimate else 125.0
-        return float(self.machine_assembly_hours or 0) * rate
-    
-    @property
     def total_labor_cost(self):
-        """Calculate total labor cost across all disciplines"""
-        return self.calculated_engineering_cost + self.calculated_panel_shop_cost + self.calculated_machine_assembly_cost
-    
-    @property
-    def total_assembly_cost(self):
-        """Calculate total assembly cost (materials + labor)"""
-        return self.calculated_total + self.total_labor_cost
+        """Labor cost for assembly - now always 0 since labor is tracked at estimate level"""
+        return 0.0
     
     def __repr__(self):
         return f'<Assembly {self.assembly_name}>'
@@ -343,18 +337,6 @@ class EstimateComponent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Time estimation fields
-    engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    
-    # Time per assembly fields (multiplied by quantity for total hours)
-    engineering_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
-    panel_shop_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
-    machine_assembly_hours_per_assembly = db.Column(db.Numeric(8, 2), default=0.0)
-    
-    estimated_by = db.Column(db.String(100))
-    time_estimate_notes = db.Column(db.Text)
     
     # Relationships
     part = db.relationship('Parts', backref='estimate_components')
@@ -364,63 +346,6 @@ class EstimateComponent(db.Model):
         """Calculate total price for this component"""
         return float(self.unit_price * self.quantity)
     
-    @property
-    def total_hours(self):
-        """Calculate total hours across all labor types (includes per-assembly * quantity)"""
-        base_hours = float(self.engineering_hours or 0) + float(self.panel_shop_hours or 0) + float(self.machine_assembly_hours or 0)
-        per_assembly_hours = (float(self.engineering_hours_per_assembly or 0) + 
-                             float(self.panel_shop_hours_per_assembly or 0) + 
-                             float(self.machine_assembly_hours_per_assembly or 0)) * float(self.quantity)
-        return base_hours + per_assembly_hours
-    
-    @property
-    def total_engineering_hours(self):
-        """Calculate total engineering hours (base + per-assembly * quantity)"""
-        base_hours = float(self.engineering_hours or 0)
-        per_assembly_hours = float(self.engineering_hours_per_assembly or 0) * float(self.quantity)
-        return base_hours + per_assembly_hours
-    
-    @property
-    def total_panel_shop_hours(self):
-        """Calculate total panel shop hours (base + per-assembly * quantity)"""
-        base_hours = float(self.panel_shop_hours or 0)
-        per_assembly_hours = float(self.panel_shop_hours_per_assembly or 0) * float(self.quantity)
-        return base_hours + per_assembly_hours
-    
-    @property
-    def total_machine_assembly_hours(self):
-        """Calculate total machine assembly hours (base + per-assembly * quantity)"""
-        base_hours = float(self.machine_assembly_hours or 0)
-        per_assembly_hours = float(self.machine_assembly_hours_per_assembly or 0) * float(self.quantity)
-        return base_hours + per_assembly_hours
-    
-    @property
-    def calculated_engineering_cost(self):
-        """Calculate engineering cost based on total hours * estimate's engineering rate"""
-        rate = float(self.estimate.engineering_rate) if self.estimate else 145.0
-        return self.total_engineering_hours * rate
-    
-    @property
-    def calculated_panel_shop_cost(self):
-        """Calculate panel shop cost based on total hours * estimate's panel shop rate"""
-        rate = float(self.estimate.panel_shop_rate) if self.estimate else 125.0
-        return self.total_panel_shop_hours * rate
-    
-    @property
-    def calculated_machine_assembly_cost(self):
-        """Calculate machine assembly cost based on total hours * estimate's machine assembly rate"""
-        rate = float(self.estimate.machine_assembly_rate) if self.estimate else 125.0
-        return self.total_machine_assembly_hours * rate
-    
-    @property
-    def total_labor_cost(self):
-        """Calculate total labor cost across all disciplines"""
-        return self.calculated_engineering_cost + self.calculated_panel_shop_cost + self.calculated_machine_assembly_cost
-    
-    @property
-    def total_component_cost(self):
-        """Calculate total component cost (materials + labor)"""
-        return self.total_price + self.total_labor_cost
     
     def __repr__(self):
         return f'<EstimateComponent {self.component_name}>'
@@ -952,7 +877,7 @@ class Motor(db.Model):
         # Find VFDs that match the type and have sufficient rating
         from sqlalchemy import and_, cast, Float
         
-        vfd_query = db.session.query(Parts).join(TechData, Parts.part_id == TechData.part_id)\
+        vfd_query = db.session.query(Parts)\
             .filter(and_(
                 Parts.description.contains(self.vfd_type.type_name),
                 cast(Parts.rating, Float) >= self.drive_required_current
@@ -1029,3 +954,20 @@ class Motor(db.Model):
     
     def __repr__(self):
         return f'<Motor {self.motor_name} ({self.hp}HP)>'
+
+class EstimateRevision(db.Model):
+    """Track revision history for estimates"""
+    __tablename__ = 'estimate_revisions'
+    
+    revision_id = db.Column(db.Integer, primary_key=True)
+    estimate_id = db.Column(db.Integer, db.ForeignKey('estimates.estimate_id'), nullable=False)
+    revision_number = db.Column(db.Integer, nullable=False)
+    changes_summary = db.Column(db.Text)
+    detailed_changes = db.Column(db.Text)
+    created_by = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (db.UniqueConstraint('estimate_id', 'revision_number'),)
+    
+    def __repr__(self):
+        return f'<EstimateRevision {self.estimate_id} Rev.{self.revision_number}>'

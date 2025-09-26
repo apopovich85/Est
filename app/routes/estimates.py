@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Project, Estimate, Assembly, Component, PriceHistory, EstimateComponent, Parts, StandardAssembly, StandardAssemblyComponent, AssemblyPart
+from app.models import Project, Estimate, Assembly, Component, PriceHistory, EstimateComponent, Parts, StandardAssembly, StandardAssemblyComponent, AssemblyPart, EstimateRevision
 from app import db, csrf
 from datetime import datetime, date
 import uuid
@@ -94,7 +94,10 @@ def copy_estimate(estimate_id):
                 description=source_estimate.description,
                 engineering_rate=source_estimate.engineering_rate,
                 panel_shop_rate=source_estimate.panel_shop_rate,
-                machine_assembly_rate=source_estimate.machine_assembly_rate
+                machine_assembly_rate=source_estimate.machine_assembly_rate,
+                engineering_hours=getattr(source_estimate, 'engineering_hours', 0.0),
+                panel_shop_hours=getattr(source_estimate, 'panel_shop_hours', 0.0),
+                machine_assembly_hours=getattr(source_estimate, 'machine_assembly_hours', 0.0)
             )
             db.session.add(new_estimate)
             db.session.flush()  # Get the new estimate ID
@@ -108,12 +111,7 @@ def copy_estimate(estimate_id):
                     sort_order=assembly.sort_order,
                     standard_assembly_id=assembly.standard_assembly_id,
                     standard_assembly_version=assembly.standard_assembly_version,
-                    quantity=assembly.quantity,
-                    engineering_hours=assembly.engineering_hours,
-                    panel_shop_hours=assembly.panel_shop_hours,
-                    machine_assembly_hours=assembly.machine_assembly_hours,
-                    estimated_by=assembly.estimated_by,
-                    time_estimate_notes=assembly.time_estimate_notes
+                    quantity=assembly.quantity
                 )
                 db.session.add(new_assembly)
                 db.session.flush()  # Get the new assembly ID
@@ -141,12 +139,7 @@ def copy_estimate(estimate_id):
                     unit_price=individual_component.unit_price,
                     quantity=individual_component.quantity,
                     unit_of_measure=individual_component.unit_of_measure,
-                    sort_order=individual_component.sort_order,
-                    engineering_hours=individual_component.engineering_hours,
-                    panel_shop_hours=individual_component.panel_shop_hours,
-                    machine_assembly_hours=individual_component.machine_assembly_hours,
-                    estimated_by=individual_component.estimated_by,
-                    time_estimate_notes=individual_component.time_estimate_notes
+                    sort_order=individual_component.sort_order
                 )
                 db.session.add(new_individual_component)
             
@@ -316,120 +309,104 @@ def delete_individual_component(component_id):
 
 
 
-@bp.route('/<int:estimate_id>/manage-component-hours')
-def manage_component_hours(estimate_id):
-    """Manage time estimates for all individual components in an estimate"""
-    estimate = Estimate.query.get_or_404(estimate_id)
-    components = EstimateComponent.query.filter_by(estimate_id=estimate_id).order_by(EstimateComponent.sort_order).all()
-    
-    return render_template('estimates/manage_component_hours.html', estimate=estimate, components=components)
 
 
-@bp.route('/<int:estimate_id>/update-component-hours', methods=['POST'])
-@csrf.exempt
-def update_component_hours(estimate_id):
-    """Update time estimates for multiple individual components"""
+def _get_bom_data_for_estimate(estimate_id):
+    """Helper function to get BOM data for an estimate - used by both web and PDF endpoints"""
     estimate = Estimate.query.get_or_404(estimate_id)
     
-    try:
-        # Process each component's time data
-        for component in estimate.individual_components:
-            component_id = component.estimate_component_id
-            
-            # Get form data for this component
-            engineering_hours = request.form.get(f'engineering_hours_{component_id}', 0)
-            panel_shop_hours = request.form.get(f'panel_shop_hours_{component_id}', 0)
-            machine_assembly_hours = request.form.get(f'machine_assembly_hours_{component_id}', 0)
-            estimated_by = request.form.get(f'estimated_by_{component_id}', '')
-            time_estimate_notes = request.form.get(f'time_estimate_notes_{component_id}', '')
-            
-            # Update component with new values
-            component.engineering_hours = float(engineering_hours or 0)
-            component.panel_shop_hours = float(panel_shop_hours or 0)
-            component.machine_assembly_hours = float(machine_assembly_hours or 0)
-            component.estimated_by = estimated_by
-            component.time_estimate_notes = time_estimate_notes
-        
-        db.session.commit()
-        flash('Component time estimates updated successfully!', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating component time estimates: {str(e)}', 'error')
+    # Get all components from assemblies and individual components
+    bom_data = []
     
-    return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
+    # Get components from assemblies
+    assemblies = Assembly.query.filter_by(estimate_id=estimate_id).all()
+    for assembly in assemblies:
+        for assembly_part in assembly.assembly_parts:
+            # Get part details through relationship
+            part = assembly_part.part
+            if not part:
+                continue  # Skip if no part relationship
+            
+            # Use the assembly part quantity directly (already accounts for assembly multiplier)
+            total_quantity = assembly_part.quantity
+            
+            # Create a unique grouping key for this specific part
+            # Use part_id as the primary key to avoid confusion between different parts
+            grouping_key = f"part_{part.part_id}"
+            display_part_number = part.master_item_number or part.part_number or "N/A"
+            
+            # Check if this exact part already exists in BOM
+            existing_item = next((item for item in bom_data 
+                                if item['grouping_key'] == grouping_key), None)
+            
+            if existing_item:
+                # Add to existing quantity
+                existing_item['total_quantity'] += float(total_quantity)
+            else:
+                # Add new item
+                bom_data.append({
+                    'grouping_key': grouping_key,  # Internal key for grouping
+                    'part_number': display_part_number,
+                    'component_name': part.description or part.model or 'Component',
+                    'description': part.description,
+                    'manufacturer': part.manufacturer,
+                    'unit_price': float(part.current_price or 0.0),
+                    'unit_of_measure': assembly_part.unit_of_measure,
+                    'total_quantity': float(total_quantity),
+                    'category': part.category
+                })
+    
+    # Get individual components
+    individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
+    for component in individual_components:
+        # For individual components, use the component ID as grouping key
+        if component.part:
+            grouping_key = f"part_{component.part.part_id}"
+            display_part_number = component.part.master_item_number or component.part.part_number or "N/A"
+            manufacturer = component.part.manufacturer
+            category = component.part.category
+        else:
+            grouping_key = f"component_{component.estimate_component_id}"
+            display_part_number = component.part_number or "N/A"
+            manufacturer = component.manufacturer
+            category = component.category or 'Uncategorized'
+        
+        # Check if this exact part already exists in BOM
+        existing_item = next((item for item in bom_data 
+                            if item['grouping_key'] == grouping_key), None)
+        
+        if existing_item:
+            # Add to existing quantity
+            existing_item['total_quantity'] += float(component.quantity)
+        else:
+            # Add new item
+            bom_data.append({
+                'grouping_key': grouping_key,  # Internal key for grouping
+                'part_number': display_part_number,
+                'component_name': component.component_name,
+                'description': component.description,
+                'manufacturer': manufacturer or 'N/A',
+                'unit_price': float(component.unit_price),
+                'unit_of_measure': component.unit_of_measure,
+                'total_quantity': float(component.quantity),
+                'category': category
+            })
+    
+    # Remove the grouping_key from the final output and sort by part number
+    for item in bom_data:
+        item.pop('grouping_key', None)
+        
+    bom_data.sort(key=lambda x: x['part_number'] or '')
+    
+    return estimate, bom_data
 
 
 @bp.route('/<int:estimate_id>/bom')
 def get_bom_data(estimate_id):
     """Get Bill of Materials data for an estimate"""
     try:
-        estimate = Estimate.query.get_or_404(estimate_id)
-        
-        # Get all components from assemblies and individual components
-        bom_data = []
-        
-        # Get components from assemblies
-        assemblies = Assembly.query.filter_by(estimate_id=estimate_id).all()
-        for assembly in assemblies:
-            for assembly_part in assembly.assembly_parts:
-                # Get part details through relationship
-                part = assembly_part.part
-                if not part:
-                    continue  # Skip if no part relationship
-                
-                # Use the assembly part quantity directly (already accounts for assembly multiplier)
-                total_quantity = assembly_part.quantity
-                
-                # Check if this part already exists in BOM (using master_item_number)
-                existing_item = next((item for item in bom_data 
-                                    if item['part_number'] == part.master_item_number), None)
-                
-                if existing_item:
-                    # Add to existing quantity
-                    existing_item['total_quantity'] += float(total_quantity)
-                else:
-                    # Add new item
-                    bom_data.append({
-                        'part_number': part.master_item_number,
-                        'component_name': part.description or part.model or 'Component',
-                        'description': part.description,
-                        'manufacturer': part.manufacturer,
-                        'unit_price': float(part.current_price or 0.0),
-                        'unit_of_measure': assembly_part.unit_of_measure,
-                        'total_quantity': float(total_quantity),
-                        'category': part.category  # Get the actual category from the part
-                    })
-        
-        # Get individual components
-        individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
-        for component in individual_components:
-            # Use master_item_number from linked part if available, otherwise use component's part_number
-            part_number = component.part.master_item_number if component.part else component.part_number
-            manufacturer = component.part.manufacturer if component.part else component.manufacturer
-            
-            # Check if this part already exists in BOM
-            existing_item = next((item for item in bom_data 
-                                if item['part_number'] == part_number), None)
-            
-            if existing_item:
-                # Add to existing quantity
-                existing_item['total_quantity'] += float(component.quantity)
-            else:
-                # Add new item
-                bom_data.append({
-                    'part_number': part_number,
-                    'component_name': component.component_name,
-                    'description': component.description,
-                    'manufacturer': manufacturer or 'N/A',  # Use manufacturer from part if available
-                    'unit_price': float(component.unit_price),
-                    'unit_of_measure': component.unit_of_measure,
-                    'total_quantity': float(component.quantity),
-                    'category': component.part.category if component.part else (component.category or 'Uncategorized')
-                })
-        
-        # Sort by part number
-        bom_data.sort(key=lambda x: x['part_number'] or '')
+        # Use the helper function to get BOM data
+        estimate, bom_data = _get_bom_data_for_estimate(estimate_id)
         
         return jsonify({
             'success': True,
@@ -456,65 +433,8 @@ def export_bom_pdf(estimate_id):
     from app.pdf_reports import generate_bom_pdf, get_bom_filename
     
     try:
-        # Get estimate and BOM data
-        estimate = Estimate.query.get_or_404(estimate_id)
-        
-        # Get BOM data using the same logic as get_bom_data
-        bom_data = []
-        assemblies = Assembly.query.filter_by(estimate_id=estimate_id).all()
-        
-        for assembly in assemblies:
-            for assembly_part in assembly.assembly_parts:
-                # Get part details through relationship
-                part = assembly_part.part
-                if not part:
-                    continue  # Skip if no part relationship
-                
-                # Use the assembly part quantity directly (already accounts for assembly multiplier)
-                total_quantity = assembly_part.quantity
-                
-                # Check if this part already exists in BOM (using master_item_number)
-                existing_item = next((item for item in bom_data 
-                                    if item['part_number'] == part.master_item_number), None)
-                
-                if existing_item:
-                    # Add to existing quantity
-                    existing_item['total_quantity'] += float(total_quantity)
-                else:
-                    # Add new item
-                    bom_data.append({
-                        'part_number': part.master_item_number,
-                        'component_name': part.description or part.model or 'Component',
-                        'description': part.description,
-                        'manufacturer': part.manufacturer,
-                        'unit_price': float(part.current_price or 0.0),
-                        'unit_of_measure': assembly_part.unit_of_measure,
-                        'total_quantity': float(total_quantity),
-                        'category': part.category  # Get the actual category from the part
-                    })
-        
-        individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
-        for component in individual_components:
-            # Use master_item_number from linked part if available, otherwise use component's part_number
-            part_number = component.part.master_item_number if component.part else component.part_number
-            manufacturer = component.part.manufacturer if component.part else component.manufacturer
-            
-            existing_item = next((item for item in bom_data 
-                                if item['part_number'] == part_number), None)
-            
-            if existing_item:
-                existing_item['total_quantity'] += float(component.quantity)
-            else:
-                bom_data.append({
-                    'part_number': part_number,
-                    'component_name': component.component_name,
-                    'description': component.description,
-                    'manufacturer': manufacturer or 'N/A',  # Use manufacturer from part if available
-                    'unit_price': float(component.unit_price),
-                    'unit_of_measure': component.unit_of_measure,
-                    'total_quantity': float(component.quantity),
-                    'category': component.part.category if component.part else (component.category or 'Uncategorized')
-                })
+        # Use the helper function to get BOM data (same logic as web endpoint)
+        estimate, bom_data = _get_bom_data_for_estimate(estimate_id)
         
         # Generate PDF using the pdf_reports module
         pdf_buffer = generate_bom_pdf(estimate, bom_data)
@@ -532,77 +452,29 @@ def export_bom_pdf(estimate_id):
             'error': f'PDF generation failed: {str(e)}'
         }), 500
 
-@bp.route('/<int:estimate_id>/manage-all-hours')
-def manage_all_hours(estimate_id):
-    """Manage time estimates for both assemblies and individual components in one unified interface"""
-    estimate = Estimate.query.get_or_404(estimate_id)
-    assemblies = Assembly.query.filter_by(estimate_id=estimate_id).order_by(Assembly.sort_order).all()
-    individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).order_by(EstimateComponent.sort_order).all()
-    
-    return render_template('estimates/manage_all_hours.html', 
-                         estimate=estimate, 
-                         assemblies=assemblies,
-                         individual_components=individual_components)
 
-@bp.route('/<int:estimate_id>/update-all-hours', methods=['POST'])
+@bp.route('/<int:estimate_id>/update-labor-hours', methods=['POST'])
 @csrf.exempt
-def update_all_hours(estimate_id):
-    """Update time estimates for both assemblies and individual components"""
+def update_labor_hours(estimate_id):
+    """Update labor hours for an estimate"""
     estimate = Estimate.query.get_or_404(estimate_id)
     
     try:
-        # Process assembly hours
-        for assembly in estimate.assemblies:
-            assembly_id = assembly.assembly_id
-            
-            # Get form data for this assembly (prefixed with "assembly_")
-            engineering_hours = request.form.get(f'assembly_engineering_hours_{assembly_id}', 0)
-            panel_shop_hours = request.form.get(f'assembly_panel_shop_hours_{assembly_id}', 0)
-            machine_assembly_hours = request.form.get(f'assembly_machine_assembly_hours_{assembly_id}', 0)
-            estimated_by = request.form.get(f'assembly_estimated_by_{assembly_id}', '')
-            time_estimate_notes = request.form.get(f'assembly_time_estimate_notes_{assembly_id}', '')
-            
-            # Update assembly with new values
-            assembly.engineering_hours = float(engineering_hours or 0)
-            assembly.panel_shop_hours = float(panel_shop_hours or 0)
-            assembly.machine_assembly_hours = float(machine_assembly_hours or 0)
-            assembly.estimated_by = estimated_by
-            assembly.time_estimate_notes = time_estimate_notes
-
-        # Process individual component hours
-        individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).all()
-        for component in individual_components:
-            component_id = component.estimate_component_id
-            
-            # Get form data for this component (prefixed with "component_")
-            engineering_hours = request.form.get(f'component_engineering_hours_{component_id}', 0)
-            panel_shop_hours = request.form.get(f'component_panel_shop_hours_{component_id}', 0)
-            machine_assembly_hours = request.form.get(f'component_machine_assembly_hours_{component_id}', 0)
-            
-            # Get per-assembly hours
-            engineering_hours_per_assembly = request.form.get(f'component_engineering_hours_per_assembly_{component_id}', 0)
-            panel_shop_hours_per_assembly = request.form.get(f'component_panel_shop_hours_per_assembly_{component_id}', 0)
-            machine_assembly_hours_per_assembly = request.form.get(f'component_machine_assembly_hours_per_assembly_{component_id}', 0)
-            
-            estimated_by = request.form.get(f'component_estimated_by_{component_id}', '')
-            time_estimate_notes = request.form.get(f'component_time_estimate_notes_{component_id}', '')
-            
-            # Update component with new values
-            component.engineering_hours = float(engineering_hours or 0)
-            component.panel_shop_hours = float(panel_shop_hours or 0)
-            component.machine_assembly_hours = float(machine_assembly_hours or 0)
-            component.engineering_hours_per_assembly = float(engineering_hours_per_assembly or 0)
-            component.panel_shop_hours_per_assembly = float(panel_shop_hours_per_assembly or 0)
-            component.machine_assembly_hours_per_assembly = float(machine_assembly_hours_per_assembly or 0)
-            component.estimated_by = estimated_by
-            component.time_estimate_notes = time_estimate_notes
+        engineering_hours = request.form.get('engineering_hours', 0)
+        panel_shop_hours = request.form.get('panel_shop_hours', 0)
+        machine_assembly_hours = request.form.get('machine_assembly_hours', 0)
+        
+        estimate.engineering_hours = float(engineering_hours or 0)
+        estimate.panel_shop_hours = float(panel_shop_hours or 0)
+        estimate.machine_assembly_hours = float(machine_assembly_hours or 0)
+        estimate.updated_at = datetime.now()
         
         db.session.commit()
-        flash('All time estimates updated successfully!', 'success')
+        flash('Labor hours updated successfully!', 'success')
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating time estimates: {str(e)}', 'error')
+        flash(f'Error updating labor hours: {str(e)}', 'error')
     
     return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
 
@@ -631,6 +503,34 @@ def update_estimate_name(estimate_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:estimate_id>/totals', methods=['GET'])
+def get_estimate_totals(estimate_id):
+    """API endpoint to get updated estimate totals"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    
+    try:
+        # Format currency values
+        def format_currency(amount):
+            return f"${amount:,.2f}"
+        
+        return jsonify({
+            'success': True,
+            'totals': {
+                'grand_total': format_currency(estimate.grand_total),
+                'materials_total': format_currency(estimate.calculated_total), 
+                'labor_total': format_currency(estimate.total_labor_cost),
+                'raw_grand_total': float(estimate.grand_total),
+                'raw_materials_total': float(estimate.calculated_total),
+                'raw_labor_total': float(estimate.total_labor_cost)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @bp.route('/<int:estimate_id>/reorder-assemblies', methods=['POST'])
 @csrf.exempt
@@ -752,3 +652,136 @@ def update_individual_component_quantity(component_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:estimate_id>/delete', methods=['POST'])
+@csrf.exempt
+def delete_estimate(estimate_id):
+    """Delete an estimate and all its associated components"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    project_id = estimate.project_id
+    estimate_name = estimate.estimate_name
+    
+    try:
+        db.session.delete(estimate)
+        db.session.commit()
+        flash(f'Estimate "{estimate_name}" deleted successfully!', 'success')
+        return redirect(url_for('projects.detail_project', project_id=project_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting estimate: {str(e)}', 'error')
+        return redirect(url_for('projects.detail_project', project_id=project_id))
+
+@bp.route('/api/reorder', methods=['POST'])
+@csrf.exempt
+def reorder_estimates():
+    """API endpoint to reorder estimates within a project"""
+    try:
+        data = request.get_json()
+        if not data or 'estimate_ids' not in data:
+            return jsonify({'success': False, 'error': 'Missing estimate_ids'}), 400
+        
+        estimate_ids = data['estimate_ids']
+        
+        # Update sort_order for each estimate
+        for index, estimate_id in enumerate(estimate_ids):
+            estimate = Estimate.query.get(estimate_id)
+            if estimate:
+                estimate.sort_order = index
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Estimates reordered successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/list', methods=['GET'])
+def list_estimates_api():
+    """API endpoint to get list of all estimates for copying assemblies"""
+    try:
+        estimates = db.session.query(
+            Estimate.estimate_id,
+            Estimate.estimate_name,
+            Project.project_name
+        ).join(Project).order_by(Project.project_name, Estimate.estimate_name).all()
+        
+        estimate_list = []
+        for estimate in estimates:
+            estimate_list.append({
+                'estimate_id': estimate.estimate_id,
+                'estimate_name': estimate.estimate_name,
+                'project_name': estimate.project_name
+            })
+        
+        return jsonify({'success': True, 'estimates': estimate_list})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/<int:estimate_id>/create-revision', methods=['POST'])
+@csrf.exempt
+def create_revision(estimate_id):
+    """Create a new revision of an estimate"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    
+    try:
+        changes_summary = request.form.get('changes_summary', '').strip()
+        detailed_changes = request.form.get('detailed_changes', '').strip()
+        created_by = request.form.get('created_by', 'System').strip()
+        
+        if not changes_summary:
+            flash('Changes summary is required to create a revision', 'error')
+            return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
+        
+        # Create the revision
+        revision = estimate.create_revision(
+            changes_summary=changes_summary,
+            detailed_changes=detailed_changes,
+            created_by=created_by
+        )
+        
+        db.session.commit()
+        flash(f'Revision {estimate.revision_number} created successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating revision: {str(e)}', 'error')
+    
+    return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
+
+@bp.route('/<int:estimate_id>/revision-history')
+def revision_history(estimate_id):
+    """View revision history for an estimate"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+    revisions = estimate.get_revision_history()
+    
+    return render_template('estimates/revision_history.html', 
+                         estimate=estimate, 
+                         revisions=revisions)
+
+@bp.route('/<int:estimate_id>/revision-report/pdf')
+def export_revision_report_pdf(estimate_id):
+    """Export revision history report as PDF"""
+    from flask import make_response
+    from app.pdf_reports import generate_revision_report_pdf
+    
+    try:
+        estimate = Estimate.query.get_or_404(estimate_id)
+        revisions = estimate.get_revision_history()
+        
+        # Generate PDF
+        pdf_buffer = generate_revision_report_pdf(estimate, revisions)
+        
+        # Create response
+        response = make_response(pdf_buffer.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="revision_history_{estimate.estimate_number}.pdf"'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'PDF generation failed: {str(e)}'
+        }), 500

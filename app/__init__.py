@@ -22,6 +22,17 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     csrf.init_app(app)
+    
+    # Add custom template filters
+    @app.template_filter('currency')
+    def currency_filter(value):
+        """Format a number as currency with commas and 2 decimal places"""
+        if value is None:
+            return "$0.00"
+        try:
+            return "${:,.2f}".format(float(value))
+        except (ValueError, TypeError):
+            return "$0.00"
 
     # Register blueprints
     from app.routes.main import bp as main_bp

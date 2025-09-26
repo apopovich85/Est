@@ -14,6 +14,7 @@
     </div>
     <div>
         <a href="{{ url_for('standard_assemblies.edit_assembly', assembly_id=assembly.standard_assembly_id) }}" 
+           id="editAssemblyBtn"
            class="btn btn-primary me-2">
             <i class="fas fa-edit"></i> Edit Assembly
         </a>
@@ -46,10 +47,20 @@
                     
                     <dt class="col-sm-3">Version:</dt>
                     <dd class="col-sm-9">
-                        v{{ assembly.version }}
-                        {% if assembly.is_template %}
-                            <span class="badge bg-warning text-dark ms-1">Current Template</span>
-                        {% endif %}
+                        <div class="d-flex align-items-center">
+                            <select class="form-select form-select-sm me-2 version-select" 
+                                    style="width: 300px;" id="versionSelect"
+                                    data-assembly-id="{{ assembly.standard_assembly_id }}"
+                                    data-current-version="{{ assembly.version }}">
+                                <!-- Options will be loaded dynamically -->
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary me-2" id="editVersionNameBtn" title="Edit Version Name">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if assembly.is_template %}
+                                <span class="badge bg-warning text-dark ms-1">Current Template</span>
+                            {% endif %}
+                        </div>
                     </dd>
                     
                     <dt class="col-sm-3">Status:</dt>
@@ -60,18 +71,44 @@
                     </dd>
                     
                     <dt class="col-sm-3">Description:</dt>
-                    <dd class="col-sm-9">{{ assembly.description or 'No description provided' }}</dd>
+                    <dd class="col-sm-9">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-grow-1">
+                                <div id="descriptionDisplay" class="me-2">
+                                    {{ assembly.description or 'No description provided' }}
+                                </div>
+                                <textarea id="descriptionEdit" class="form-control me-2" 
+                                          style="display: none;" rows="3" 
+                                          placeholder="Enter description for this version..."></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary" id="editDescriptionBtn" title="Edit Description">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-success" id="saveDescriptionBtn" 
+                                        style="display: none;" title="Save Description">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" id="cancelDescriptionBtn" 
+                                        style="display: none;" title="Cancel">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </dd>
                     
                     <dt class="col-sm-3">Created By:</dt>
                     <dd class="col-sm-9">{{ assembly.created_by or 'Unknown' }}</dd>
                     
                     <dt class="col-sm-3">Created:</dt>
-                    <dd class="col-sm-9">{{ assembly.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                    <dd class="col-sm-9" id="createdAtDisplay">
+                        {{ assembly.created_at.strftime('%B %d, %Y at %I:%M %p UTC') if assembly.created_at else 'Not available' }}
+                    </dd>
                     
                     <dt class="col-sm-3">Last Updated:</dt>
-                    <dd class="col-sm-9">
+                    <dd class="col-sm-9" id="updatedAtDisplay">
                         {% if assembly.updated_at %}
-                            {{ assembly.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                            {{ assembly.updated_at.strftime('%B %d, %Y at %I:%M %p UTC') }}
                         {% else %}
                             Not available
                         {% endif %}
@@ -101,10 +138,9 @@
                 <hr>
                 
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('standard_assemblies.apply_interface', assembly_id=assembly.standard_assembly_id) }}" 
-                       class="btn btn-success">
+                    <button class="btn btn-success" onclick="applyToEstimate()">
                         <i class="fas fa-download"></i> Apply to Estimate
-                    </a>
+                    </button>
                     <button class="btn btn-outline-warning" 
                             onclick="createNewVersion({{ assembly.standard_assembly_id }}, '{{ assembly.name }}')">
                         <i class="fas fa-code-branch"></i> Create New Version
@@ -202,7 +238,7 @@
                 <div class="modal-body">
                     <p>Create a new version of <strong>{{ assembly.name }}</strong>?</p>
                     <div class="mb-3">
-                        <label for="versionNotes" class="form-label">Version Notes</label>
+                        <label for="versionNotes" class="form-label">Version Name</label>
                         <textarea class="form-control" id="versionNotes" name="notes" rows="3"
                                 placeholder="Describe what changed in this version..."></textarea>
                     </div>
@@ -221,11 +257,751 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Version Name Modal -->
+<div class="modal fade" id="editVersionNameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Version Name</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editVersionNameForm">
+                    <div class="mb-3">
+                        <label for="versionNameInput" class="form-label">Version Name</label>
+                        <input type="text" class="form-control" id="versionNameInput" 
+                               placeholder="Enter descriptive name for this version..." maxlength="255">
+                        <div class="form-text">This will be displayed as "v1.0 - Your Name Here"</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Version:</strong> <span id="editingVersionNumber">-</span><br>
+                        <strong>Assembly:</strong> <span id="editingAssemblyName">-</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveVersionNameBtn">
+                    <i class="fas fa-save"></i> Save Name
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load version dropdown on page load
+    loadVersionDropdown();
+    
+    // Add event listener for version changes
+    document.getElementById('versionSelect').addEventListener('change', function() {
+        const selectedVersion = this.value;
+        const assemblyId = this.dataset.assemblyId;
+        loadVersionComponents(selectedVersion, assemblyId);
+        updateEditButtonUrl(selectedVersion, assemblyId);
+    });
+    
+    // Add event listener for edit version name button
+    const editBtn = document.getElementById('editVersionNameBtn');
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            // Check if version dropdown has been loaded
+            const versionSelect = document.getElementById('versionSelect');
+            if (!versionSelect || versionSelect.options.length === 0) {
+                showToast('error', 'Error', 'Please wait for versions to load before editing');
+                return;
+            }
+            
+            // Add a small delay to ensure all DOM elements are ready
+            setTimeout(() => {
+                showEditVersionNameModal();
+            }, 100);
+        });
+    }
+    
+    // Add event listener for save version name button
+    const saveBtn = document.getElementById('saveVersionNameBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            saveVersionName();
+        });
+    }
+    
+    // Add event listeners for description editing
+    const editDescBtn = document.getElementById('editDescriptionBtn');
+    const saveDescBtn = document.getElementById('saveDescriptionBtn');
+    const cancelDescBtn = document.getElementById('cancelDescriptionBtn');
+    
+    if (editDescBtn) {
+        editDescBtn.addEventListener('click', function() {
+            startDescriptionEdit();
+        });
+    }
+    
+    if (saveDescBtn) {
+        saveDescBtn.addEventListener('click', function() {
+            saveDescription();
+        });
+    }
+    
+    if (cancelDescBtn) {
+        cancelDescBtn.addEventListener('click', function() {
+            cancelDescriptionEdit();
+        });
+    }
+});
+
+function loadVersionDropdown() {
+    const versionSelect = document.getElementById('versionSelect');
+    const assemblyId = versionSelect.dataset.assemblyId;
+    const currentVersion = versionSelect.dataset.currentVersion;
+    
+    // Load available versions
+    fetch(`/standard_assemblies/${assemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateVersionDropdown(versionSelect, data.versions, currentVersion);
+                // Update edit button URL for the current version
+                updateEditButtonUrl(currentVersion, assemblyId);
+            } else {
+                console.error('Failed to load versions:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading assembly versions:', error);
+        });
+}
+
+function populateVersionDropdown(select, versions, currentVersion) {
+    select.innerHTML = '';
+    
+    versions.forEach(version => {
+        const option = document.createElement('option');
+        option.value = version.version;
+        
+        // Concatenate version number with comment/notes
+        let displayText = `v${version.version}`;
+        if (version.version_notes && version.version_notes.trim()) {
+            displayText += ` - ${version.version_notes.trim()}`;
+        }
+        
+        if (version.is_active) {
+            displayText += ' (Active)';
+        }
+        
+        option.textContent = displayText;
+        if (version.version === currentVersion) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+function updateEditButtonUrl(selectedVersion, baseAssemblyId) {
+    // Get the specific assembly ID for the selected version
+    fetch(`/standard_assemblies/${baseAssemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Update the Edit Assembly button to point to the selected version
+                    const editBtn = document.getElementById('editAssemblyBtn');
+                    if (editBtn) {
+                        const newUrl = `/standard_assemblies/${selectedVersionData.standard_assembly_id}/edit`;
+                        editBtn.href = newUrl;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error updating edit button URL:', error);
+        });
+}
+
+function startDescriptionEdit() {
+    const display = document.getElementById('descriptionDisplay');
+    const edit = document.getElementById('descriptionEdit');
+    const editBtn = document.getElementById('editDescriptionBtn');
+    const saveBtn = document.getElementById('saveDescriptionBtn');
+    const cancelBtn = document.getElementById('cancelDescriptionBtn');
+    
+    // Get current description text (remove "No description provided" placeholder)
+    let currentText = display.textContent.trim();
+    if (currentText === 'No description provided') {
+        currentText = '';
+    }
+    
+    edit.value = currentText;
+    display.style.display = 'none';
+    edit.style.display = 'block';
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+    cancelBtn.style.display = 'inline-block';
+    
+    edit.focus();
+}
+
+function cancelDescriptionEdit() {
+    const display = document.getElementById('descriptionDisplay');
+    const edit = document.getElementById('descriptionEdit');
+    const editBtn = document.getElementById('editDescriptionBtn');
+    const saveBtn = document.getElementById('saveDescriptionBtn');
+    const cancelBtn = document.getElementById('cancelDescriptionBtn');
+    
+    display.style.display = 'block';
+    edit.style.display = 'none';
+    editBtn.style.display = 'inline-block';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+}
+
+function saveDescription() {
+    const versionSelect = document.getElementById('versionSelect');
+    const edit = document.getElementById('descriptionEdit');
+    const newDescription = edit.value.trim();
+    
+    if (!versionSelect) {
+        showToast('error', 'Error', 'Version not selected');
+        return;
+    }
+    
+    const selectedVersion = versionSelect.value;
+    const baseAssemblyId = versionSelect.dataset.assemblyId;
+    
+    const saveBtn = document.getElementById('saveDescriptionBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    saveBtn.disabled = true;
+    
+    // Get specific assembly ID for selected version
+    fetch(`/standard_assemblies/${baseAssemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Update description
+                    return fetch(`/standard_assemblies/api/version/${selectedVersionData.standard_assembly_id}/description`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ 
+                            description: newDescription
+                        })
+                    });
+                } else {
+                    throw new Error('Version not found');
+                }
+            } else {
+                throw new Error('Failed to load version data');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update display
+                const display = document.getElementById('descriptionDisplay');
+                display.textContent = newDescription || 'No description provided';
+                cancelDescriptionEdit();
+                showToast('success', 'Success', 'Description updated successfully');
+            } else {
+                showToast('error', 'Error', data.error || 'Failed to update description');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving description:', error);
+            showToast('error', 'Error', 'Failed to save description');
+        })
+        .finally(() => {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        });
+}
+
+function loadVersionComponents(selectedVersion, baseAssemblyId) {
+    // First get the versions to find the specific assembly ID for the selected version
+    fetch(`/standard_assemblies/${baseAssemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Now get the components for this specific version
+                    return fetch(`/standard_assemblies/api/${selectedVersionData.standard_assembly_id}/components`);
+                } else {
+                    throw new Error('Selected version not found');
+                }
+            } else {
+                throw new Error('Failed to load version information');
+            }
+        })
+        .then(response => response.json())
+        .then(components => {
+            updateComponentsTable(components);
+            updateAssemblyStats(components);
+            updateVersionInfo(selectedVersion, baseAssemblyId);
+        })
+        .catch(error => {
+            console.error('Error loading version components:', error);
+            showToast('error', 'Error', 'Failed to load components for selected version');
+        });
+}
+
+function updateVersionInfo(selectedVersion, baseAssemblyId) {
+    // Get version info and update description, timestamps, etc.
+    fetch(`/standard_assemblies/${baseAssemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Get detailed version info
+                    return fetch(`/standard_assemblies/api/${selectedVersionData.standard_assembly_id}/info`);
+                }
+            }
+            return null;
+        })
+        .then(response => {
+            if (response && response.ok) {
+                return response.json();
+            }
+            return null;
+        })
+        .then(versionInfo => {
+            if (versionInfo && versionInfo.success) {
+                // Update description
+                const descDisplay = document.getElementById('descriptionDisplay');
+                if (descDisplay) {
+                    descDisplay.textContent = versionInfo.description || 'No description provided';
+                }
+                
+                // Update timestamps with UTC
+                const createdDisplay = document.getElementById('createdAtDisplay');
+                const updatedDisplay = document.getElementById('updatedAtDisplay');
+                
+                if (createdDisplay && versionInfo.created_at) {
+                    try {
+                        const createdDate = new Date(versionInfo.created_at);
+                        createdDisplay.textContent = createdDate.toLocaleString('en-US', {
+                            year: 'numeric', month: 'long', day: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC'
+                        }) + ' UTC';
+                    } catch (e) {
+                        console.warn('Error formatting created date:', e);
+                    }
+                }
+                
+                if (updatedDisplay && versionInfo.updated_at) {
+                    try {
+                        const updatedDate = new Date(versionInfo.updated_at);
+                        updatedDisplay.textContent = updatedDate.toLocaleString('en-US', {
+                            year: 'numeric', month: 'long', day: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC'
+                        }) + ' UTC';
+                    } catch (e) {
+                        console.warn('Error formatting updated date:', e);
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error updating version info:', error);
+            // Don't show error to user, just log it - version info update is not critical
+        });
+}
+
+function updateComponentsTable(components) {
+    const tableBody = document.querySelector('#componentsTable tbody');
+    const tableFooter = document.querySelector('#componentsTable tfoot');
+    
+    if (!components || components.length === 0) {
+        // Show no components message
+        const componentCard = document.querySelector('.card:has(#componentsTable)').parentElement;
+        componentCard.innerHTML = `
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Components</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center py-5">
+                        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Components</h5>
+                        <p class="text-muted">This version doesn't have any components.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    // Calculate total cost
+    let totalCost = 0;
+    
+    // Add new rows
+    components.forEach(component => {
+        totalCost += component.total_price;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${component.part_number || 'N/A'}</strong></td>
+            <td>${component.component_name || 'N/A'}</td>
+            <td><small class="text-muted">${component.manufacturer || 'Unknown'}</small></td>
+            <td><small class="text-muted">${component.category || 'N/A'}</small></td>
+            <td class="text-end">${component.quantity}</td>
+            <td>${component.unit_of_measure}</td>
+            <td class="text-end text-success">$${component.unit_price.toFixed(2)}</td>
+            <td class="text-end"><strong class="text-success">$${component.total_price.toFixed(2)}</strong></td>
+            <td>
+                ${component.notes ? `<small class="text-muted">${component.notes}</small>` : '<small class="text-muted">-</small>'}
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+    
+    // Update footer total
+    tableFooter.querySelector('th:last-child').innerHTML = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+function updateAssemblyStats(components) {
+    const componentCount = components ? components.length : 0;
+    const totalCost = components ? components.reduce((sum, comp) => sum + comp.total_price, 0) : 0;
+    
+    // Update component count in summary
+    const componentCountElement = document.querySelector('.text-primary');
+    if (componentCountElement && componentCountElement.textContent.trim() !== componentCount.toString()) {
+        componentCountElement.textContent = componentCount;
+    }
+    
+    // Update total cost in summary (exclude component table cells)
+    const totalCostElements = document.querySelectorAll('.text-success:not(#componentsTable .text-success)');
+    totalCostElements.forEach(element => {
+        if (element.textContent.includes('$')) {
+            element.textContent = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+    });
+    
+    // Update header info
+    const headerInfo = document.querySelector('.text-muted');
+    if (headerInfo) {
+        const currentText = headerInfo.textContent;
+        const versionMatch = currentText.match(/Version ([^\s]+)/);
+        const categoryMatch = currentText.match(/• ([^•]+) •/);
+        
+        if (versionMatch && categoryMatch) {
+            const selectedVersion = document.getElementById('versionSelect').value;
+            const category = categoryMatch[1].trim();
+            
+            headerInfo.textContent = `Version ${selectedVersion} • ${category} • ${componentCount} components • Total: $${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+    }
+}
+
+function createEditVersionModal() {
+    const modalHtml = `
+        <div class="modal fade" id="editVersionNameModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Version Name</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editVersionNameForm">
+                            <div class="mb-3">
+                                <label for="versionNameInput" class="form-label">Version Name</label>
+                                <input type="text" class="form-control" id="versionNameInput" 
+                                       placeholder="Enter descriptive name for this version..." maxlength="255">
+                                <div class="form-text">This will be displayed as "v1.0 - Your Name Here"</div>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Version:</strong> <span id="editingVersionNumber">-</span><br>
+                                <strong>Assembly:</strong> <span id="editingAssemblyName">-</span>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveVersionNameBtn">
+                            <i class="fas fa-save"></i> Save Name
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('editVersionNameModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to document body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Add event listener to the save button
+    const saveBtn = document.getElementById('saveVersionNameBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            saveVersionName();
+        });
+    }
+}
+
+function showEditVersionNameModal() {
+    const versionSelect = document.getElementById('versionSelect');
+    if (!versionSelect) {
+        showToast('error', 'Error', 'Version selector not found');
+        return;
+    }
+    
+    const selectedVersion = versionSelect.value;
+    const selectedOption = versionSelect.options[versionSelect.selectedIndex];
+    
+    if (!selectedOption) {
+        showToast('error', 'Error', 'Please select a version first');
+        return;
+    }
+    
+    // Extract current version name (remove version number and status)
+    let currentName = selectedOption.textContent;
+    // Remove version number (e.g., "v1.0 - ")
+    currentName = currentName.replace(/^v[\d.]+(\s*-\s*)?/, '');
+    // Remove status indicators like "(Active)"
+    currentName = currentName.replace(/\s*\([^)]*\)\s*$/, '');
+    
+    // Ensure modal exists
+    let modalEl = document.getElementById('editVersionNameModal');
+    if (!modalEl) {
+        console.log('Creating modal dynamically...');
+        createEditVersionModal();
+        modalEl = document.getElementById('editVersionNameModal');
+        
+        if (!modalEl) {
+            showToast('error', 'Error', 'Failed to create modal');
+            return;
+        }
+    }
+    
+    // Get elements after ensuring modal exists
+    const editingVersionNumberEl = document.getElementById('editingVersionNumber');
+    const editingAssemblyNameEl = document.getElementById('editingAssemblyName');
+    const versionNameInputEl = document.getElementById('versionNameInput');
+    
+    // Debug which element is missing
+    if (!editingVersionNumberEl || !editingAssemblyNameEl || !versionNameInputEl) {
+        let missingElements = [];
+        if (!editingVersionNumberEl) missingElements.push('editingVersionNumber');
+        if (!editingAssemblyNameEl) missingElements.push('editingAssemblyName');
+        if (!versionNameInputEl) missingElements.push('versionNameInput');
+        
+        console.error('Missing modal elements after creation:', missingElements);
+        console.log('Modal HTML:', modalEl.outerHTML);
+        
+        // Try creating modal again with a different approach
+        modalEl.remove();
+        createEditVersionModalInline(selectedVersion, currentName.trim());
+        return;
+    }
+    
+    editingVersionNumberEl.textContent = `v${selectedVersion}`;
+    editingAssemblyNameEl.textContent = '{{ assembly.name }}';
+    versionNameInputEl.value = currentName.trim();
+    
+    // Show modal
+    try {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        showToast('error', 'Error', 'Failed to open edit modal');
+    }
+}
+
+function createEditVersionModalInline(selectedVersion, currentName) {
+    // Create and show modal with values already populated
+    const assemblyName = '{{ assembly.name }}';
+    
+    const modalHtml = `
+        <div class="modal fade" id="editVersionNameModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Version Name</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editVersionNameForm">
+                            <div class="mb-3">
+                                <label for="versionNameInput" class="form-label">Version Name</label>
+                                <input type="text" class="form-control" id="versionNameInput" 
+                                       value="${currentName}"
+                                       placeholder="Enter descriptive name for this version..." maxlength="255">
+                                <div class="form-text">This will be displayed as "v${selectedVersion} - Your Name Here"</div>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Version:</strong> v${selectedVersion}<br>
+                                <strong>Assembly:</strong> ${assemblyName}
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveVersionNameBtn">
+                            <i class="fas fa-save"></i> Save Name
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('editVersionNameModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to document body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Add event listener to the save button
+    const saveBtn = document.getElementById('saveVersionNameBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            saveVersionName();
+        });
+    }
+    
+    // Show modal immediately
+    const modalEl = document.getElementById('editVersionNameModal');
+    if (modalEl) {
+        try {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        } catch (error) {
+            console.error('Error showing inline modal:', error);
+            showToast('error', 'Error', 'Failed to open modal');
+        }
+    }
+}
+
+function saveVersionName() {
+    const versionSelect = document.getElementById('versionSelect');
+    const versionNameInput = document.getElementById('versionNameInput');
+    const saveBtn = document.getElementById('saveVersionNameBtn');
+    
+    if (!versionSelect || !versionNameInput || !saveBtn) {
+        showToast('error', 'Error', 'Required elements not found. Please refresh the page.');
+        return;
+    }
+    
+    const selectedVersion = versionSelect.value;
+    const assemblyId = versionSelect.dataset.assemblyId;
+    const newName = versionNameInput.value.trim();
+    
+    if (!selectedVersion || !assemblyId) {
+        showToast('error', 'Error', 'No version selected');
+        return;
+    }
+    
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveBtn.disabled = true;
+    
+    // Find the specific assembly ID for this version
+    fetch(`/standard_assemblies/${assemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Now update the version name
+                    return fetch(`/standard_assemblies/api/version/${selectedVersionData.standard_assembly_id}/name`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ 
+                            name: newName,
+                            version: selectedVersion
+                        })
+                    });
+                } else {
+                    throw new Error('Version not found');
+                }
+            } else {
+                throw new Error('Failed to load version data');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editVersionNameModal'));
+                modal.hide();
+                
+                // Reload version dropdown to show updated name
+                loadVersionDropdown();
+                
+                showToast('success', 'Success', 'Version name updated successfully');
+            } else {
+                showToast('error', 'Error', data.error || 'Failed to update version name');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving version name:', error);
+            showToast('error', 'Error', 'Failed to save version name');
+        })
+        .finally(() => {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        });
+}
+
+function applyToEstimate() {
+    const versionSelect = document.getElementById('versionSelect');
+    const selectedVersion = versionSelect.value;
+    const assemblyId = versionSelect.dataset.assemblyId;
+    
+    // Find the assembly ID for the selected version
+    // We need to get the specific assembly ID for the selected version
+    fetch(`/standard_assemblies/${assemblyId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const selectedVersionData = data.versions.find(v => v.version === selectedVersion);
+                if (selectedVersionData) {
+                    // Redirect to apply interface with the specific version assembly ID
+                    window.location.href = `/standard_assemblies/apply?assembly_id=${selectedVersionData.standard_assembly_id}`;
+                } else {
+                    showToast('error', 'Error', 'Selected version not found');
+                }
+            } else {
+                showToast('error', 'Error', 'Failed to load version information');
+            }
+        })
+        .catch(error => {
+            console.error('Error getting version info:', error);
+            showToast('error', 'Error', 'Network error getting version information');
+        });
+}
+
 function createNewVersion(assemblyId, assemblyName) {
     try {
         // Try Bootstrap 5 approach first

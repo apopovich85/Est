@@ -264,3 +264,100 @@ def get_motor_calculations(motor_id):
     }
     
     return jsonify(calculations)
+
+@bp.route('/project/<int:project_id>/copy')
+def copy_motors_form(project_id):
+    """Show form to copy motors from other projects"""
+    project = Project.query.get_or_404(project_id)
+    
+    # Get all other projects that have motors
+    other_projects = db.session.query(Project)\
+        .join(Motor)\
+        .filter(Project.project_id != project_id)\
+        .distinct()\
+        .order_by(Project.project_name)\
+        .all()
+    
+    return render_template('motors/copy.html', 
+                         project=project, 
+                         other_projects=other_projects)
+
+@bp.route('/project/<int:project_id>/copy', methods=['POST'])
+def copy_motors(project_id):
+    """Copy selected motors from another project"""
+    project = Project.query.get_or_404(project_id)
+    source_project_id = request.form.get('source_project_id', type=int)
+    selected_motor_ids = request.form.getlist('motor_ids', type=int)
+    
+    if not source_project_id or not selected_motor_ids:
+        flash('Please select a source project and at least one motor to copy.', 'error')
+        return redirect(url_for('motors.copy_motors_form', project_id=project_id))
+    
+    try:
+        source_motors = Motor.query.filter(
+            Motor.project_id == source_project_id,
+            Motor.motor_id.in_(selected_motor_ids)
+        ).all()
+        
+        copied_count = 0
+        for source_motor in source_motors:
+            # Create new motor with same properties but different project_id
+            new_motor = Motor(
+                project_id=project_id,
+                load_type=source_motor.load_type,
+                motor_name=source_motor.motor_name,  # Keep original title
+                location=source_motor.location,
+                encl_type=source_motor.encl_type,
+                frame=source_motor.frame,
+                additional_notes=source_motor.additional_notes,
+                hp=source_motor.hp,
+                speed_range=source_motor.speed_range,
+                voltage=source_motor.voltage,
+                qty=source_motor.qty,
+                overload_percentage=source_motor.overload_percentage,
+                continuous_load=source_motor.continuous_load,
+                vfd_type_id=source_motor.vfd_type_id,
+                power_rating=source_motor.power_rating,
+                power_unit=source_motor.power_unit,
+                phase_config=source_motor.phase_config,
+                nec_amps_override=source_motor.nec_amps_override,
+                manual_amps=source_motor.manual_amps,
+                vfd_override=source_motor.vfd_override,
+                selected_vfd_part_id=source_motor.selected_vfd_part_id,
+                sort_order=source_motor.sort_order
+            )
+            
+            db.session.add(new_motor)
+            copied_count += 1
+        
+        db.session.commit()
+        flash(f'Successfully copied {copied_count} motor(s) to this project!', 'success')
+        return redirect(url_for('motors.list_motors', project_id=project_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error copying motors: {str(e)}', 'error')
+        return redirect(url_for('motors.copy_motors_form', project_id=project_id))
+
+@bp.route('/api/project_motors/<int:project_id>')
+def get_project_motors(project_id):
+    """Get motors for a specific project via API"""
+    motors = Motor.query.filter_by(project_id=project_id)\
+        .order_by(Motor.sort_order, Motor.motor_name)\
+        .all()
+    
+    motor_list = []
+    for motor in motors:
+        motor_list.append({
+            'motor_id': motor.motor_id,
+            'motor_name': motor.motor_name,
+            'load_type': motor.load_type,
+            'location': motor.location,
+            'hp': float(motor.hp) if motor.hp else None,
+            'voltage': float(motor.voltage),
+            'qty': motor.qty,
+            'motor_amps': motor.motor_amps,
+            'total_amps': motor.total_amps
+        })
+    
+    return jsonify(motor_list)

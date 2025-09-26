@@ -33,10 +33,15 @@
       "Bash(cat:*)",
       "Bash(cp:*)",
       "Bash(\".venv/Scripts/python.exe\" add_time_per_assembly_columns.py)",
-      "Bash(where python)"
+      "Bash(where python)",
+      "Bash(\".venv/Scripts/python.exe\" -c \"\nfrom app import create_app\napp = create_app()\nwith app.app_context():\n    from app.routes.motors import bp\n    print(''Motor routes registered:'')\n    for rule in app.url_map.iter_rules():\n        if rule.endpoint and rule.endpoint.startswith(''motors.''):\n            print(f''  {rule.endpoint}: {rule.rule}'')\n\")",
+      "Bash(\".venv/Scripts/python.exe\":*)",
+      "Bash(find:*)",
+      "Bash(C:ProjectsEst_v0.5venvScriptspython.exe add_revision_tracking.py)"
     ],
     "additionalDirectories": [
-      "C:\\Projects\\Est_v0.5"
+      "C:\\Projects\\Est_v0.5",
+      "C:\\c\\Projects"
     ]
   }
 }

@@ -225,19 +225,56 @@ function loadInitialParts() {
     searchParts();
 }
 
+// Global variable to store categories for component dropdowns
+let allCategories = [];
+
 function loadCategories() {
     fetch('/parts/api/categories')
         .then(response => response.json())
         .then(categories => {
+            // Store categories globally for component dropdowns
+            allCategories = categories.sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Populate filter dropdown
             const select = document.getElementById('categoryFilter');
-            categories.sort().forEach(category => {
+            allCategories.forEach(category => {
                 const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
+                option.value = category.name;
+                option.textContent = category.name;
                 select.appendChild(option);
             });
+            
+            // Update any existing component category dropdowns
+            updateAllCategoryDropdowns();
         })
         .catch(error => console.error('Error loading categories:', error));
+}
+
+function updateAllCategoryDropdowns() {
+    // Find all category dropdowns in component rows and populate them
+    const categorySelects = document.querySelectorAll('select[name*="[category]"]');
+    categorySelects.forEach(select => {
+        populateCategoryDropdown(select);
+    });
+}
+
+function populateCategoryDropdown(selectElement) {
+    // Clear existing options except the first one
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">Category</option>';
+    
+    // Add all categories
+    allCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.name;
+        option.textContent = category.name;
+        selectElement.appendChild(option);
+    });
+    
+    // Restore the selected value if it exists
+    if (currentValue) {
+        selectElement.value = currentValue;
+    }
 }
 
 function loadManufacturers() {
@@ -352,11 +389,9 @@ function addComponentRow(partData = null) {
         </td>
         <td>
             <select class="form-select form-select-sm" 
-                    name="components[${componentCounter}][category]">
+                    name="components[${componentCounter}][category]"
+                    id="category_${componentCounter}">
                 <option value="">Category</option>
-                {% for category in part_categories %}
-                    <option value="{{ category }}">{{ category }}</option>
-                {% endfor %}
             </select>
         </td>
         <td>
@@ -408,6 +443,12 @@ function addComponentRow(partData = null) {
     `;
     
     tbody.appendChild(row);
+    
+    // Populate the category dropdown for this row
+    const categorySelect = row.querySelector(`select[id="category_${componentCounter}"]`);
+    if (categorySelect) {
+        populateCategoryDropdown(categorySelect);
+    }
     
     // Fill with part data if provided
     if (partData) {
