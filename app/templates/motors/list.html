@@ -44,6 +44,7 @@
                             <th>Continuous Load</th>
                             <th>Heat Loss (W)</th>
                             <th>Width (in)</th>
+                            <th>Revision</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -124,14 +125,24 @@
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-info"
+                                        title="View Revision History - {{ motor.revision_type|title }}"
+                                        onclick="viewRevisions({{ motor.motor_id }})">
+                                    <i class="fas fa-code-branch"></i>
+                                    {% if motor.revision_type == 'major' %}🔴{% elif motor.revision_type == 'minor' %}🟡{% else %}🔵{% endif %}
+                                    v{{ motor.revision_number }}
+                                </button>
+                            </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('motors.edit_motor_form', motor_id=motor.motor_id) }}" 
+                                    <a href="{{ url_for('motors.edit_motor_form', motor_id=motor.motor_id) }}"
                                        class="btn btn-outline-primary" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button type="button" 
-                                            class="btn btn-outline-danger" 
+                                    <button type="button"
+                                            class="btn btn-outline-danger"
                                             title="Delete"
                                             onclick="confirmDelete({{ motor.motor_id }}, '{{ motor.motor_name }}')">
                                         <i class="fas fa-trash"></i>
@@ -141,7 +152,7 @@
                         </tr>
                         {% if motor.additional_notes %}
                         <tr class="table-light">
-                            <td colspan="15">
+                            <td colspan="18">
                                 <small><strong>Notes:</strong> {{ motor.additional_notes }}</small>
                             </td>
                         </tr>
@@ -207,13 +218,163 @@
     </div>
 </div>
 
+<!-- Revision History Modal -->
+<div class="modal fade" id="revisionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Revision History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="revisionContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
 function confirmDelete(motorId, motorName) {
     document.getElementById('motorName').textContent = motorName;
     document.getElementById('deleteForm').action = '/motors/delete/' + motorId;
-    
+
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     deleteModal.show();
+}
+
+function viewRevisions(motorId) {
+    const modal = new bootstrap.Modal(document.getElementById('revisionModal'));
+    modal.show();
+
+    // Fetch revision history
+    fetch(`/motors/${motorId}/revisions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayRevisions(motorId, data);
+            } else {
+                document.getElementById('revisionContent').innerHTML =
+                    '<div class="alert alert-danger">Failed to load revisions</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('revisionContent').innerHTML =
+                '<div class="alert alert-danger">Error loading revisions</div>';
+        });
+}
+
+function displayRevisions(motorId, data) {
+    const content = document.getElementById('revisionContent');
+
+    if (data.revisions.length === 0) {
+        content.innerHTML = '<div class="alert alert-info">No revision history available</div>';
+        return;
+    }
+
+    const typeIcons = {
+        'major': '🔴',
+        'minor': '🟡',
+        'overwrite': '🔵'
+    };
+
+    let html = `
+        <div class="mb-3">
+            <strong>Current Revision:</strong> v${data.current_revision}
+            <div class="mt-2">
+                <small>
+                    <span class="me-3">🔴 Major</span>
+                    <span class="me-3">🟡 Minor</span>
+                    <span>🔵 Overwrite</span>
+                </small>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Type</th>
+                        <th>Motor Name</th>
+                        <th>HP</th>
+                        <th>Voltage</th>
+                        <th>Qty</th>
+                        <th>Changed By</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.revisions.forEach(rev => {
+        const isCurrent = rev.revision_number === data.current_revision;
+        const typeIcon = typeIcons[rev.revision_type] || '';
+        html += `
+            <tr class="${isCurrent ? 'table-primary' : ''}">
+                <td><strong>v${rev.revision_number}</strong>${isCurrent ? ' <span class="badge bg-primary">Current</span>' : ''}</td>
+                <td>${typeIcon} ${rev.revision_type}</td>
+                <td>${rev.motor_name}</td>
+                <td>${rev.hp || '-'}</td>
+                <td>${rev.voltage}V</td>
+                <td>${rev.qty}</td>
+                <td>${rev.changed_by || 'System'}</td>
+                <td><small>${rev.created_at}</small></td>
+                <td><small>${rev.change_description || '-'}</small></td>
+                <td>
+                    ${!isCurrent ? `
+                        <button class="btn btn-sm btn-warning"
+                                onclick="revertToRevision(${motorId}, '${rev.revision_number}')"
+                                title="Revert to this revision">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table></div>';
+    content.innerHTML = html;
+}
+
+function revertToRevision(motorId, revisionNumber) {
+    if (!confirm(`Revert motor to revision ${revisionNumber}? This will create a new revision with the old values.`)) {
+        return;
+    }
+
+    fetch(`/motors/${motorId}/revert/${revisionNumber}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to revert revision. Please try again.');
+    });
 }
 </script>
 {% endblock %}

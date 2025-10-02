@@ -367,7 +367,7 @@
                                                    class="btn btn-xs btn-outline-secondary">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="{{ url_for('components.price_history', component_id=assembly_part.part_id) }}" 
+                                                <a href="{{ url_for('components.parts_price_history', part_id=assembly_part.part_id) }}"
                                                    class="btn btn-xs btn-outline-info" title="Part Price History">
                                                     <i class="fas fa-chart-line"></i>
                                                 </a>
@@ -1058,17 +1058,11 @@ function updateAssemblyQuantity(input) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Update the original quantity data attribute
-            input.dataset.originalQuantity = newQuantity;
-            input.style.backgroundColor = '#d1edff';
-            
             showToast('success', 'Updated', `Assembly quantity updated to ${newQuantity}`);
-            
-            // Update individual component quantities in the assembly table
-            updateComponentQuantitiesForAssembly(assemblyId, originalQuantity, newQuantity);
-            
-            // Update totals without page reload
-            updateAssemblyTotals();
+
+            // Reload the page to show updated quantities from the server
+            // The server has already correctly calculated all component quantities
+            window.location.reload();
         } else {
             // Revert on error
             input.value = originalQuantity;

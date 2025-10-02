@@ -47,9 +47,15 @@ def create_project():
 def detail_project(project_id):
     """Show project details with all estimates"""
     project = Project.query.get_or_404(project_id)
-    estimates = Estimate.query.filter_by(project_id=project_id).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
-    
-    return render_template('projects/detail.html', project=project, estimates=estimates)
+
+    # Separate standard and optional estimates
+    standard_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    optional_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=True).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+
+    return render_template('projects/detail.html',
+                         project=project,
+                         estimates=standard_estimates,
+                         optional_estimates=optional_estimates)
 
 @bp.route('/<int:project_id>/edit', methods=['GET', 'POST'])
 def edit_project(project_id):
@@ -62,8 +68,9 @@ def edit_project(project_id):
             project.client_name = request.form['client_name']
             project.description = request.form.get('description', '')
             project.status = request.form.get('status', 'Draft')
+            project.is_active = 'is_active' in request.form
             project.updated_at = datetime.utcnow()
-            
+
             db.session.commit()
             flash('Project updated successfully!', 'success')
             return redirect(url_for('projects.detail_project', project_id=project_id))
@@ -78,24 +85,51 @@ def edit_project(project_id):
 def delete_project(project_id):
     """Delete a project"""
     project = Project.query.get_or_404(project_id)
-    
+
     try:
         project_name = project.project_name
         db.session.delete(project)
         db.session.commit()
         flash(f'Project "{project_name}" deleted successfully!', 'success')
         return redirect(url_for('projects.list_projects'))
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting project: {str(e)}', 'error')
         return redirect(url_for('projects.detail_project', project_id=project_id))
 
+@bp.route('/<int:project_id>/toggle-active', methods=['POST'])
+def toggle_project_active(project_id):
+    """Toggle project active status via AJAX"""
+    project = Project.query.get_or_404(project_id)
+
+    try:
+        project.is_active = not project.is_active
+        project.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'is_active': project.is_active,
+            'message': f'Project marked as {"active" if project.is_active else "closed"}'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error updating project: {str(e)}'
+        }), 500
+
 @bp.route('/<int:project_id>/export')
 def export_project(project_id):
     """Export project estimates overview matching the web page format for easy copy-paste"""
     project = Project.query.get_or_404(project_id)
-    estimates = Estimate.query.filter_by(project_id=project_id).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+
+    # Separate standard and optional estimates
+    standard_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    optional_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=True).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    estimates = standard_estimates + optional_estimates
     
     # Create workbook and worksheet
     wb = openpyxl.Workbook()
@@ -125,9 +159,9 @@ def export_project(project_id):
     
     row = 2
     item_number = 24  # Starting from 24 as shown in your image
-    
-    # Process each estimate
-    for estimate in estimates:
+
+    # Process standard estimates first
+    for estimate in standard_estimates:
         # Add main estimate entry - starting from column B (2)
         ws.cell(row=row, column=2, value=item_number)  # ITEM
         ws.cell(row=row, column=3, value=estimate.estimate_name)  # DESCRIPTION
@@ -136,10 +170,11 @@ def export_project(project_id):
         # Add labor hours to appropriate columns
         if estimate.engineering_hours > 0:
             ws.cell(row=row, column=6, value=float(estimate.engineering_hours))  # ENG/FS
-        if estimate.panel_shop_hours > 0:
-            ws.cell(row=row, column=9, value=float(estimate.panel_shop_hours))  # ASSY
-        if estimate.machine_assembly_hours > 0:
-            ws.cell(row=row, column=9, value=float(estimate.machine_assembly_hours))  # ASSY
+
+        # Sum panel shop and machine assembly hours together for ASSY column
+        total_assy_hours = float(estimate.panel_shop_hours or 0) + float(estimate.machine_assembly_hours or 0)
+        if total_assy_hours > 0:
+            ws.cell(row=row, column=9, value=total_assy_hours)  # ASSY
         
         # Add material cost and total
         material_cost = float(estimate.calculated_total)
@@ -158,7 +193,55 @@ def export_project(project_id):
         
         row += 1
         item_number += 1
-    
+
+    # Add separator and process optional estimates if any
+    if optional_estimates:
+        # Add blank row separator
+        row += 1
+
+        # Add "OPTIONAL ESTIMATES" header row
+        ws.cell(row=row, column=2, value="OPTIONAL ESTIMATES")
+        ws.cell(row=row, column=2).font = Font(bold=True, size=12, color="FF6600")
+        ws.cell(row=row, column=2).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+        for col in range(2, 15):
+            ws.cell(row=row, column=col).border = border
+        row += 1
+
+        # Process optional estimates
+        for estimate in optional_estimates:
+            # Add main estimate entry - starting from column B (2)
+            ws.cell(row=row, column=2, value=item_number)  # ITEM
+            ws.cell(row=row, column=3, value=f"{estimate.estimate_name} (OPTIONAL)")  # DESCRIPTION
+            ws.cell(row=row, column=4, value=1)  # QTY
+
+            # Add labor hours to appropriate columns
+            if estimate.engineering_hours > 0:
+                ws.cell(row=row, column=6, value=float(estimate.engineering_hours))  # ENG/FS
+
+            # Sum panel shop and machine assembly hours together for ASSY column
+            total_assy_hours = float(estimate.panel_shop_hours or 0) + float(estimate.machine_assembly_hours or 0)
+            if total_assy_hours > 0:
+                ws.cell(row=row, column=9, value=total_assy_hours)  # ASSY
+
+            # Add material cost and total
+            material_cost = float(estimate.calculated_total)
+            total_cost = float(estimate.grand_total)
+
+            ws.cell(row=row, column=11, value=material_cost)  # PURCHASE
+            ws.cell(row=row, column=14, value=total_cost)  # TOTAL
+
+            # Style the entry row with highlighting for optional
+            ws.cell(row=row, column=3).font = entry_font
+            for col in range(2, 15):  # Start from column B (2) to N (14)
+                cell = ws.cell(row=row, column=col)
+                cell.border = border
+                cell.fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+                if col >= 6:  # Numeric columns
+                    cell.alignment = right_align
+
+            row += 1
+            item_number += 1
+
     # Set column widths for proper spacing (matching your image format) - starting from column B
     column_widths = [6, 50, 8, 8, 12, 10, 10, 10, 10, 15, 15, 18, 15]
     for col, width in enumerate(column_widths, 2):  # Start from column B (2)
@@ -178,9 +261,10 @@ def export_project(project_id):
 
 @bp.route('/<int:project_id>/consolidated-report')
 def export_consolidated_report(project_id):
-    """Export consolidated BOM report with cost breakdown and pie chart"""
+    """Export consolidated BOM report with cost breakdown and pie chart (excludes optional estimates)"""
     project = Project.query.get_or_404(project_id)
-    estimates = Estimate.query.filter_by(project_id=project_id).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    # Only include standard estimates in BOM report
+    estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
     
     # Create workbook
     wb = openpyxl.Workbook()

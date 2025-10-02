@@ -807,6 +807,14 @@ def api_bulk_delete_database_parts():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
+@bp.route('/parts/<int:part_id>/price-history')
+def parts_price_history(part_id):
+    """Show part price history with chart"""
+    part = Parts.query.get_or_404(part_id)
+    history = PartsPriceHistory.query.filter_by(part_id=part_id).order_by(PartsPriceHistory.changed_at).all()
+
+    return render_template('parts/price_history.html', part=part, history=history)
+
 @bp.route('/parts/<int:part_id>/price-history-data')
 def parts_price_history_data(part_id):
     """API endpoint for parts price history chart data with statistics"""

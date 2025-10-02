@@ -121,9 +121,9 @@
         <!-- Assemblies Grid -->
         <div id="assembliesGrid" class="row">
             {% for assembly in assemblies %}
-            <div class="col-lg-6 col-xl-4 mb-4 assembly-card" 
+            <div class="col-lg-6 col-xl-4 mb-4 assembly-card"
                  id="assembly-card-{{ assembly.standard_assembly_id }}"
-                 data-category="{{ assembly.category }}" 
+                 data-category="{{ assembly.category.name if assembly.category else '' }}"
                  data-name="{{ assembly.name.lower() }}"
                  data-cost="{{ assembly.total_cost }}"
                  data-components="{{ assembly.component_count }}"
@@ -930,11 +930,11 @@ function applyAssemblyToEstimate() {
             
             // Show success message
             showToast('success', 'Success', data.message);
-            
+
             // Ask if user wants to view the estimate
             setTimeout(() => {
                 if (confirm('Assembly applied successfully! Would you like to view the estimate?')) {
-                    window.open(data.estimate_url, '_blank');
+                    window.location.href = data.estimate_url;
                 }
             }, 1000);
             

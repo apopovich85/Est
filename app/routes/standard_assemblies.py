@@ -1090,7 +1090,7 @@ def api_get_assembly_info(assembly_id):
     """Get detailed information for a standard assembly"""
     try:
         assembly = StandardAssembly.query.get_or_404(assembly_id)
-        
+
         return jsonify({
             'success': True,
             'assembly_id': assembly.standard_assembly_id,
@@ -1105,7 +1105,39 @@ def api_get_assembly_info(assembly_id):
             'total_cost': float(assembly.total_cost),
             'component_count': assembly.component_count
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting assembly info: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/<int:assembly_id>/toggle-status', methods=['PUT'])
+@csrf.exempt
+def api_toggle_assembly_status(assembly_id):
+    """Toggle the active status of a standard assembly"""
+    try:
+        assembly = StandardAssembly.query.get_or_404(assembly_id)
+        data = request.get_json()
+
+        if not data or 'active' not in data:
+            return jsonify({'success': False, 'error': 'Active status is required'}), 400
+
+        # Convert string to boolean if needed
+        new_status = data['active']
+        if isinstance(new_status, str):
+            new_status = new_status.lower() == 'true'
+
+        assembly.is_active = bool(new_status)
+        assembly.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        status_text = "activated" if assembly.is_active else "deactivated"
+        return jsonify({
+            'success': True,
+            'message': f'Assembly "{assembly.name}" {status_text} successfully',
+            'is_active': assembly.is_active
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error toggling assembly status: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

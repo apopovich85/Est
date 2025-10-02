@@ -35,12 +35,22 @@
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
                             <option value="Draft" {{ 'selected' if project.status == 'Draft' else '' }}>Draft</option>
+                            <option value="WIP" {{ 'selected' if project.status == 'WIP' else '' }}>WIP</option>
                             <option value="Sent" {{ 'selected' if project.status == 'Sent' else '' }}>Sent</option>
                             <option value="Won" {{ 'selected' if project.status == 'Won' else '' }}>Won</option>
                             <option value="Lost" {{ 'selected' if project.status == 'Lost' else '' }}>Lost</option>
                         </select>
                     </div>
-                    
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active"
+                               {{ 'checked' if project.is_active else '' }}>
+                        <label class="form-check-label" for="is_active">
+                            Active Project
+                        </label>
+                        <div class="form-text">Uncheck to close this project and hide it from the active projects list.</div>
+                    </div>
+
                     <div class="d-flex justify-content-between">
                         <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.project_id) }}" 
                               onsubmit="return confirm('Are you sure you want to delete this project? This action cannot be undone.')">

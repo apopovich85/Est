@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app import db
-from app.models import Motor, Project, VFDType, NECAmpTable, Parts, TechData
+from app.models import Motor, Project, VFDType, NECAmpTable, Parts, TechData, MotorRevision
 from sqlalchemy import and_, cast, Float
+import json
 
 bp = Blueprint('motors', __name__, url_prefix='/motors')
 
@@ -99,21 +100,143 @@ def edit_motor_form(motor_id):
                          voltage_options=voltage_options,
                          vfd_options=vfd_options)
 
+@bp.route('/edit/<int:motor_id>/detect_changes', methods=['POST'])
+def detect_motor_changes(motor_id):
+    """Detect changes and suggest revision type"""
+    motor = Motor.query.get_or_404(motor_id)
+
+    try:
+        # Build new_data dictionary from form
+        load_type = request.form.get('load_type', 'motor')
+
+        if load_type == 'load':
+            voltage = float(request.form['voltage_load']) if request.form.get('voltage_load') else None
+        else:
+            voltage = float(request.form['voltage']) if request.form.get('voltage') else None
+
+        new_data = {
+            'load_type': load_type,
+            'motor_name': request.form.get('motor_name', ''),
+            'location': request.form.get('location', ''),
+            'voltage': voltage,
+            'qty': int(request.form['qty']) if request.form.get('qty') else 1,
+            'continuous_load': bool(request.form.get('continuous_load')),
+            'additional_notes': request.form.get('additional_notes', ''),
+            'nec_amps_override': bool(request.form.get('nec_amps_override')),
+            'manual_amps': float(request.form['manual_amps']) if request.form.get('manual_amps') else None
+        }
+
+        # Motor-specific fields
+        if load_type == 'motor':
+            new_data.update({
+                'hp': float(request.form['hp']) if request.form.get('hp') else None,
+                'encl_type': request.form.get('encl_type', ''),
+                'frame': request.form.get('frame', ''),
+                'speed_range': request.form.get('speed_range', ''),
+                'overload_percentage': float(request.form.get('overload_percentage', 1.15)) if request.form.get('overload_percentage') else 1.15,
+                'vfd_type_id': int(request.form['vfd_type_id']) if request.form.get('vfd_type_id') else None,
+                'vfd_override': bool(request.form.get('vfd_override')),
+                'selected_vfd_part_id': int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None,
+                'power_rating': None,
+                'power_unit': 'kVA',
+                'phase_config': 'three'
+            })
+        else:
+            # Load-specific fields
+            new_data.update({
+                'power_rating': float(request.form['power_rating']) if request.form.get('power_rating') else None,
+                'power_unit': request.form.get('power_unit', 'kVA'),
+                'phase_config': request.form.get('phase_config', 'three'),
+                'hp': None,
+                'encl_type': None,
+                'frame': None,
+                'speed_range': None,
+                'overload_percentage': None,
+                'vfd_type_id': None,
+                'vfd_override': False,
+                'selected_vfd_part_id': None
+            })
+
+        # Detect changes
+        changed_fields, suggested_type = motor.detect_changes(new_data)
+
+        return jsonify({
+            'success': True,
+            'changed_fields': changed_fields,
+            'suggested_revision_type': suggested_type,
+            'current_revision': motor.revision_number,
+            'next_major': motor.increment_revision('major'),
+            'next_minor': motor.increment_revision('minor')
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 @bp.route('/edit/<int:motor_id>', methods=['POST'])
 def edit_motor(motor_id):
-    """Update a motor"""
+    """Update a motor with revision control"""
     motor = Motor.query.get_or_404(motor_id)
-    
+
     try:
+        # Get revision type from form (user's choice)
+        revision_type = request.form.get('revision_type', 'minor')
+        change_description = request.form.get('change_description', '')
+
+        # Build new_data for change detection
         load_type = request.form.get('load_type', 'motor')
-        
-        # Get voltage from appropriate field based on load type
+
         if load_type == 'load':
-            voltage = float(request.form['voltage_load'])
+            voltage = float(request.form['voltage_load']) if request.form.get('voltage_load') else None
         else:
-            voltage = float(request.form['voltage'])
-            
-        # Common fields
+            voltage = float(request.form['voltage']) if request.form.get('voltage') else None
+
+        new_data = {
+            'load_type': load_type,
+            'motor_name': request.form.get('motor_name', ''),
+            'location': request.form.get('location', ''),
+            'voltage': voltage,
+            'qty': int(request.form['qty']) if request.form.get('qty') else 1,
+            'continuous_load': bool(request.form.get('continuous_load')),
+            'additional_notes': request.form.get('additional_notes', ''),
+            'nec_amps_override': bool(request.form.get('nec_amps_override')),
+            'manual_amps': float(request.form['manual_amps']) if request.form.get('manual_amps') else None
+        }
+
+        # Motor-specific or load-specific fields
+        if load_type == 'motor':
+            new_data.update({
+                'hp': float(request.form['hp']) if request.form.get('hp') else None,
+                'encl_type': request.form.get('encl_type', ''),
+                'frame': request.form.get('frame', ''),
+                'speed_range': request.form.get('speed_range', ''),
+                'overload_percentage': float(request.form.get('overload_percentage', 1.15)) if request.form.get('overload_percentage') else 1.15,
+                'vfd_type_id': int(request.form['vfd_type_id']) if request.form.get('vfd_type_id') else None,
+                'vfd_override': bool(request.form.get('vfd_override')),
+                'selected_vfd_part_id': int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None
+            })
+        else:
+            new_data.update({
+                'power_rating': float(request.form['power_rating']) if request.form.get('power_rating') else None,
+                'power_unit': request.form.get('power_unit', 'kVA'),
+                'phase_config': request.form.get('phase_config', 'three')
+            })
+
+        # Detect changes for revision history
+        changed_fields, _ = motor.detect_changes(new_data)
+
+        # Create revision snapshot BEFORE making changes
+        if changed_fields:  # Only create revision if something actually changed
+            motor.create_revision(
+                changed_by='User',
+                change_description=change_description,
+                revision_type=revision_type,
+                fields_changed=changed_fields
+            )
+
+        # Update motor fields
         motor.load_type = load_type
         motor.motor_name = request.form['motor_name']
         motor.location = request.form.get('location', '')
@@ -123,7 +246,7 @@ def edit_motor(motor_id):
         motor.additional_notes = request.form.get('additional_notes', '')
         motor.nec_amps_override = bool(request.form.get('nec_amps_override'))
         motor.manual_amps = float(request.form['manual_amps']) if request.form.get('manual_amps') else None
-        
+
         # Motor-specific fields
         if load_type == 'motor':
             motor.hp = float(request.form['hp']) if request.form.get('hp') else None
@@ -152,11 +275,18 @@ def edit_motor(motor_id):
             motor.vfd_type_id = None
             motor.vfd_override = False
             motor.selected_vfd_part_id = None
-        
+
+        # Update revision number based on type
+        if changed_fields:
+            motor.revision_number = motor.increment_revision(revision_type)
+            motor.revision_type = revision_type
+
         db.session.commit()
-        flash('Motor updated successfully!', 'success')
+
+        revision_msg = f" (Rev. {motor.revision_number})" if changed_fields else " (no changes)"
+        flash(f'Motor updated successfully{revision_msg}!', 'success')
         return redirect(url_for('motors.list_motors', project_id=motor.project_id))
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error updating motor: {str(e)}', 'error')
@@ -167,7 +297,7 @@ def delete_motor(motor_id):
     """Delete a motor"""
     motor = Motor.query.get_or_404(motor_id)
     project_id = motor.project_id
-    
+
     try:
         db.session.delete(motor)
         db.session.commit()
@@ -175,8 +305,136 @@ def delete_motor(motor_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting motor: {str(e)}', 'error')
-    
+
     return redirect(url_for('motors.list_motors', project_id=project_id))
+
+@bp.route('/<int:motor_id>/revisions')
+def view_revisions(motor_id):
+    """View revision history for a motor"""
+    motor = Motor.query.get_or_404(motor_id)
+    revisions = MotorRevision.query.filter_by(motor_id=motor_id).order_by(MotorRevision.created_at.desc()).all()
+
+    revision_list = []
+    for rev in revisions:
+        # Parse fields_changed if it exists
+        fields_changed = None
+        if rev.fields_changed:
+            try:
+                fields_changed = eval(rev.fields_changed)  # Safe here since we control the data
+            except:
+                fields_changed = None
+
+        revision_list.append({
+            'revision_number': rev.revision_number,
+            'revision_type': rev.revision_type,
+            'motor_name': rev.motor_name,
+            'hp': float(rev.hp) if rev.hp else None,
+            'voltage': float(rev.voltage),
+            'qty': rev.qty,
+            'changed_by': rev.changed_by,
+            'change_description': rev.change_description,
+            'fields_changed': fields_changed,
+            'created_at': rev.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+    return jsonify({
+        'success': True,
+        'current_revision': motor.revision_number,
+        'revisions': revision_list
+    })
+
+@bp.route('/<int:motor_id>/compare/<revision_a>/<revision_b>')
+def compare_revisions(motor_id, revision_a, revision_b):
+    """Compare two revisions"""
+    motor = Motor.query.get_or_404(motor_id)
+
+    # Get current state if revision_a is 'current'
+    if revision_a == 'current':
+        rev_a_data = {
+            'revision_number': motor.revision_number,
+            'motor_name': motor.motor_name,
+            'hp': float(motor.hp) if motor.hp else None,
+            'voltage': float(motor.voltage),
+            'qty': motor.qty,
+            'location': motor.location,
+            'load_type': motor.load_type,
+            'power_rating': float(motor.power_rating) if motor.power_rating else None,
+            'vfd_type_id': motor.vfd_type_id
+        }
+    else:
+        rev_a = MotorRevision.query.filter_by(motor_id=motor_id, revision_number=revision_a).first()
+        if not rev_a:
+            return jsonify({'success': False, 'message': 'Revision A not found'}), 404
+        rev_a_data = {
+            'revision_number': rev_a.revision_number,
+            'motor_name': rev_a.motor_name,
+            'hp': float(rev_a.hp) if rev_a.hp else None,
+            'voltage': float(rev_a.voltage),
+            'qty': rev_a.qty,
+            'location': rev_a.location,
+            'load_type': rev_a.load_type,
+            'power_rating': float(rev_a.power_rating) if rev_a.power_rating else None,
+            'vfd_type_id': rev_a.vfd_type_id
+        }
+
+    # Get revision B
+    rev_b = MotorRevision.query.filter_by(motor_id=motor_id, revision_number=revision_b).first()
+    if not rev_b:
+        return jsonify({'success': False, 'message': 'Revision B not found'}), 404
+
+    rev_b_data = {
+        'revision_number': rev_b.revision_number,
+        'motor_name': rev_b.motor_name,
+        'hp': float(rev_b.hp) if rev_b.hp else None,
+        'voltage': float(rev_b.voltage),
+        'qty': rev_b.qty,
+        'location': rev_b.location,
+        'load_type': rev_b.load_type,
+        'power_rating': float(rev_b.power_rating) if rev_b.power_rating else None,
+        'vfd_type_id': rev_b.vfd_type_id
+    }
+
+    # Find differences
+    differences = {}
+    for key in rev_a_data.keys():
+        if key == 'revision_number':
+            continue
+        if rev_a_data.get(key) != rev_b_data.get(key):
+            differences[key] = {
+                'revision_a': rev_a_data.get(key),
+                'revision_b': rev_b_data.get(key)
+            }
+
+    return jsonify({
+        'success': True,
+        'revision_a': rev_a_data,
+        'revision_b': rev_b_data,
+        'differences': differences
+    })
+
+@bp.route('/<int:motor_id>/revert/<revision_number>', methods=['POST'])
+def revert_to_revision(motor_id, revision_number):
+    """Revert motor to a specific revision"""
+    motor = Motor.query.get_or_404(motor_id)
+
+    try:
+        motor.revert_to_revision(revision_number)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Reverted to revision {revision_number}'
+        })
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error reverting: {str(e)}'
+        }), 500
 
 @bp.route('/api/vfd_options/<int:motor_id>')
 def get_vfd_options(motor_id):

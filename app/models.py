@@ -50,12 +50,13 @@ class User(db.Model):
 
 class Project(db.Model):
     __tablename__ = 'projects'
-    
+
     project_id = db.Column(db.Integer, primary_key=True)
     project_name = db.Column(db.String(255), nullable=False)
     client_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     status = db.Column(db.String(50), default='Draft')
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -66,39 +67,39 @@ class Project(db.Model):
         return f'<Project {self.project_name}>'
     
     def total_value(self):
-        return sum(estimate.calculated_total for estimate in self.estimates)
-    
+        return sum(estimate.calculated_total for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_hours(self):
-        """Calculate total hours across all estimates in project"""
-        return sum(estimate.total_hours for estimate in self.estimates)
-    
+        """Calculate total hours across all estimates in project (excluding optional)"""
+        return sum(estimate.total_hours for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_engineering_hours(self):
-        """Calculate total engineering hours across all estimates in project"""
-        return sum(estimate.total_engineering_hours for estimate in self.estimates)
-    
+        """Calculate total engineering hours across all estimates in project (excluding optional)"""
+        return sum(estimate.total_engineering_hours for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_panel_shop_hours(self):
-        """Calculate total panel shop hours across all estimates in project"""
-        return sum(estimate.total_panel_shop_hours for estimate in self.estimates)
-    
+        """Calculate total panel shop hours across all estimates in project (excluding optional)"""
+        return sum(estimate.total_panel_shop_hours for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_machine_assembly_hours(self):
-        """Calculate total machine assembly hours across all estimates in project"""
-        return sum(estimate.total_machine_assembly_hours for estimate in self.estimates)
-    
+        """Calculate total machine assembly hours across all estimates in project (excluding optional)"""
+        return sum(estimate.total_machine_assembly_hours for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_labor_cost(self):
-        """Calculate total labor cost across all estimates in project"""
-        return sum(estimate.total_labor_cost for estimate in self.estimates)
-    
+        """Calculate total labor cost across all estimates in project (excluding optional)"""
+        return sum(estimate.total_labor_cost for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_material_cost(self):
-        """Calculate total material cost across all estimates in project"""
-        return sum(estimate.calculated_total for estimate in self.estimates)
-    
+        """Calculate total material cost across all estimates in project (excluding optional)"""
+        return sum(estimate.calculated_total for estimate in self.estimates if not estimate.is_optional)
+
     def total_project_grand_total(self):
-        """Calculate total project value including materials and labor"""
-        return sum(estimate.grand_total for estimate in self.estimates)
+        """Calculate total project value including materials and labor (excluding optional)"""
+        return sum(estimate.grand_total for estimate in self.estimates if not estimate.is_optional)
 
 class Estimate(db.Model):
     __tablename__ = 'estimates'
-    
+
     estimate_id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.project_id'), nullable=False)
     estimate_number = db.Column(db.String(100), unique=True, nullable=False)
@@ -107,6 +108,7 @@ class Estimate(db.Model):
     total_value = db.Column(db.Numeric(12, 2), default=0.00)
     sort_order = db.Column(db.Integer, default=0)
     revision_number = db.Column(db.Integer, default=0)
+    is_optional = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -800,12 +802,15 @@ class Motor(db.Model):
     
     # Metadata
     sort_order = db.Column(db.Integer, default=0)
+    revision_number = db.Column(db.String(20), default='0.0')
+    revision_type = db.Column(db.String(20), default='major')  # 'major', 'minor', 'overwrite'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     project = db.relationship('Project', backref='motors')
     selected_vfd = db.relationship('Parts', backref='motor_selections')
+    revisions = db.relationship('MotorRevision', backref='motor', cascade='all, delete-orphan', order_by='MotorRevision.revision_number.desc()')
     
     @property
     def motor_amps(self):
@@ -952,8 +957,210 @@ class Motor(db.Model):
             .order_by(cast(Parts.rating, Float).asc())\
             .all()
     
+    def detect_changes(self, new_data):
+        """
+        Detect what fields changed and suggest revision type
+        Returns: (changed_fields, suggested_revision_type)
+        """
+        # Define field significance for revision suggestion
+        MAJOR_FIELDS = {'hp', 'voltage', 'vfd_type_id', 'load_type', 'power_rating', 'phase_config'}
+        MINOR_FIELDS = {'qty', 'location', 'motor_name', 'overload_percentage', 'continuous_load',
+                       'speed_range', 'encl_type', 'frame', 'power_unit', 'nec_amps_override',
+                       'manual_amps', 'vfd_override', 'selected_vfd_part_id'}
+        TRIVIAL_FIELDS = {'additional_notes', 'sort_order'}
+
+        changed_fields = {}
+
+        for field in MAJOR_FIELDS | MINOR_FIELDS | TRIVIAL_FIELDS:
+            old_value = getattr(self, field, None)
+            new_value = new_data.get(field)
+
+            # Skip if value unchanged
+            if old_value == new_value:
+                continue
+
+            # Convert to comparable types
+            if old_value is not None and new_value is not None:
+                try:
+                    if isinstance(old_value, (int, float)):
+                        new_value = type(old_value)(new_value)
+                    if old_value == new_value:
+                        continue
+                except:
+                    pass
+
+            changed_fields[field] = {'old': old_value, 'new': new_value}
+
+        # Determine suggested revision type
+        if any(field in MAJOR_FIELDS for field in changed_fields):
+            suggested_type = 'major'
+        elif any(field in MINOR_FIELDS for field in changed_fields):
+            suggested_type = 'minor'
+        else:
+            suggested_type = 'overwrite'
+
+        return changed_fields, suggested_type
+
+    def increment_revision(self, revision_type='minor'):
+        """
+        Increment revision number based on type
+        - major: 1.0 -> 2.0
+        - minor: 1.0 -> 1.1, 1.1 -> 1.2
+        - overwrite: 1.0 -> 1.0 (no change)
+        """
+        if revision_type == 'overwrite':
+            return self.revision_number
+
+        try:
+            major, minor = self.revision_number.split('.')
+            major, minor = int(major), int(minor)
+        except:
+            # If parsing fails, start fresh
+            major, minor = 0, 0
+
+        if revision_type == 'major':
+            major += 1
+            minor = 0
+        else:  # minor
+            minor += 1
+
+        return f"{major}.{minor}"
+
+    def create_revision(self, changed_by='System', change_description='', revision_type='minor', fields_changed=None):
+        """Create a snapshot of the current motor state"""
+        revision = MotorRevision(
+            motor_id=self.motor_id,
+            revision_number=self.revision_number,
+            revision_type=revision_type,
+            fields_changed=str(fields_changed) if fields_changed else None,
+            load_type=self.load_type,
+            motor_name=self.motor_name,
+            location=self.location,
+            encl_type=self.encl_type,
+            frame=self.frame,
+            additional_notes=self.additional_notes,
+            hp=self.hp,
+            speed_range=self.speed_range,
+            voltage=self.voltage,
+            qty=self.qty,
+            overload_percentage=self.overload_percentage,
+            continuous_load=self.continuous_load,
+            vfd_type_id=self.vfd_type_id,
+            power_rating=self.power_rating,
+            power_unit=self.power_unit,
+            phase_config=self.phase_config,
+            nec_amps_override=self.nec_amps_override,
+            manual_amps=self.manual_amps,
+            vfd_override=self.vfd_override,
+            selected_vfd_part_id=self.selected_vfd_part_id,
+            changed_by=changed_by,
+            change_description=change_description
+        )
+        db.session.add(revision)
+        return revision
+
+    def revert_to_revision(self, revision_number):
+        """Revert motor to a previous revision"""
+        revision = MotorRevision.query.filter_by(
+            motor_id=self.motor_id,
+            revision_number=revision_number
+        ).first()
+
+        if not revision:
+            raise ValueError(f"Revision {revision_number} not found")
+
+        # Save current state before reverting
+        self.create_revision(
+            changed_by='System',
+            change_description=f'Reverted to revision {revision_number}'
+        )
+
+        # Update motor fields from revision
+        self.load_type = revision.load_type
+        self.motor_name = revision.motor_name
+        self.location = revision.location
+        self.encl_type = revision.encl_type
+        self.frame = revision.frame
+        self.additional_notes = revision.additional_notes
+        self.hp = revision.hp
+        self.speed_range = revision.speed_range
+        self.voltage = revision.voltage
+        self.qty = revision.qty
+        self.overload_percentage = revision.overload_percentage
+        self.continuous_load = revision.continuous_load
+        self.vfd_type_id = revision.vfd_type_id
+        self.power_rating = revision.power_rating
+        self.power_unit = revision.power_unit
+        self.phase_config = revision.phase_config
+        self.nec_amps_override = revision.nec_amps_override
+        self.manual_amps = revision.manual_amps
+        self.vfd_override = revision.vfd_override
+        self.selected_vfd_part_id = revision.selected_vfd_part_id
+
+        # Update revision number and metadata
+        self.revision_number = self.increment_revision('major')
+        self.revision_type = 'major'
+        self.updated_at = datetime.utcnow()
+
+    @property
+    def revision_display(self):
+        """Format revision for display"""
+        return f"v{self.revision_number}"
+
     def __repr__(self):
-        return f'<Motor {self.motor_name} ({self.hp}HP)>'
+        return f'<Motor {self.motor_name} ({self.hp}HP) Rev.{self.revision_number}>'
+
+
+class MotorRevision(db.Model):
+    """Track revision history for motors/loads"""
+    __tablename__ = 'motor_revisions'
+
+    revision_id = db.Column(db.Integer, primary_key=True)
+    motor_id = db.Column(db.Integer, db.ForeignKey('t_motors.motor_id'), nullable=False)
+    revision_number = db.Column(db.String(20), nullable=False)
+    revision_type = db.Column(db.String(20), default='major')  # 'major', 'minor', 'overwrite'
+    fields_changed = db.Column(db.Text)  # JSON string of changed fields
+
+    # Snapshot of all motor fields at time of revision
+    load_type = db.Column(db.String(20), nullable=False)
+    motor_name = db.Column(db.String(255), nullable=False)
+    location = db.Column(db.String(100))
+    encl_type = db.Column(db.String(50))
+    frame = db.Column(db.String(50))
+    additional_notes = db.Column(db.Text)
+    hp = db.Column(db.Numeric(8, 2))
+    speed_range = db.Column(db.String(50))
+    voltage = db.Column(db.Numeric(8, 2), nullable=False)
+    qty = db.Column(db.Integer, nullable=False)
+    overload_percentage = db.Column(db.Numeric(5, 3))
+    continuous_load = db.Column(db.Boolean, nullable=False)
+    vfd_type_id = db.Column(db.Integer)
+
+    # Load-specific fields
+    power_rating = db.Column(db.Numeric(10, 3))
+    power_unit = db.Column(db.String(10))
+    phase_config = db.Column(db.String(10))
+
+    # Override options
+    nec_amps_override = db.Column(db.Boolean)
+    manual_amps = db.Column(db.Numeric(8, 3))
+    vfd_override = db.Column(db.Boolean)
+    selected_vfd_part_id = db.Column(db.Integer)
+
+    # Metadata
+    changed_by = db.Column(db.String(100))
+    change_description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    @property
+    def revision_display(self):
+        """Format revision for display"""
+        type_icon = {'major': '🔴', 'minor': '🟡', 'overwrite': '🔵'}.get(self.revision_type, '')
+        return f"v{self.revision_number} {type_icon}"
+
+    def __repr__(self):
+        return f'<MotorRevision {self.motor_id} Rev.{self.revision_number} ({self.revision_type})>'
+
 
 class EstimateRevision(db.Model):
     """Track revision history for estimates"""

@@ -660,17 +660,42 @@ def delete_estimate(estimate_id):
     estimate = Estimate.query.get_or_404(estimate_id)
     project_id = estimate.project_id
     estimate_name = estimate.estimate_name
-    
+
     try:
         db.session.delete(estimate)
         db.session.commit()
         flash(f'Estimate "{estimate_name}" deleted successfully!', 'success')
         return redirect(url_for('projects.detail_project', project_id=project_id))
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting estimate: {str(e)}', 'error')
         return redirect(url_for('projects.detail_project', project_id=project_id))
+
+@bp.route('/<int:estimate_id>/toggle-optional', methods=['POST'])
+@csrf.exempt
+def toggle_optional(estimate_id):
+    """Toggle estimate between optional and standard"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+
+    try:
+        estimate.is_optional = not estimate.is_optional
+        estimate.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        status = "optional" if estimate.is_optional else "standard"
+        return jsonify({
+            'success': True,
+            'is_optional': estimate.is_optional,
+            'message': f'Estimate marked as {status}'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error updating estimate: {str(e)}'
+        }), 500
 
 @bp.route('/api/reorder', methods=['POST'])
 @csrf.exempt

@@ -283,12 +283,90 @@
                     </div>
                 </div>
 
+                <!-- Revision Control -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-code-branch"></i> Revision Control
+                                    <span class="badge bg-light text-dark float-end">Current: v{{ motor.revision_number }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>How it works:</strong> Similar to SharePoint version control, you can choose how to save your changes:
+                                    <ul class="mb-0 mt-2">
+                                        <li><strong>Major Revision</strong> - Significant changes (HP, voltage, VFD type) → v1.0 → v2.0</li>
+                                        <li><strong>Minor Revision</strong> - Small changes (quantity, location, notes) → v1.0 → v1.1</li>
+                                        <li><strong>Overwrite Current</strong> - Typo fixes, no version change → v1.0 → v1.0</li>
+                                    </ul>
+                                </div>
+
+                                <div id="change-detection-status" class="alert alert-secondary" style="display:none;">
+                                    <div class="d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                                            <span class="visually-hidden">Detecting changes...</span>
+                                        </div>
+                                        <span>Analyzing changes...</span>
+                                    </div>
+                                </div>
+
+                                <div id="changes-detected" style="display:none;">
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-exclamation-triangle"></i> Changes Detected</h6>
+                                        <div id="changed-fields-list"></div>
+                                        <div class="mt-2">
+                                            <strong>Suggested:</strong> <span id="suggested-revision-type" class="badge bg-primary"></span>
+                                            <span class="ms-2">→</span>
+                                            <span id="suggested-next-version" class="badge bg-success"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="revision_type" class="form-label">Save As <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-lg" id="revision_type" name="revision_type" required>
+                                                <option value="minor" selected>Minor Revision</option>
+                                                <option value="major">Major Revision</option>
+                                                <option value="overwrite">Overwrite Current</option>
+                                            </select>
+                                            <div class="form-text">
+                                                Next version: <strong><span id="next-version-display">v{{ motor.increment_revision('minor') }}</span></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="change_description" class="form-label">Change Description (Optional)</label>
+                                            <textarea class="form-control" id="change_description" name="change_description"
+                                                      rows="3" placeholder="Describe what you changed and why..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <button type="button" class="btn btn-outline-info" id="view-revision-history">
+                                        <i class="fas fa-history"></i> View Revision History
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="detect-changes-btn">
+                                        <i class="fas fa-search"></i> Analyze Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submit Button -->
                 <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+                    <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}"
                        class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Update Motor
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Save Changes
                     </button>
                 </div>
             </form>
@@ -349,6 +427,151 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('vfd_type_id').value) {
         updateVFDOptions();
     }
+
+    // Revision control functionality
+    const revisionTypeSelect = document.getElementById('revision_type');
+    const nextVersionDisplay = document.getElementById('next-version-display');
+    const detectChangesBtn = document.getElementById('detect-changes-btn');
+    const motorForm = document.getElementById('motorForm');
+
+    // Update next version display when revision type changes
+    revisionTypeSelect.addEventListener('change', function() {
+        const currentRevision = '{{ motor.revision_number }}';
+        const revisionType = this.value;
+
+        let nextVersion;
+        if (revisionType === 'overwrite') {
+            nextVersion = currentRevision;
+        } else if (revisionType === 'major') {
+            nextVersion = '{{ motor.increment_revision("major") }}';
+        } else {
+            nextVersion = '{{ motor.increment_revision("minor") }}';
+        }
+
+        nextVersionDisplay.textContent = 'v' + nextVersion;
+    });
+
+    // Detect changes before saving
+    detectChangesBtn.addEventListener('click', function() {
+        const formData = new FormData(motorForm);
+        const changeDetectionStatus = document.getElementById('change-detection-status');
+        const changesDetected = document.getElementById('changes-detected');
+
+        changeDetectionStatus.style.display = 'block';
+        changesDetected.style.display = 'none';
+
+        fetch('/motors/edit/{{ motor.motor_id }}/detect_changes', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            changeDetectionStatus.style.display = 'none';
+
+            if (data.success) {
+                if (Object.keys(data.changed_fields).length > 0) {
+                    changesDetected.style.display = 'block';
+
+                    // Display changed fields
+                    const changedFieldsList = document.getElementById('changed-fields-list');
+                    let fieldsHtml = '<ul class="mb-0">';
+                    for (const [field, values] of Object.entries(data.changed_fields)) {
+                        const oldVal = values.old !== null ? values.old : '(empty)';
+                        const newVal = values.new !== null ? values.new : '(empty)';
+                        fieldsHtml += `<li><strong>${field}:</strong> ${oldVal} → ${newVal}</li>`;
+                    }
+                    fieldsHtml += '</ul>';
+                    changedFieldsList.innerHTML = fieldsHtml;
+
+                    // Show suggestion
+                    const suggestedType = data.suggested_revision_type;
+                    document.getElementById('suggested-revision-type').textContent = suggestedType.toUpperCase();
+
+                    let suggestedNextVersion;
+                    if (suggestedType === 'major') {
+                        suggestedNextVersion = data.next_major;
+                    } else if (suggestedType === 'minor') {
+                        suggestedNextVersion = data.next_minor;
+                    } else {
+                        suggestedNextVersion = data.current_revision;
+                    }
+                    document.getElementById('suggested-next-version').textContent = 'v' + suggestedNextVersion;
+
+                    // Optionally auto-select the suggested type
+                    revisionTypeSelect.value = suggestedType;
+                    revisionTypeSelect.dispatchEvent(new Event('change'));
+                } else {
+                    alert('No changes detected');
+                }
+            } else {
+                alert('Error detecting changes: ' + data.message);
+            }
+        })
+        .catch(error => {
+            changeDetectionStatus.style.display = 'none';
+            console.error('Error:', error);
+            alert('Error detecting changes');
+        });
+    });
+
+    // View revision history
+    document.getElementById('view-revision-history').addEventListener('click', function() {
+        fetch('/motors/{{ motor.motor_id }}/revisions')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let historyHtml = '<div class="modal fade" id="revisionHistoryModal" tabindex="-1">' +
+                        '<div class="modal-dialog modal-lg">' +
+                        '<div class="modal-content">' +
+                        '<div class="modal-header">' +
+                        '<h5 class="modal-title">Revision History</h5>' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+                        '</div>' +
+                        '<div class="modal-body">' +
+                        '<p>Current Revision: <strong>v' + data.current_revision + '</strong></p>' +
+                        '<table class="table table-striped">' +
+                        '<thead><tr>' +
+                        '<th>Version</th>' +
+                        '<th>Type</th>' +
+                        '<th>Motor Name</th>' +
+                        '<th>HP</th>' +
+                        '<th>Voltage</th>' +
+                        '<th>Qty</th>' +
+                        '<th>Changed By</th>' +
+                        '<th>Date</th>' +
+                        '</tr></thead><tbody>';
+
+                    data.revisions.forEach(rev => {
+                        const typeIcon = {'major': '🔴', 'minor': '🟡', 'overwrite': '🔵'}[rev.revision_type] || '';
+                        historyHtml += '<tr>' +
+                            '<td>v' + rev.revision_number + '</td>' +
+                            '<td>' + typeIcon + ' ' + rev.revision_type + '</td>' +
+                            '<td>' + rev.motor_name + '</td>' +
+                            '<td>' + (rev.hp || 'N/A') + '</td>' +
+                            '<td>' + rev.voltage + 'V</td>' +
+                            '<td>' + rev.qty + '</td>' +
+                            '<td>' + (rev.changed_by || 'Unknown') + '</td>' +
+                            '<td>' + rev.created_at + '</td>' +
+                            '</tr>';
+                    });
+
+                    historyHtml += '</tbody></table></div>' +
+                        '<div class="modal-footer">' +
+                        '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>' +
+                        '</div></div></div></div>';
+
+                    // Remove existing modal if present
+                    const existingModal = document.getElementById('revisionHistoryModal');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+
+                    document.body.insertAdjacentHTML('beforeend', historyHtml);
+                    const modal = new bootstrap.Modal(document.getElementById('revisionHistoryModal'));
+                    modal.show();
+                }
+            });
+    });
 });
 </script>
 {% endblock %}

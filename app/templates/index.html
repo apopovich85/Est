@@ -3,6 +3,26 @@
 {% block title %}Dashboard - Project Estimates Manager{% endblock %}
 
 {% block content %}
+<!-- Filter Controls -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="btn-group" role="group" aria-label="Project filter">
+            <a href="{{ url_for('main.dashboard', filter='active') }}"
+               class="btn btn-{{ 'primary' if current_filter == 'active' else 'outline-primary' }}">
+                Active Projects
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='closed') }}"
+               class="btn btn-{{ 'primary' if current_filter == 'closed' else 'outline-primary' }}">
+                Closed Projects
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='all') }}"
+               class="btn btn-{{ 'primary' if current_filter == 'all' else 'outline-primary' }}">
+                All Projects
+            </a>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- Summary Cards -->
     <div class="col-md-4 mb-4">
@@ -87,6 +107,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>Active</th>
                                     <th>Project Name</th>
                                     <th>Client</th>
                                     <th>Status</th>
@@ -99,6 +120,11 @@
                             <tbody>
                                 {% for project in recent_projects %}
                                 <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input project-active-toggle"
+                                               data-project-id="{{ project.project_id }}"
+                                               {{ 'checked' if project.is_active else '' }}>
+                                    </td>
                                     <td>
                                         <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" class="text-decoration-none">
                                             {{ project.project_name }}
@@ -114,7 +140,7 @@
                                     <td>${{ "{:,.2f}".format(project.total_value()) }}</td>
                                     <td>{{ project.updated_at.strftime('%Y-%m-%d') }}</td>
                                     <td>
-                                        <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" 
+                                        <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}"
                                            class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
                                 </tr>
@@ -136,4 +162,64 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Get current filter from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentFilter = urlParams.get('filter') || 'active';
+
+    // Handle project active toggle checkboxes
+    document.querySelectorAll('.project-active-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const projectId = this.getAttribute('data-project-id');
+            const isChecked = this.checked;
+            const row = this.closest('tr');
+
+            // Send AJAX request to toggle active status
+            fetch(`/projects/${projectId}/toggle-active`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Check if we should remove the row based on current filter
+                    if (currentFilter === 'active' && !data.is_active) {
+                        // Project was deactivated while viewing active projects - remove row
+                        row.style.opacity = '0';
+                        setTimeout(() => row.remove(), 300);
+                    } else if (currentFilter === 'closed' && data.is_active) {
+                        // Project was activated while viewing closed projects - remove row
+                        row.style.opacity = '0';
+                        setTimeout(() => row.remove(), 300);
+                    } else {
+                        // Update checkbox state to match server response
+                        checkbox.checked = data.is_active;
+                    }
+
+                    // Show brief success message
+                    console.log(data.message);
+                } else {
+                    // Revert checkbox on error
+                    checkbox.checked = !isChecked;
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                // Revert checkbox on network error
+                checkbox.checked = !isChecked;
+                console.error('Error:', error);
+                alert('Failed to update project status. Please try again.');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

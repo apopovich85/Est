@@ -110,7 +110,7 @@
     </div>
 </div>
 
-<!-- Estimates List -->
+<!-- Standard Estimates List -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">Estimates</h5>
@@ -132,21 +132,21 @@
     <div class="card-body">
         {% if estimates %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-sm">
                     <thead>
                         <tr>
-                            <th width="30"></th>
-                            <th>Estimate Number</th>
-                            <th>Name</th>
-                            <th class="text-center">Revision</th>
-                            <th class="text-end">Material Cost</th>
-                            <th class="text-center">Engineering</th>
-                            <th class="text-center">Panel Shop</th>
-                            <th class="text-center">Machine Assy</th>
-                            <th class="text-end">Grand Total</th>
-                            <th class="text-center">Assemblies</th>
-                            <th>Created</th>
-                            <th>Actions</th>
+                            <th style="width: 30px;"></th>
+                            <th style="width: 150px;">Estimate Number</th>
+                            <th style="width: 200px;">Name</th>
+                            <th class="text-center" style="width: 90px;">Revision</th>
+                            <th class="text-end" style="width: 130px;">Material Cost</th>
+                            <th class="text-center" style="width: 110px;">Engineering</th>
+                            <th class="text-center" style="width: 110px;">Panel Shop</th>
+                            <th class="text-center" style="width: 120px;">Machine Assy</th>
+                            <th class="text-end" style="width: 130px;">Grand Total</th>
+                            <th class="text-center" style="width: 100px;">Assemblies</th>
+                            <th style="width: 110px;">Created</th>
+                            <th style="width: 240px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="estimatesTableBody">
@@ -216,11 +216,16 @@
                             <td>{{ estimate.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}" 
+                                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
                                        class="btn btn-sm btn-outline-primary">View</a>
-                                    <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}" 
+                                    <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}"
                                        class="btn btn-sm btn-outline-secondary">Copy</a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                            onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}', false)"
+                                            title="Convert to optional estimate">
+                                        <i class="fas fa-arrow-down"></i> Optional
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
                                             onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}')">
                                         Delete
                                     </button>
@@ -277,6 +282,121 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Optional Estimates List -->
+{% if optional_estimates %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center bg-light">
+        <h5 class="card-title mb-0"><i class="fas fa-tag me-2"></i>Optional Estimates</h5>
+        <span class="badge bg-secondary">{{ optional_estimates|length }} Optional</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;"></th>
+                        <th style="width: 150px;">Estimate Number</th>
+                        <th style="width: 200px;">Name</th>
+                        <th class="text-center" style="width: 90px;">Revision</th>
+                        <th class="text-end" style="width: 130px;">Material Cost</th>
+                        <th class="text-center" style="width: 110px;">Engineering</th>
+                        <th class="text-center" style="width: 110px;">Panel Shop</th>
+                        <th class="text-center" style="width: 120px;">Machine Assy</th>
+                        <th class="text-end" style="width: 130px;">Grand Total</th>
+                        <th class="text-center" style="width: 100px;">Assemblies</th>
+                        <th style="width: 110px;">Created</th>
+                        <th style="width: 240px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for estimate in optional_estimates %}
+                    <tr>
+                        <td></td>
+                        <td>
+                            <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
+                               class="text-decoration-none">
+                                {{ estimate.estimate_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="estimate-name-display" onclick="editEstimateNameInTable({{ estimate.estimate_id }})"
+                                  style="cursor: pointer;" title="Click to edit">
+                                {{ estimate.estimate_name }}
+                                <i class="fas fa-edit text-muted ms-1" style="font-size: 0.8em;"></i>
+                            </span>
+                            <div class="estimate-name-edit" id="estimateNameEdit_{{ estimate.estimate_id }}" style="display: none;">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control estimate-name-input"
+                                           id="estimateNameInput_{{ estimate.estimate_id }}"
+                                           value="{{ estimate.estimate_name }}" maxlength="255">
+                                    <button class="btn btn-success btn-sm" onclick="saveEstimateNameInTable({{ estimate.estimate_id }})">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" onclick="cancelEditEstimateNameInTable({{ estimate.estimate_id }})">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-{% if estimate.revision_number == 0 %}secondary{% else %}info{% endif %}"
+                                  title="Current revision level">
+                                Rev. {{ estimate.revision_number }}
+                            </span>
+                        </td>
+                        <td class="text-end">${{ "{:,.2f}".format(estimate.calculated_total) }}</td>
+                        <td class="text-center">
+                            {% if estimate.total_engineering_hours > 0 %}
+                                {{ "{:.1f}".format(estimate.total_engineering_hours) }}h
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if estimate.total_panel_shop_hours > 0 %}
+                                {{ "{:.1f}".format(estimate.total_panel_shop_hours) }}h
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if estimate.total_machine_assembly_hours > 0 %}
+                                {{ "{:.1f}".format(estimate.total_machine_assembly_hours) }}h
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-warning">${{ "{:,.2f}".format(estimate.grand_total) }}</strong>
+                        </td>
+                        <td class="text-center">{{ estimate.assemblies|length }}</td>
+                        <td>{{ estimate.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
+                                   class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}"
+                                   class="btn btn-sm btn-outline-secondary">Copy</a>
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}', true)"
+                                        title="Convert to standard estimate">
+                                    <i class="fas fa-arrow-up"></i> Standard
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}')">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -359,16 +479,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // Delete estimate function
 function deleteEstimate(estimateId, estimateName) {
     const confirmMsg = `Are you sure you want to delete the estimate "${estimateName}"?\n\nThis action cannot be undone and will delete all associated assemblies and components.`;
-    
+
     if (!confirm(confirmMsg)) {
         return;
     }
-    
+
     // Create a form and submit it for the delete request
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = `/estimates/${estimateId}/delete`;
-    
+
     // Add CSRF token if available
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
     if (csrfToken) {
@@ -378,9 +498,42 @@ function deleteEstimate(estimateId, estimateName) {
         csrfInput.value = csrfToken.getAttribute('content');
         form.appendChild(csrfInput);
     }
-    
+
     document.body.appendChild(form);
     form.submit();
+}
+
+// Toggle estimate between optional and standard
+function toggleOptional(estimateId, estimateName, isCurrentlyOptional) {
+    const action = isCurrentlyOptional ? 'standard' : 'optional';
+    const confirmMsg = `Convert "${estimateName}" to ${action} estimate?`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+
+    fetch(`/estimates/${estimateId}/toggle-optional`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to reflect changes
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to update estimate'));
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling optional status:', error);
+        alert('Failed to update estimate. Please try again.');
+    });
 }
 
 // Drag and drop functionality for estimates
