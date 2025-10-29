@@ -16,7 +16,13 @@
       "Bash(\"venv/Scripts/python.exe\" -m py_compile add_estimate_name_index.py)",
       "Bash(\"venv/Scripts/python.exe\" add_estimate_name_index.py)",
       "Bash(\"venv/Scripts/python.exe\" -m py_compile app/routes/assemblies.py)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(\"venv\\Scripts\\python.exe\" add_project_indexes.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" -m py_compile app/routes/projects.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" test_project_delete.py)",
+      "Bash(powershell -Command \"Get-Content ''c:\\Projects\\Est_v0.5\\app\\templates\\projects\\list.html'' | Select-Object -Last 20\")"
     ],
     "deny": [],
     "ask": [],

@@ -67,9 +67,101 @@
                         <li><a class="dropdown-item" href="{{ url_for('parts.price_update') }}">Price Updates</a></li>
                     </ul>
                 </div>
+
+                <!-- Backup Button -->
+                <button id="backupBtn" class="btn btn-outline-warning btn-sm ms-2" onclick="performBackup()" title="Backup database and code to Git">
+                    <i class="fas fa-cloud-upload-alt"></i> Backup
+                </button>
             </div>
         </div>
     </nav>
+
+    <!-- Backup Modal -->
+    <div class="modal fade" id="backupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Git Backup Progress</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="backupStatus" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3">Creating backup...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function performBackup() {
+        // Show modal
+        const backupModal = new bootstrap.Modal(document.getElementById('backupModal'));
+        backupModal.show();
+
+        const statusDiv = document.getElementById('backupStatus');
+        statusDiv.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Creating Git backup...</p>
+        `;
+
+        // Disable backup button
+        document.getElementById('backupBtn').disabled = true;
+
+        // Call backup endpoint
+        fetch('/backup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `
+                    <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-success">Backup Successful!</h5>
+                    <p class="mb-1"><strong>Commit:</strong> ${data.commit_hash || 'N/A'}</p>
+                    <p class="mb-1"><strong>Files Changed:</strong> ${data.files_changed || 0}</p>
+                    <p class="mb-1"><strong>Push Status:</strong> ${data.push_status || 'Success'}</p>
+                    <small class="text-muted">${data.message}</small>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-danger">Backup Error</h5>
+                    <p class="text-danger">${data.error || 'Unknown error'}</p>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                `;
+            }
+            // Re-enable backup button
+            document.getElementById('backupBtn').disabled = false;
+        })
+        .catch(error => {
+            statusDiv.innerHTML = `
+                <i class="fas fa-times-circle text-danger" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-danger">Connection Error</h5>
+                <p class="text-danger">Failed to connect to backup service: ${error.message}</p>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            `;
+            // Re-enable backup button
+            document.getElementById('backupBtn').disabled = false;
+        });
+    }
+    </script>
 
     <!-- Flash Messages -->
     <div class="container-fluid px-3 mt-3">

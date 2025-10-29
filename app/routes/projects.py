@@ -3,6 +3,7 @@ from app.models import Project, Estimate, Assembly, AssemblyPart, Parts, PartCat
 from app import db
 from datetime import datetime
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func, select
 import io
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -17,7 +18,7 @@ bp = Blueprint('projects', __name__)
 
 @bp.route('/')
 def list_projects():
-    """List all projects with pagination and eager loading"""
+    """List all projects with pagination and optimized loading"""
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)  # Default 50 projects per page
@@ -26,8 +27,19 @@ def list_projects():
     status_filter = request.args.get('status', '')
     client_filter = request.args.get('client', '')
 
-    # Build query with eager loading to avoid N+1 queries
-    query = Project.query.options(joinedload(Project.estimates))
+    # Create subquery to count estimates per project
+    estimate_count_subquery = (
+        select(func.count(Estimate.estimate_id))
+        .where(Estimate.project_id == Project.project_id)
+        .correlate(Project)
+        .scalar_subquery()
+    )
+
+    # Build query - select Project with estimate count
+    query = db.session.query(
+        Project,
+        estimate_count_subquery.label('estimate_count')
+    )
 
     # Apply filters
     if status_filter:
@@ -40,14 +52,19 @@ def list_projects():
 
     # Paginate
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    projects = pagination.items
 
-    # Get unique statuses and clients for filters
-    all_statuses = db.session.query(Project.status).distinct().all()
-    statuses = [s[0] for s in all_statuses if s[0]]
+    # Extract projects and their counts
+    projects_with_counts = []
+    for item in pagination.items:
+        project, estimate_count = item
+        project.estimate_count = estimate_count  # Attach count to project object
+        projects_with_counts.append(project)
+
+    # Hardcode common statuses instead of querying database
+    statuses = ['Draft', 'Sent', 'Won', 'Lost', 'On Hold']
 
     return render_template('projects/list.html',
-                          projects=projects,
+                          projects=projects_with_counts,
                           pagination=pagination,
                           statuses=statuses,
                           current_status=status_filter,
@@ -191,23 +208,57 @@ def delete_project(project_id):
     try:
         project_name = project.project_name
 
-        # Count related items before deletion for verification
-        estimate_count = len(project.estimates)
-        motor_count = len(project.motors)
+        # Count related items before deletion for detailed feedback
+        estimates = Estimate.query.filter_by(project_id=project_id).all()
+        motors = Motor.query.filter_by(project_id=project_id).all()
+
+        estimate_count = len(estimates)
+        motor_count = len(motors)
+
+        # Count assemblies and components across all estimates
+        estimate_ids = [e.estimate_id for e in estimates]
+        assembly_count = 0
+        assembly_part_count = 0
+        component_count = 0
+
+        if estimate_ids:
+            assemblies = Assembly.query.filter(Assembly.estimate_id.in_(estimate_ids)).all()
+            assembly_count = len(assemblies)
+
+            assembly_ids = [a.assembly_id for a in assemblies]
+            if assembly_ids:
+                assembly_part_count = AssemblyPart.query.filter(AssemblyPart.assembly_id.in_(assembly_ids)).count()
+
+            component_count = EstimateComponent.query.filter(EstimateComponent.estimate_id.in_(estimate_ids)).count()
 
         # Delete the project (cascade will handle all related data)
         db.session.delete(project)
         db.session.commit()
 
-        # Build success message
-        msg = f'Project "{project_name}" deleted successfully'
+        # Verify deletion was successful
+        remaining_estimates = Estimate.query.filter_by(project_id=project_id).count()
+        remaining_motors = Motor.query.filter_by(project_id=project_id).count()
+
+        if remaining_estimates > 0 or remaining_motors > 0:
+            flash(f'Warning: Project deleted but {remaining_estimates} estimates and {remaining_motors} motors may remain!', 'warning')
+            return redirect(url_for('projects.list_projects'))
+
+        # Build detailed success message
+        msg = f'Project "{project_name}" deleted successfully!'
+        details = []
         if estimate_count > 0:
-            msg += f' (with {estimate_count} estimate(s)'
+            details.append(f'{estimate_count} estimate(s)')
+        if assembly_count > 0:
+            details.append(f'{assembly_count} assembly/assemblies')
+        if assembly_part_count > 0:
+            details.append(f'{assembly_part_count} assembly part(s)')
+        if component_count > 0:
+            details.append(f'{component_count} individual component(s)')
         if motor_count > 0:
-            msg += f' and {motor_count} motor(s)/load(s)' if estimate_count > 0 else f' (with {motor_count} motor(s)/load(s)'
-        if estimate_count > 0 or motor_count > 0:
-            msg += ')'
-        msg += '!'
+            details.append(f'{motor_count} motor(s)/load(s)')
+
+        if details:
+            msg += f' Removed: {", ".join(details)}.'
 
         flash(msg, 'success')
         return redirect(url_for('projects.list_projects'))
@@ -218,7 +269,11 @@ def delete_project(project_id):
         error_details = traceback.format_exc()
         print(f"Error deleting project {project_id}: {error_details}")  # Log to console
         flash(f'Error deleting project: {str(e)}', 'error')
-        return redirect(url_for('projects.detail_project', project_id=project_id))
+        # Try to redirect to detail page if it still exists, otherwise to list
+        try:
+            return redirect(url_for('projects.detail_project', project_id=project_id))
+        except:
+            return redirect(url_for('projects.list_projects'))
 
 @bp.route('/<int:project_id>/toggle-active', methods=['POST'])
 def toggle_project_active(project_id):
