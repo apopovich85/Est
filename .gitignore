@@ -123,7 +123,8 @@ dmypy.json
 .pyre/
 
 # Project-specific
-*.db
+# Note: Database backup is handled via Git for fault tolerance
+# *.db  <- Commented out to allow database backup
 *.sqlite
 *.sqlite3
 database/
@@ -134,6 +135,9 @@ static/css/fontawesome.min.css
 static/js/bootstrap.bundle.min.js
 static/js/chart.min.js
 static/webfonts/
+
+# Claude Code settings (user-specific)
+.claude/settings.local.json
 
 # IDE
 .vscode/
