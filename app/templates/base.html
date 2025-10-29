@@ -20,6 +20,9 @@
             <div class="navbar-nav ms-auto">
                 <a class="nav-link fw-bold text-white" href="{{ url_for('main.dashboard') }}">Dashboard</a>
                 <a class="nav-link fw-bold text-white" href="{{ url_for('projects.list_projects') }}">Projects</a>
+                <a class="nav-link fw-bold text-white" href="{{ url_for('estimates.search_estimates') }}">
+                    <i class="fas fa-search"></i> Search Estimates
+                </a>
                 <a class="nav-link fw-bold text-white" href="{{ url_for('standard_assemblies.list_assemblies') }}">Standard Assemblies</a>
                 <a class="nav-link fw-bold text-white" href="{{ url_for('categories.list_categories') }}">Categories</a>
                 <a class="nav-link fw-bold text-white" href="{{ url_for('labor_rates.labor_rates_config') }}">Labor Rates</a>

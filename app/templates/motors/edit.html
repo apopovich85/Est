@@ -171,7 +171,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-12">
+                                    <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="vfd_type_id" class="form-label">VFD Type</label>
                                             <select class="form-select" id="vfd_type_id" name="vfd_type_id">
@@ -182,6 +182,16 @@
                                                 </option>
                                                 {% endfor %}
                                             </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="duty_type" class="form-label">Duty Type <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="duty_type" name="duty_type" required>
+                                                <option value="ND" {{ 'selected' if motor.duty_type == 'ND' or not motor.duty_type }}>Normal Duty (ND)</option>
+                                                <option value="HD" {{ 'selected' if motor.duty_type == 'HD' }}>Heavy Duty (HD)</option>
+                                            </select>
+                                            <div class="form-text">Determines VFD input current calculation</div>
                                         </div>
                                     </div>
                                 </div>

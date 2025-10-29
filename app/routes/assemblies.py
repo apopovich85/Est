@@ -64,8 +64,8 @@ def update_assembly_quantity(assembly_id):
         return jsonify({'success': False, 'error': 'Invalid request format'}), 400
     
     new_quantity = request.json.get('quantity')
-    if not new_quantity or new_quantity < 1:
-        return jsonify({'success': False, 'error': 'Quantity must be at least 1'}), 400
+    if new_quantity is None or new_quantity < 0:
+        return jsonify({'success': False, 'error': 'Quantity must be at least 0'}), 400
     
     try:
         old_quantity = float(assembly.quantity or 1.0)
@@ -83,8 +83,10 @@ def update_assembly_quantity(assembly_id):
         # Remove existing quantity suffix if present
         if ' (x' in base_name:
             base_name = base_name.split(' (x')[0]
-        
-        if new_quantity > 1:
+
+        if new_quantity == 0:
+            assembly.assembly_name = f"{base_name} (x0)"
+        elif new_quantity > 1:
             assembly.assembly_name = f"{base_name} (x{int(new_quantity) if new_quantity.is_integer() else new_quantity})"
         else:
             assembly.assembly_name = base_name
@@ -208,22 +210,43 @@ def change_assembly_version(assembly_id):
     try:
         # Find the standard assembly with the requested version
         from app.models import StandardAssembly, StandardAssemblyComponent
-        
-        # First check if it's the base assembly
+
+        # Get the current standard assembly to find the base
+        current_standard = StandardAssembly.query.get(assembly.standard_assembly_id)
+        if not current_standard:
+            print(f"ERROR: Current standard assembly not found for ID {assembly.standard_assembly_id}")
+            return jsonify({'success': False, 'error': 'Current standard assembly not found'}), 404
+
+        # Determine the base assembly ID (either the current one or its base)
+        base_id = current_standard.base_assembly_id if current_standard.base_assembly_id else current_standard.standard_assembly_id
+        print(f"Looking for version {new_version} in base assembly {base_id} (current: {current_standard.version})")
+
+        # Now search for the target version:
+        # 1. Check if it's the base assembly with this version
         target_standard = StandardAssembly.query.filter_by(
-            standard_assembly_id=assembly.standard_assembly_id,
+            standard_assembly_id=base_id,
             version=new_version
         ).first()
-        
-        # If not found, check derived versions
+
+        # 2. If not found, check derived versions
         if not target_standard:
             target_standard = StandardAssembly.query.filter_by(
-                base_assembly_id=assembly.standard_assembly_id,
+                base_assembly_id=base_id,
                 version=new_version
             ).first()
-        
+
         if not target_standard:
-            return jsonify({'success': False, 'error': f'Version {new_version} not found'}), 404
+            # Log available versions for debugging
+            all_versions = StandardAssembly.query.filter(
+                (StandardAssembly.standard_assembly_id == base_id) |
+                (StandardAssembly.base_assembly_id == base_id)
+            ).all()
+            available = [v.version for v in all_versions]
+            print(f"ERROR: Version {new_version} not found. Available versions: {available}")
+            return jsonify({
+                'success': False,
+                'error': f'Version {new_version} not found. Available: {", ".join(available)}'
+            }), 404
         
         # Delete existing assembly parts
         for assembly_part in assembly.assembly_parts:
@@ -248,11 +271,12 @@ def change_assembly_version(assembly_id):
             )
             db.session.add(new_assembly_part)
         
-        # Update assembly version reference
+        # Update assembly version reference (both the ID and version string)
+        assembly.standard_assembly_id = target_standard.standard_assembly_id
         assembly.standard_assembly_version = new_version
-        
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Assembly changed to version {new_version}',

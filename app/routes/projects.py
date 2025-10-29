@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
-from app.models import Project, Estimate, Assembly, AssemblyPart, Parts, PartCategory
+from app.models import Project, Estimate, Assembly, AssemblyPart, Parts, PartCategory, EstimateComponent, Motor
 from app import db
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 import io
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -10,14 +11,47 @@ from openpyxl.chart.series import DataPoint
 from decimal import Decimal
 import re
 from collections import defaultdict
+import uuid
 
 bp = Blueprint('projects', __name__)
 
 @bp.route('/')
 def list_projects():
-    """List all projects"""
-    projects = Project.query.order_by(Project.updated_at.desc()).all()
-    return render_template('projects/list.html', projects=projects)
+    """List all projects with pagination and eager loading"""
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)  # Default 50 projects per page
+
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    client_filter = request.args.get('client', '')
+
+    # Build query with eager loading to avoid N+1 queries
+    query = Project.query.options(joinedload(Project.estimates))
+
+    # Apply filters
+    if status_filter:
+        query = query.filter(Project.status == status_filter)
+    if client_filter:
+        query = query.filter(Project.client_name.ilike(f'%{client_filter}%'))
+
+    # Order by most recently updated
+    query = query.order_by(Project.updated_at.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    projects = pagination.items
+
+    # Get unique statuses and clients for filters
+    all_statuses = db.session.query(Project.status).distinct().all()
+    statuses = [s[0] for s in all_statuses if s[0]]
+
+    return render_template('projects/list.html',
+                          projects=projects,
+                          pagination=pagination,
+                          statuses=statuses,
+                          current_status=status_filter,
+                          current_client=client_filter)
 
 @bp.route('/create', methods=['GET', 'POST'])
 def create_project():
@@ -28,7 +62,9 @@ def create_project():
                 project_name=request.form['project_name'],
                 client_name=request.form['client_name'],
                 description=request.form.get('description', ''),
-                status=request.form.get('status', 'Draft')
+                status=request.form.get('status', 'Draft'),
+                revision=request.form.get('revision', ''),
+                remarks=request.form.get('remarks', '')
             )
             
             db.session.add(project)
@@ -52,10 +88,74 @@ def detail_project(project_id):
     standard_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
     optional_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=True).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
 
+    # Calculate category costs for chart (standard estimates only)
+    category_costs = defaultdict(float)
+
+    # Labor rates
+    ENGINEERING_RATE = 145.0
+    PANEL_SHOP_RATE = 125.0
+
+    for estimate in standard_estimates:
+        # Process assemblies
+        for assembly in estimate.assemblies:
+            for assembly_part in assembly.assembly_parts:
+                part = assembly_part.part
+                if part:
+                    # Get category
+                    category = 'Uncategorized'
+                    if hasattr(part, 'category_id') and part.category_id:
+                        try:
+                            cat = PartCategory.query.get(part.category_id)
+                            if cat:
+                                category = cat.name
+                        except:
+                            pass
+
+                    # Calculate cost
+                    qty = float(assembly_part.quantity) if assembly_part.quantity else 0
+                    unit_cost = float(part.current_price) if part.current_price else 0
+                    category_costs[category] += qty * unit_cost
+
+        # Process individual components
+        for component in estimate.individual_components:
+            category = 'Uncategorized'
+            if component.part_id and component.part:
+                if hasattr(component.part, 'category_id') and component.part.category_id:
+                    try:
+                        cat = PartCategory.query.get(component.part.category_id)
+                        if cat:
+                            category = cat.name
+                    except:
+                        pass
+            elif component.category:
+                category = component.category
+
+            qty = float(component.quantity) if component.quantity else 0
+            unit_cost = float(component.unit_price) if component.unit_price else 0
+            category_costs[category] += qty * unit_cost
+
+    # Add Engineering Hours as a category
+    total_engineering_hours = sum(float(est.total_engineering_hours or 0) for est in standard_estimates)
+    if total_engineering_hours > 0:
+        category_costs['Engineering'] = total_engineering_hours * ENGINEERING_RATE
+
+    # Add Panel Shop Hours as a category
+    total_panel_shop_hours = sum(float(est.total_panel_shop_hours or 0) for est in standard_estimates)
+    if total_panel_shop_hours > 0:
+        category_costs['Panel Shop'] = total_panel_shop_hours * PANEL_SHOP_RATE
+
+    # Get top 15 categories by cost
+    top_categories = sorted(category_costs.items(), key=lambda x: x[1], reverse=True)[:15]
+
+    # Calculate total for percentage calculations (materials + engineering + panel shop)
+    total_chart_cost = sum(cost for _, cost in category_costs.items())
+
     return render_template('projects/detail.html',
                          project=project,
                          estimates=standard_estimates,
-                         optional_estimates=optional_estimates)
+                         optional_estimates=optional_estimates,
+                         top_categories=top_categories,
+                         total_chart_cost=total_chart_cost)
 
 @bp.route('/<int:project_id>/edit', methods=['GET', 'POST'])
 def edit_project(project_id):
@@ -68,6 +168,8 @@ def edit_project(project_id):
             project.client_name = request.form['client_name']
             project.description = request.form.get('description', '')
             project.status = request.form.get('status', 'Draft')
+            project.revision = request.form.get('revision', '')
+            project.remarks = request.form.get('remarks', '')
             project.is_active = 'is_active' in request.form
             project.updated_at = datetime.utcnow()
 
@@ -83,18 +185,38 @@ def edit_project(project_id):
 
 @bp.route('/<int:project_id>/delete', methods=['POST'])
 def delete_project(project_id):
-    """Delete a project"""
+    """Delete a project and all associated data (estimates, assemblies, motors, etc.)"""
     project = Project.query.get_or_404(project_id)
 
     try:
         project_name = project.project_name
+
+        # Count related items before deletion for verification
+        estimate_count = len(project.estimates)
+        motor_count = len(project.motors)
+
+        # Delete the project (cascade will handle all related data)
         db.session.delete(project)
         db.session.commit()
-        flash(f'Project "{project_name}" deleted successfully!', 'success')
+
+        # Build success message
+        msg = f'Project "{project_name}" deleted successfully'
+        if estimate_count > 0:
+            msg += f' (with {estimate_count} estimate(s)'
+        if motor_count > 0:
+            msg += f' and {motor_count} motor(s)/load(s)' if estimate_count > 0 else f' (with {motor_count} motor(s)/load(s)'
+        if estimate_count > 0 or motor_count > 0:
+            msg += ')'
+        msg += '!'
+
+        flash(msg, 'success')
         return redirect(url_for('projects.list_projects'))
 
     except Exception as e:
         db.session.rollback()
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error deleting project {project_id}: {error_details}")  # Log to console
         flash(f'Error deleting project: {str(e)}', 'error')
         return redirect(url_for('projects.detail_project', project_id=project_id))
 
@@ -120,6 +242,145 @@ def toggle_project_active(project_id):
             'success': False,
             'message': f'Error updating project: {str(e)}'
         }), 500
+
+@bp.route('/<int:project_id>/copy', methods=['GET', 'POST'])
+def copy_project(project_id):
+    """Copy an entire project with all its estimates (supporting and optional)"""
+    source_project = Project.query.get_or_404(project_id)
+
+    if request.method == 'POST':
+        try:
+            # Create new project with copied details
+            new_project_name = request.form.get('project_name', f"Copy of {source_project.project_name}")
+
+            new_project = Project(
+                project_name=new_project_name,
+                client_name=source_project.client_name,
+                description=source_project.description,
+                status='Draft',  # Always start copies as Draft
+                revision=request.form.get('revision', ''),
+                remarks=source_project.remarks
+            )
+            db.session.add(new_project)
+            db.session.flush()  # Get the new project ID
+
+            # Get all estimates from source project (both supporting and optional)
+            source_estimates = Estimate.query.filter_by(project_id=project_id).all()
+
+            # Copy each estimate
+            for source_estimate in source_estimates:
+                # Create new estimate
+                new_estimate_number = f"EST-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+                new_estimate = Estimate(
+                    project_id=new_project.project_id,
+                    estimate_number=new_estimate_number,
+                    estimate_name=source_estimate.estimate_name,
+                    description=source_estimate.description,
+                    is_optional=source_estimate.is_optional,  # Preserve optional status
+                    sort_order=source_estimate.sort_order,
+                    engineering_rate=source_estimate.engineering_rate,
+                    panel_shop_rate=source_estimate.panel_shop_rate,
+                    machine_assembly_rate=source_estimate.machine_assembly_rate,
+                    engineering_hours=source_estimate.engineering_hours,
+                    panel_shop_hours=source_estimate.panel_shop_hours,
+                    machine_assembly_hours=source_estimate.machine_assembly_hours
+                )
+                db.session.add(new_estimate)
+                db.session.flush()  # Get the new estimate ID
+
+                # Copy all assemblies and assembly parts
+                for assembly in source_estimate.assemblies:
+                    new_assembly = Assembly(
+                        estimate_id=new_estimate.estimate_id,
+                        assembly_name=assembly.assembly_name,
+                        description=assembly.description,
+                        sort_order=assembly.sort_order,
+                        standard_assembly_id=assembly.standard_assembly_id,
+                        standard_assembly_version=assembly.standard_assembly_version,
+                        quantity=assembly.quantity
+                    )
+                    db.session.add(new_assembly)
+                    db.session.flush()  # Get the new assembly ID
+
+                    # Copy assembly parts
+                    for assembly_part in assembly.assembly_parts:
+                        new_assembly_part = AssemblyPart(
+                            assembly_id=new_assembly.assembly_id,
+                            part_id=assembly_part.part_id,
+                            quantity=assembly_part.quantity,
+                            unit_of_measure=assembly_part.unit_of_measure,
+                            sort_order=assembly_part.sort_order,
+                            notes=assembly_part.notes
+                        )
+                        db.session.add(new_assembly_part)
+
+                # Copy individual components (EstimateComponents)
+                for individual_component in source_estimate.individual_components:
+                    new_individual_component = EstimateComponent(
+                        estimate_id=new_estimate.estimate_id,
+                        part_id=individual_component.part_id,
+                        component_name=individual_component.component_name,
+                        part_number=individual_component.part_number,
+                        manufacturer=individual_component.manufacturer,
+                        description=individual_component.description,
+                        unit_price=individual_component.unit_price,
+                        quantity=individual_component.quantity,
+                        unit_of_measure=individual_component.unit_of_measure,
+                        category=individual_component.category,
+                        notes=individual_component.notes,
+                        sort_order=individual_component.sort_order
+                    )
+                    db.session.add(new_individual_component)
+
+            # Copy all motors/loads from source project
+            source_motors = Motor.query.filter_by(project_id=project_id).order_by(Motor.sort_order).all()
+            for source_motor in source_motors:
+                new_motor = Motor(
+                    project_id=new_project.project_id,
+                    load_type=source_motor.load_type,
+                    motor_name=source_motor.motor_name,
+                    location=source_motor.location,
+                    encl_type=source_motor.encl_type,
+                    frame=source_motor.frame,
+                    additional_notes=source_motor.additional_notes,
+                    hp=source_motor.hp,
+                    speed_range=source_motor.speed_range,
+                    voltage=source_motor.voltage,
+                    qty=source_motor.qty,
+                    overload_percentage=source_motor.overload_percentage,
+                    continuous_load=source_motor.continuous_load,
+                    vfd_type_id=source_motor.vfd_type_id,
+                    power_rating=source_motor.power_rating,
+                    power_unit=source_motor.power_unit,
+                    phase_config=source_motor.phase_config,
+                    nec_amps_override=source_motor.nec_amps_override,
+                    manual_amps=source_motor.manual_amps,
+                    vfd_override=source_motor.vfd_override,
+                    selected_vfd_part_id=source_motor.selected_vfd_part_id,
+                    duty_type=source_motor.duty_type,
+                    sort_order=source_motor.sort_order,
+                    revision_number='0.0',  # Start fresh with revision 0.0
+                    revision_type='major'
+                )
+                db.session.add(new_motor)
+
+            db.session.commit()
+
+            # Build success message
+            success_msg = f'Project "{new_project.project_name}" created successfully with {len(source_estimates)} estimate(s)'
+            if source_motors:
+                success_msg += f' and {len(source_motors)} motor(s)/load(s)'
+            success_msg += '!'
+
+            flash(success_msg, 'success')
+            return redirect(url_for('projects.detail_project', project_id=new_project.project_id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error copying project: {str(e)}', 'error')
+
+    # GET request - show the copy form
+    return render_template('projects/copy.html', project=source_project)
 
 @bp.route('/<int:project_id>/export')
 def export_project(project_id):
@@ -261,10 +522,12 @@ def export_project(project_id):
 
 @bp.route('/<int:project_id>/consolidated-report')
 def export_consolidated_report(project_id):
-    """Export consolidated BOM report with cost breakdown and pie chart (excludes optional estimates)"""
+    """Export consolidated BOM report with cost breakdown and pie chart (includes all estimates)"""
     project = Project.query.get_or_404(project_id)
-    # Only include standard estimates in BOM report
-    estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    # Include both standard and optional estimates in BOM report
+    standard_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=False).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    optional_estimates = Estimate.query.filter_by(project_id=project_id, is_optional=True).order_by(Estimate.sort_order, Estimate.created_at.desc()).all()
+    estimates = standard_estimates + optional_estimates
     
     # Create workbook
     wb = openpyxl.Workbook()
@@ -589,9 +852,14 @@ def export_consolidated_report(project_id):
         
         # Add estimate name header row
         ws2.merge_cells(f'A{row}:J{row}')
-        estimate_header = ws2.cell(row=row, column=1, value=f"ESTIMATE: {estimate.estimate_name} ({estimate.estimate_number})")
-        estimate_header.font = Font(bold=True, size=12)
-        estimate_header.fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
+        estimate_label = f"ESTIMATE: {estimate.estimate_name} ({estimate.estimate_number})"
+        if estimate.is_optional:
+            estimate_label += " [OPTIONAL]"
+        estimate_header = ws2.cell(row=row, column=1, value=estimate_label)
+        estimate_header.font = Font(bold=True, size=12, color="FF6600" if estimate.is_optional else "000000")
+        estimate_header.fill = PatternFill(start_color="FFF2CC" if estimate.is_optional else "E7E6E6",
+                                          end_color="FFF2CC" if estimate.is_optional else "E7E6E6",
+                                          fill_type="solid")
         estimate_header.border = border
         row += 1
         

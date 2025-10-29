@@ -35,15 +35,19 @@
         <p class="text-muted mb-0">Client: {{ project.client_name }}</p>
     </div>
     <div>
-        <a href="{{ url_for('projects.edit_project', project_id=project.project_id) }}" 
+        <a href="{{ url_for('projects.edit_project', project_id=project.project_id) }}"
            class="btn btn-outline-primary me-2">
             <i class="fas fa-edit"></i> Edit Project
         </a>
-        <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}" 
+        <a href="{{ url_for('projects.copy_project', project_id=project.project_id) }}"
+           class="btn btn-outline-info me-2">
+            <i class="fas fa-copy"></i> Copy Project
+        </a>
+        <a href="{{ url_for('motors.list_motors', project_id=project.project_id) }}"
            class="btn btn-outline-secondary me-2">
             <i class="fas fa-cogs"></i> Motor/Load List
         </a>
-        <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}" 
+        <a href="{{ url_for('estimates.create_estimate', project_id=project.project_id) }}"
            class="btn btn-primary">
             <i class="fas fa-plus"></i> New Estimate
         </a>
@@ -53,7 +57,7 @@
 <!-- Project Details Card -->
 <div class="row mb-4">
     <div class="col-md-8">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">Project Details</h5>
             </div>
@@ -65,22 +69,22 @@
                             {{ project.status }}
                         </span>
                     </dd>
-                    
+
                     <dt class="col-sm-3">Description:</dt>
                     <dd class="col-sm-9">{{ project.description or 'No description provided' }}</dd>
-                    
+
                     <dt class="col-sm-3">Created:</dt>
                     <dd class="col-sm-9">{{ project.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
-                    
+
                     <dt class="col-sm-3">Last Updated:</dt>
                     <dd class="col-sm-9">{{ project.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
                 </dl>
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-4">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">Project Summary</h5>
             </div>
@@ -88,7 +92,7 @@
                 <div class="text-center">
                     <h3 class="text-success">${{ "{:,.2f}".format(project.total_project_grand_total()) }}</h3>
                     <p class="text-muted mb-1">Total Project Value</p>
-                    
+
                     <!-- Breakdown -->
                     <div class="row mb-3">
                         <div class="col-6">
@@ -100,8 +104,8 @@
                             <small class="text-muted">Labor</small>
                         </div>
                     </div>
-                    
-                    
+
+
                     <hr>
                     <p class="mb-1"><strong>{{ estimates|length }}</strong> Estimate{{ 's' if estimates|length != 1 else '' }}</p>
                 </div>
@@ -109,6 +113,132 @@
         </div>
     </div>
 </div>
+
+<!-- ============================================ -->
+<!-- TOP 15 CATEGORIES BAR CHART                  -->
+<!-- To remove: delete this entire card section   -->
+<!-- ============================================ -->
+{% if top_categories %}
+<div class="card mb-4" id="categoryCostChart">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Top 15 Categories by Cost
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('categoryCostChart').remove()">
+            <i class="fas fa-times"></i> Hide
+        </button>
+    </div>
+    <div class="card-body">
+        <canvas id="categoryChart" height="60"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    const totalChartCost = {{ total_chart_cost }};
+
+    const categoryData = {
+        labels: [
+            {% for category, cost in top_categories %}
+                '{{ category }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Cost ($)',
+            data: [
+                {% for category, cost in top_categories %}
+                    {{ "%.2f"|format(cost) }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(255, 206, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(199, 199, 199, 0.8)',
+                'rgba(83, 102, 255, 0.8)',
+                'rgba(255, 99, 255, 0.8)',
+                'rgba(64, 255, 159, 0.8)'
+            ],
+            borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)',
+                'rgba(83, 102, 255, 1)',
+                'rgba(255, 99, 255, 1)',
+                'rgba(64, 255, 159, 1)'
+            ],
+            borderWidth: 2
+        }]
+    };
+
+    const categoryConfig = {
+        type: 'bar',
+        data: categoryData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const cost = context.parsed.y;
+                            const percentage = totalChartCost > 0 ? (cost / totalChartCost * 100) : 0;
+                            return [
+                                '$' + cost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+                                percentage.toFixed(1) + '% of total cost (materials + labor)'
+                            ];
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: function(value, context) {
+                        const percentage = totalChartCost > 0 ? (value / totalChartCost * 100) : 0;
+                        const dollarValue = '$' + value.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        return percentage.toFixed(1) + '%\n' + dollarValue;
+                    },
+                    color: '#666',
+                    font: {
+                        weight: 'bold',
+                        size: 10
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString('en-US');
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    };
+
+    new Chart(document.getElementById('categoryChart'), categoryConfig);
+</script>
+{% endif %}
+<!-- ============================================ -->
+<!-- END OF TOP 10 CATEGORIES CHART               -->
+<!-- ============================================ -->
 
 <!-- Standard Estimates List -->
 <div class="card">
@@ -221,12 +351,12 @@
                                     <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}"
                                        class="btn btn-sm btn-outline-secondary">Copy</a>
                                     <button type="button" class="btn btn-sm btn-outline-warning"
-                                            onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}', false)"
+                                            onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|replace("'", "\\'") }}', false)"
                                             title="Convert to optional estimate">
                                         <i class="fas fa-arrow-down"></i> Optional
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger"
-                                            onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}')">
+                                            onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|replace("'", "\\'") }}')">
                                         Delete
                                     </button>
                                 </div>
@@ -309,10 +439,12 @@
                         <th style="width: 240px;">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="optionalEstimatesTableBody">
                     {% for estimate in optional_estimates %}
-                    <tr>
-                        <td></td>
+                    <tr class="draggable-row" data-estimate-id="{{ estimate.estimate_id }}">
+                        <td class="drag-handle" style="cursor: grab; text-align: center; color: #6c757d;">
+                            <i class="fas fa-grip-vertical"></i>
+                        </td>
                         <td>
                             <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
                                class="text-decoration-none">
@@ -379,12 +511,12 @@
                                 <a href="{{ url_for('estimates.copy_estimate', estimate_id=estimate.estimate_id) }}"
                                    class="btn btn-sm btn-outline-secondary">Copy</a>
                                 <button type="button" class="btn btn-sm btn-outline-success"
-                                        onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}', true)"
+                                        onclick="toggleOptional({{ estimate.estimate_id }}, '{{ estimate.estimate_name|replace("'", "\\'") }}', true)"
                                         title="Convert to standard estimate">
                                     <i class="fas fa-arrow-up"></i> Standard
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-danger"
-                                        onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}')">
+                                        onclick="deleteEstimate({{ estimate.estimate_id }}, '{{ estimate.estimate_name|replace("'", "\\'") }}')">
                                     Delete
                                 </button>
                             </div>
@@ -538,11 +670,13 @@ function toggleOptional(estimateId, estimateName, isCurrentlyOptional) {
 
 // Drag and drop functionality for estimates
 let dragSrcEl = null;
+let currentTableBody = null; // Track which table we're dragging from
 
 function handleDragStart(e) {
     this.style.opacity = '0.4';
     dragSrcEl = this;
-    
+    currentTableBody = this.parentNode; // Store the table body
+
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', this.outerHTML);
 }
@@ -551,13 +685,16 @@ function handleDragOver(e) {
     if (e.preventDefault) {
         e.preventDefault();
     }
-    
+
     e.dataTransfer.dropEffect = 'move';
     return false;
 }
 
 function handleDragEnter(e) {
-    this.classList.add('drag-over');
+    // Only allow drag over if in the same table body
+    if (dragSrcEl && this.parentNode === currentTableBody) {
+        this.classList.add('drag-over');
+    }
 }
 
 function handleDragLeave(e) {
@@ -568,13 +705,14 @@ function handleDrop(e) {
     if (e.stopPropagation) {
         e.stopPropagation();
     }
-    
-    if (dragSrcEl !== this) {
+
+    // Only allow drop if in the same table body
+    if (dragSrcEl !== this && this.parentNode === currentTableBody) {
         this.parentNode.removeChild(dragSrcEl);
-        
+
         const dropHTML = e.dataTransfer.getData('text/html');
         this.insertAdjacentHTML('beforebegin', dropHTML);
-        
+
         const addedElement = this.previousSibling;
         addedElement.addEventListener('dragstart', handleDragStart, false);
         addedElement.addEventListener('dragenter', handleDragEnter, false);
@@ -582,28 +720,34 @@ function handleDrop(e) {
         addedElement.addEventListener('dragleave', handleDragLeave, false);
         addedElement.addEventListener('drop', handleDrop, false);
         addedElement.addEventListener('dragend', handleDragEnd, false);
-        
-        // Update the order
-        updateEstimateOrder();
+
+        // Update the order based on which table
+        updateEstimateOrder(currentTableBody.id);
     }
-    
+
     this.classList.remove('drag-over');
     return false;
 }
 
 function handleDragEnd(e) {
     this.style.opacity = '';
-    
-    const allRows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+
+    // Clear drag-over class from all rows in both tables
+    const allRows = document.querySelectorAll('.draggable-row');
     allRows.forEach(function(row) {
         row.classList.remove('drag-over');
     });
+
+    currentTableBody = null; // Reset
 }
 
-function updateEstimateOrder() {
-    const rows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+function updateEstimateOrder(tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+    if (!tableBody) return;
+
+    const rows = tableBody.querySelectorAll('.draggable-row');
     const estimateIds = Array.from(rows).map(row => parseInt(row.dataset.estimateId));
-    
+
     fetch('/estimates/api/reorder', {
         method: 'POST',
         headers: {
@@ -633,11 +777,37 @@ function updateEstimateOrder() {
     });
 }
 
+// Toast notification function
+function showToast(type, title, message) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+    toast.style = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+    toast.innerHTML = `
+        <strong>${title}!</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 5000);
+}
+
 // Initialize drag and drop when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    const rows = document.querySelectorAll('#estimatesTableBody .draggable-row');
-    
-    rows.forEach(function(row) {
+    // Initialize for standard estimates
+    const standardRows = document.querySelectorAll('#estimatesTableBody .draggable-row');
+    standardRows.forEach(function(row) {
+        row.draggable = true;
+        row.addEventListener('dragstart', handleDragStart, false);
+        row.addEventListener('dragenter', handleDragEnter, false);
+        row.addEventListener('dragover', handleDragOver, false);
+        row.addEventListener('dragleave', handleDragLeave, false);
+        row.addEventListener('drop', handleDrop, false);
+        row.addEventListener('dragend', handleDragEnd, false);
+    });
+
+    // Initialize for optional estimates
+    const optionalRows = document.querySelectorAll('#optionalEstimatesTableBody .draggable-row');
+    optionalRows.forEach(function(row) {
         row.draggable = true;
         row.addEventListener('dragstart', handleDragStart, false);
         row.addEventListener('dragenter', handleDragEnter, false);

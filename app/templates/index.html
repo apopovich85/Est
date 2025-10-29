@@ -109,6 +109,7 @@
                                 <tr>
                                     <th>Active</th>
                                     <th>Project Name</th>
+                                    <th>Revision</th>
                                     <th>Client</th>
                                     <th>Status</th>
                                     <th>Estimates</th>
@@ -129,6 +130,13 @@
                                         <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}" class="text-decoration-none">
                                             {{ project.project_name }}
                                         </a>
+                                    </td>
+                                    <td>
+                                        {% if project.revision %}
+                                            <span class="badge bg-secondary">{{ project.revision }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ project.client_name }}</td>
                                     <td>

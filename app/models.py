@@ -57,6 +57,8 @@ class Project(db.Model):
     description = db.Column(db.Text)
     status = db.Column(db.String(50), default='Draft')
     is_active = db.Column(db.Boolean, default=True)
+    revision = db.Column(db.String(50), default='')
+    remarks = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -751,7 +753,7 @@ class NECAmpTable(db.Model):
 class TechData(db.Model):
     """Technical specifications for parts (VFDs, etc.)"""
     __tablename__ = 't_techdata'
-    
+
     tech_data_id = db.Column(db.Integer, primary_key=True)
     part_id = db.Column(db.Integer, db.ForeignKey('parts.part_id'), nullable=False, index=True)
     heat_loss_w = db.Column(db.Numeric(10, 2))  # Heat Loss in Watts
@@ -759,7 +761,9 @@ class TechData(db.Model):
     height_in = db.Column(db.Numeric(8, 3))     # Height in inches
     length_in = db.Column(db.Numeric(8, 3))     # Length in inches
     frame_size = db.Column(db.Integer)          # Frame size for calculations
-    input_current = db.Column(db.Numeric(8, 3)) # Input current for VFDs
+    input_current = db.Column(db.Numeric(8, 3)) # Input current for VFDs (deprecated - use ND/HD)
+    input_current_nd = db.Column(db.Numeric(8, 3)) # Normal Duty input current for VFDs
+    input_current_hd = db.Column(db.Numeric(8, 3)) # Heavy Duty input current for VFDs
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -799,6 +803,7 @@ class Motor(db.Model):
     manual_amps = db.Column(db.Numeric(8, 3))  # Manual amp entry when overridden
     vfd_override = db.Column(db.Boolean, default=False)
     selected_vfd_part_id = db.Column(db.Integer, db.ForeignKey('parts.part_id'), nullable=True)
+    duty_type = db.Column(db.String(2), default='ND')  # 'ND' for Normal Duty, 'HD' for Heavy Duty
     
     # Metadata
     sort_order = db.Column(db.Integer, default=0)
@@ -808,7 +813,7 @@ class Motor(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    project = db.relationship('Project', backref='motors')
+    project = db.relationship('Project', backref=db.backref('motors', cascade='all, delete-orphan'))
     selected_vfd = db.relationship('Parts', backref='motor_selections')
     revisions = db.relationship('MotorRevision', backref='motor', cascade='all, delete-orphan', order_by='MotorRevision.revision_number.desc()')
     
@@ -893,10 +898,17 @@ class Motor(db.Model):
     
     @property
     def vfd_input_current(self):
-        """Get VFD input current from tech data"""
+        """Get VFD input current from tech data based on duty type"""
         vfd = self.recommended_vfd
         if vfd and vfd.tech_data:
-            return float(vfd.tech_data.input_current or 0.0)
+            # Use duty type to determine which input current to use
+            if self.duty_type == 'HD' and vfd.tech_data.input_current_hd:
+                return float(vfd.tech_data.input_current_hd)
+            elif self.duty_type == 'ND' and vfd.tech_data.input_current_nd:
+                return float(vfd.tech_data.input_current_nd)
+            # Fallback to legacy input_current if ND/HD not available
+            elif vfd.tech_data.input_current:
+                return float(vfd.tech_data.input_current)
         return 0.0
     
     @property
@@ -963,7 +975,7 @@ class Motor(db.Model):
         Returns: (changed_fields, suggested_revision_type)
         """
         # Define field significance for revision suggestion
-        MAJOR_FIELDS = {'hp', 'voltage', 'vfd_type_id', 'load_type', 'power_rating', 'phase_config'}
+        MAJOR_FIELDS = {'hp', 'voltage', 'vfd_type_id', 'load_type', 'power_rating', 'phase_config', 'duty_type'}
         MINOR_FIELDS = {'qty', 'location', 'motor_name', 'overload_percentage', 'continuous_load',
                        'speed_range', 'encl_type', 'frame', 'power_unit', 'nec_amps_override',
                        'manual_amps', 'vfd_override', 'selected_vfd_part_id'}
@@ -1053,6 +1065,7 @@ class Motor(db.Model):
             manual_amps=self.manual_amps,
             vfd_override=self.vfd_override,
             selected_vfd_part_id=self.selected_vfd_part_id,
+            duty_type=self.duty_type,
             changed_by=changed_by,
             change_description=change_description
         )
@@ -1096,6 +1109,7 @@ class Motor(db.Model):
         self.manual_amps = revision.manual_amps
         self.vfd_override = revision.vfd_override
         self.selected_vfd_part_id = revision.selected_vfd_part_id
+        self.duty_type = revision.duty_type
 
         # Update revision number and metadata
         self.revision_number = self.increment_revision('major')
@@ -1146,6 +1160,7 @@ class MotorRevision(db.Model):
     manual_amps = db.Column(db.Numeric(8, 3))
     vfd_override = db.Column(db.Boolean)
     selected_vfd_part_id = db.Column(db.Integer)
+    duty_type = db.Column(db.String(2))  # 'ND' for Normal Duty, 'HD' for Heavy Duty
 
     # Metadata
     changed_by = db.Column(db.String(100))

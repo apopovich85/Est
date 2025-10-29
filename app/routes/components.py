@@ -1,7 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from app.models import Component, PriceHistory, Assembly, Parts, Estimate, Project, PartsPriceHistory, AssemblyPart, PartCategory, EstimateComponent, StandardAssemblyComponent, TechData, Motor
 from app import db, csrf
 from datetime import datetime
+import csv
+import io
+import zipfile
 
 bp = Blueprint('components', __name__)
 
@@ -956,8 +959,8 @@ def update_component_quantity(component_id):
     
     try:
         new_quantity = float(new_quantity)
-        if new_quantity <= 0:
-            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
+        if new_quantity < 0:
+            return jsonify({'success': False, 'error': 'Quantity must be at least 0'}), 400
         
         old_quantity = float(assembly_part.quantity)
         assembly_part.quantity = new_quantity
@@ -986,7 +989,7 @@ def api_parts_by_category(category):
         parts = Parts.query.filter_by(category=category)\
             .order_by(Parts.description, Parts.part_number)\
             .all()
-        
+
         return jsonify([{
             'part_id': p.part_id,
             'part_number': p.part_number or '',
@@ -998,6 +1001,63 @@ def api_parts_by_category(category):
             'vendor': p.vendor or '',
             'display_name': f"{p.part_number or 'No Part Number'} - {p.description or 'No Description'}"
         } for p in parts])
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/database/export-csv')
+def export_database_csv():
+    """Export all parts from database to CSV files (249 items per file with UPC and quantity columns)"""
+    try:
+        # Get all parts from database ordered by part_id
+        parts = Parts.query.order_by(Parts.part_id).all()
+
+        if not parts:
+            flash('No parts found in database to export', 'warning')
+            return redirect(url_for('components.master_parts_database'))
+
+        # Define the chunk size
+        ITEMS_PER_FILE = 249
+
+        # Create a zip file in memory to hold multiple CSV files
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Split parts into chunks of 249
+            for file_num, i in enumerate(range(0, len(parts), ITEMS_PER_FILE), start=1):
+                chunk = parts[i:i + ITEMS_PER_FILE]
+
+                # Create CSV in memory for this chunk
+                csv_buffer = io.StringIO()
+                csv_writer = csv.writer(csv_buffer)
+
+                # Write header row
+                csv_writer.writerow(['UPC', 'Quantity'])
+
+                # Write data rows
+                for part in chunk:
+                    upc = part.upc if part.upc else ''
+                    quantity = 1  # Always 1 as per requirement
+                    csv_writer.writerow([upc, quantity])
+
+                # Add this CSV to the zip file
+                filename = f'parts_export_{file_num}.csv'
+                zip_file.writestr(filename, csv_buffer.getvalue())
+
+        # Prepare the zip file for download
+        zip_buffer.seek(0)
+
+        # Generate download filename with timestamp
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        download_filename = f'parts_export_{timestamp}.zip'
+
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=download_filename
+        )
+
+    except Exception as e:
+        flash(f'Error exporting parts to CSV: {str(e)}', 'error')
+        return redirect(url_for('components.master_parts_database'))

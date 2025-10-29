@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Search Estimates{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-search"></i> Search Estimates</h1>
+            <p class="text-muted">Find estimates by name and copy them to other projects</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('estimates.search_estimates') }}" class="row g-3">
+                <div class="col-md-10">
+                    <label for="searchQuery" class="form-label">
+                        <strong>Estimate Name</strong>
+                    </label>
+                    <input type="text"
+                           class="form-control"
+                           id="searchQuery"
+                           name="q"
+                           value="{{ search_query }}"
+                           placeholder="Enter estimate name (use * for wildcard, ? for single character)"
+                           autofocus>
+                    <div class="form-text">
+                        <strong>Examples:</strong> "Main Panel", "PLC*", "*Control*", "Panel ?"<br>
+                        <small class="text-muted">Minimum 2 characters required. Results limited to 500 estimates.</small>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    {% if search_performed %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                Search Results for "{{ search_query }}"
+            </h5>
+            <span class="badge bg-primary">{{ result_count }} estimate(s) found</span>
+        </div>
+        <div class="card-body">
+            {% if estimates and result_count > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width: 250px;">Estimate Name</th>
+                            <th style="width: 200px;">Project</th>
+                            <th style="width: 150px;">Estimate Number</th>
+                            <th class="text-center" style="width: 80px;">Revision</th>
+                            <th class="text-end" style="width: 130px;">Material Cost</th>
+                            <th class="text-center" style="width: 100px;">Eng Hours</th>
+                            <th class="text-center" style="width: 110px;">Panel Shop</th>
+                            <th class="text-center" style="width: 110px;">Mach Assy</th>
+                            <th class="text-end" style="width: 130px;">Grand Total</th>
+                            <th class="text-center" style="width: 80px;">Optional</th>
+                            <th style="width: 200px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estimate, project in estimates %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
+                                   class="text-decoration-none" target="_blank">
+                                    <strong>{{ estimate.estimate_name }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('projects.detail_project', project_id=project.project_id) }}"
+                                   class="text-decoration-none text-muted" target="_blank">
+                                    {{ project.project_name }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ estimate.estimate_number }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-{% if estimate.revision_number == 0 %}secondary{% else %}info{% endif %}">
+                                    Rev. {{ estimate.revision_number }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-primary">${{ "{:,.2f}".format(estimate.calculated_total) }}</strong>
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_engineering_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_engineering_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_panel_shop_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_panel_shop_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.total_machine_assembly_hours > 0 %}
+                                    {{ "{:.1f}".format(estimate.total_machine_assembly_hours) }}h
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-success">${{ "{:,.2f}".format(estimate.grand_total) }}</strong>
+                            </td>
+                            <td class="text-center">
+                                {% if estimate.is_optional %}
+                                    <span class="badge bg-warning">Optional</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('estimates.detail_estimate', estimate_id=estimate.estimate_id) }}"
+                                       class="btn btn-sm btn-outline-primary"
+                                       target="_blank"
+                                       title="View estimate">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-success"
+                                            onclick="openCopyModal({{ estimate.estimate_id }}, '{{ estimate.estimate_name|e }}', {{ project.project_id }}, '{{ project.project_name|e }}')"
+                                            title="Copy to another project">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No estimates found</h5>
+                <p class="text-muted">Try a different search term or use wildcards (* or ?)</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% elif search_query and search_query|length < 2 %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Search too short:</strong> Please enter at least 2 characters to search.
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Getting Started:</strong> Enter an estimate name (minimum 2 characters) to search across all projects.<br>
+        <small>Use wildcards: <code>*</code> for multiple characters, <code>?</code> for single character</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Copy Estimate Modal -->
+<div class="modal fade" id="copyEstimateModal" tabindex="-1" aria-labelledby="copyEstimateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="copyEstimateModalLabel">
+                    <i class="fas fa-copy"></i> Copy Estimate
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="copyEstimateForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" id="sourceEstimateId" name="source_estimate_id">
+
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Source:</strong>
+                        <div id="sourceInfo" class="mt-1"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="targetProjectSelect" class="form-label">
+                            <strong>Target Project</strong>
+                        </label>
+                        <select class="form-select" id="targetProjectSelect" name="target_project_id" required>
+                            <option value="">Select project...</option>
+                            {% for project in projects %}
+                            <option value="{{ project.project_id }}">{{ project.project_name }} - {{ project.client_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select the project to copy this estimate to</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="newEstimateName" class="form-label">
+                            <strong>New Estimate Name</strong>
+                        </label>
+                        <input type="text" class="form-control" id="newEstimateName" name="estimate_name" required>
+                        <div class="form-text">Enter a name for the copied estimate</div>
+                    </div>
+
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">What will be copied:</h6>
+                            <ul class="mb-0">
+                                <li>All assemblies and their parts</li>
+                                <li>All individual components</li>
+                                <li>Labor hours and rates</li>
+                                <li>Estimate description</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-copy"></i> Copy Estimate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let copyModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modal
+    const modalElement = document.getElementById('copyEstimateModal');
+    if (modalElement) {
+        copyModal = new bootstrap.Modal(modalElement);
+        console.log('Copy modal initialized successfully');
+    } else {
+        console.error('Copy modal element not found');
+    }
+
+    // Handle copy form submission
+    const copyForm = document.getElementById('copyEstimateForm');
+    if (copyForm) {
+        copyForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const sourceEstimateId = document.getElementById('sourceEstimateId').value;
+        const targetProjectId = document.getElementById('targetProjectSelect').value;
+        const newEstimateName = document.getElementById('newEstimateName').value;
+
+        if (!targetProjectId || !newEstimateName) {
+            showToast('error', 'Error', 'Please fill in all required fields');
+            return;
+        }
+
+        // Build the copy URL using the existing copy_estimate route
+        const copyUrl = `/estimates/${sourceEstimateId}/copy`;
+
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = copyUrl;
+
+        // Add fields
+        const fields = [
+            { name: 'target_project_id', value: targetProjectId },
+            { name: 'estimate_name', value: newEstimateName },
+            { name: 'csrf_token', value: '{{ csrf_token() }}' }
+        ];
+
+        fields.forEach(field => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = field.name;
+            input.value = field.value;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        });
+    } else {
+        console.error('Copy form element not found');
+    }
+});
+
+function openCopyModal(estimateId, estimateName, projectId, projectName) {
+    // Get all required elements
+    const sourceEstimateIdEl = document.getElementById('sourceEstimateId');
+    const sourceInfoEl = document.getElementById('sourceInfo');
+    const newEstimateNameEl = document.getElementById('newEstimateName');
+    const targetProjectSelectEl = document.getElementById('targetProjectSelect');
+
+    // Check if all elements exist
+    if (!sourceEstimateIdEl || !sourceInfoEl || !newEstimateNameEl || !targetProjectSelectEl) {
+        console.error('Copy modal elements not found:', {
+            sourceEstimateId: !!sourceEstimateIdEl,
+            sourceInfo: !!sourceInfoEl,
+            newEstimateName: !!newEstimateNameEl,
+            targetProjectSelect: !!targetProjectSelectEl
+        });
+        alert('Error: Modal elements not properly loaded. Please refresh the page and try again.');
+        return;
+    }
+
+    // Check if modal is initialized
+    if (!copyModal) {
+        console.error('Copy modal not initialized');
+        alert('Error: Modal not initialized. Please refresh the page and try again.');
+        return;
+    }
+
+    // Set source estimate ID
+    sourceEstimateIdEl.value = estimateId;
+
+    // Set source info display
+    sourceInfoEl.innerHTML =
+        `<strong>${estimateName}</strong><br><small class="text-muted">from ${projectName}</small>`;
+
+    // Set default name
+    newEstimateNameEl.value = estimateName + ' (Copy)';
+
+    // Reset project selection
+    targetProjectSelectEl.value = '';
+
+    // Show modal
+    try {
+        copyModal.show();
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        alert('Error showing modal. Please try again.');
+    }
+}
+
+function showToast(type, title, message) {
+    // Simple alert fallback if no toast system
+    alert(`${title}: ${message}`);
+}
+</script>
+{% endblock %}

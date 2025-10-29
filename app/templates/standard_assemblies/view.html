@@ -671,7 +671,18 @@ function updateComponentsTable(components) {
     });
     
     // Update footer total
-    tableFooter.querySelector('th:last-child').innerHTML = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (tableFooter) {
+        const footerCell = tableFooter.querySelector('th:last-child');
+        if (footerCell) {
+            const formattedTotal = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            console.log('Updating footer total to:', formattedTotal, 'calculated from', components.length, 'components');
+            footerCell.innerHTML = formattedTotal;
+        } else {
+            console.error('Footer cell (th:last-child) not found in table footer');
+        }
+    } else {
+        console.error('Table footer not found for #componentsTable');
+    }
 }
 
 function updateAssemblyStats(components) {
@@ -684,13 +695,15 @@ function updateAssemblyStats(components) {
         componentCountElement.textContent = componentCount;
     }
     
-    // Update total cost in summary (exclude component table cells)
-    const totalCostElements = document.querySelectorAll('.text-success:not(#componentsTable .text-success)');
-    totalCostElements.forEach(element => {
-        if (element.textContent.includes('$')) {
-            element.textContent = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-    });
+    // Update total cost in summary card (the h3 element, not the table footer)
+    const summaryCostElement = document.querySelector('h3.text-success');
+    if (summaryCostElement) {
+        const formattedCost = `$${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        console.log('Updating summary card total cost to:', formattedCost);
+        summaryCostElement.textContent = formattedCost;
+    } else {
+        console.warn('Summary cost element (h3.text-success) not found');
+    }
     
     // Update header info
     const headerInfo = document.querySelector('.text-muted');

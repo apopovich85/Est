@@ -49,114 +49,144 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for motor in motors %}
-                        <tr>
-                            <td><strong>{{ motor.motor_name }}</strong></td>
-                            <td>
-                                <span class="badge {{ 'bg-primary' if motor.load_type == 'motor' else 'bg-info' }}">
-                                    {{ motor.load_type.title() }}
-                                </span>
-                            </td>
-                            <td>{{ motor.location or '-' }}</td>
-                            <td>{{ motor.hp }}</td>
-                            <td>{{ motor.voltage }}V</td>
-                            <td>{{ motor.qty }}</td>
-                            <td>
-                                {% if motor.nec_amps_override %}
-                                    <span class="badge bg-warning" title="Manual Override">
-                                        {{ "%.1f"|format(motor.motor_amps) }}A*
+                        {% for location, location_motors in motors_by_location.items() %}
+                            {# Initialize location subtotals #}
+                            {% set location_qty = namespace(value=0) %}
+                            {% set location_total_amps = namespace(value=0) %}
+                            {% set location_input_current = namespace(value=0) %}
+                            {% set location_heat_loss = namespace(value=0) %}
+                            {% set location_width = namespace(value=0) %}
+
+                            {% for motor in location_motors %}
+                            <tr>
+                                <td><strong>{{ motor.motor_name }}</strong></td>
+                                <td>
+                                    <span class="badge {{ 'bg-primary' if motor.load_type == 'motor' else 'bg-info' }}">
+                                        {{ motor.load_type.title() }}
                                     </span>
-                                {% else %}
-                                    {{ "%.1f"|format(motor.motor_amps) }}A
-                                {% endif %}
-                            </td>
-                            <td>{{ "%.1f"|format(motor.total_amps) }}A</td>
-                            <td>{{ (motor.overload_percentage * 100)|int }}%</td>
-                            <td>{{ "%.1f"|format(motor.drive_required_current) }}A</td>
-                            <td>
-                                {% if motor.vfd_type %}
-                                    {{ motor.vfd_type.type_name }}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if motor.recommended_vfd %}
-                                    {% if motor.vfd_override %}
-                                        <span class="badge bg-info" title="Manual Override">
-                                            {{ motor.recommended_vfd.part_number }}*
+                                </td>
+                                <td>{{ motor.location or 'Unspecified' }}</td>
+                                <td>{{ motor.hp }}</td>
+                                <td>{{ motor.voltage }}V</td>
+                                <td>{{ motor.qty }}</td>
+                                <td>
+                                    {% if motor.nec_amps_override %}
+                                        <span class="badge bg-warning" title="Manual Override">
+                                            {{ "%.1f"|format(motor.motor_amps) }}A*
                                         </span>
                                     {% else %}
-                                        {{ motor.recommended_vfd.part_number }}
+                                        {{ "%.1f"|format(motor.motor_amps) }}A
                                     {% endif %}
-                                    <br><small class="text-muted">{{ motor.recommended_vfd.rating }}A</small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if motor.vfd_input_current > 0 %}
-                                    {{ "%.1f"|format(motor.vfd_input_current) }}A
-                                    <br><small class="text-muted">Total: {{ "%.1f"|format(motor.total_vfd_input_current) }}A</small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge {{ 'bg-warning' if motor.continuous_load else 'bg-secondary' }}">
-                                    {{ 'Yes' if motor.continuous_load else 'No' }}
-                                </span>
-                                {% if motor.continuous_load %}
-                                <br><small class="text-muted" title="NEC Article 100: Operating at its maximum rating for 3 hours or more">125%</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if motor.vfd_heat_loss > 0 %}
-                                    {{ "%.0f"|format(motor.vfd_heat_loss) }}W
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if motor.vfd_width > 0 %}
-                                    {{ "%.2f"|format(motor.vfd_width) }}"
-                                    <br><small class="text-muted">Total: {{ "%.2f"|format(motor.total_width) }}"</small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-info"
-                                        title="View Revision History - {{ motor.revision_type|title }}"
-                                        onclick="viewRevisions({{ motor.motor_id }})">
-                                    <i class="fas fa-code-branch"></i>
-                                    {% if motor.revision_type == 'major' %}🔴{% elif motor.revision_type == 'minor' %}🟡{% else %}🔵{% endif %}
-                                    v{{ motor.revision_number }}
-                                </button>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('motors.edit_motor_form', motor_id=motor.motor_id) }}"
-                                       class="btn btn-outline-primary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
+                                </td>
+                                <td>{{ "%.1f"|format(motor.total_amps) }}A</td>
+                                <td>{{ (motor.overload_percentage * 100)|int }}%</td>
+                                <td>{{ "%.1f"|format(motor.drive_required_current) }}A</td>
+                                <td>
+                                    {% if motor.vfd_type %}
+                                        {{ motor.vfd_type.type_name }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if motor.recommended_vfd %}
+                                        {% if motor.vfd_override %}
+                                            <span class="badge bg-info" title="Manual Override">
+                                                {{ motor.recommended_vfd.part_number }}*
+                                            </span>
+                                        {% else %}
+                                            {{ motor.recommended_vfd.part_number }}
+                                        {% endif %}
+                                        <br><small class="text-muted">{{ motor.recommended_vfd.rating }}A</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if motor.vfd_input_current > 0 %}
+                                        {{ "%.1f"|format(motor.vfd_input_current) }}A
+                                        <br><small class="text-muted">Total: {{ "%.1f"|format(motor.total_vfd_input_current) }}A</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge {{ 'bg-warning' if motor.continuous_load else 'bg-secondary' }}">
+                                        {{ 'Yes' if motor.continuous_load else 'No' }}
+                                    </span>
+                                    {% if motor.continuous_load %}
+                                    <br><small class="text-muted" title="NEC Article 100: Operating at its maximum rating for 3 hours or more">125%</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if motor.vfd_heat_loss > 0 %}
+                                        {{ "%.0f"|format(motor.vfd_heat_loss) }}W
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if motor.vfd_width > 0 %}
+                                        {{ "%.2f"|format(motor.vfd_width) }}"
+                                        <br><small class="text-muted">Total: {{ "%.2f"|format(motor.total_width) }}"</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
                                     <button type="button"
-                                            class="btn btn-outline-danger"
-                                            title="Delete"
-                                            onclick="confirmDelete({{ motor.motor_id }}, '{{ motor.motor_name }}')">
-                                        <i class="fas fa-trash"></i>
+                                            class="btn btn-sm btn-outline-info"
+                                            title="View Revision History - {{ motor.revision_type|title }}"
+                                            onclick="viewRevisions({{ motor.motor_id }})">
+                                        <i class="fas fa-code-branch"></i>
+                                        {% if motor.revision_type == 'major' %}🔴{% elif motor.revision_type == 'minor' %}🟡{% else %}🔵{% endif %}
+                                        v{{ motor.revision_number }}
                                     </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% if motor.additional_notes %}
-                        <tr class="table-light">
-                            <td colspan="18">
-                                <small><strong>Notes:</strong> {{ motor.additional_notes }}</small>
-                            </td>
-                        </tr>
-                        {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('motors.edit_motor_form', motor_id=motor.motor_id) }}"
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-outline-danger"
+                                                title="Delete"
+                                                onclick="confirmDelete({{ motor.motor_id }}, '{{ motor.motor_name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% if motor.additional_notes %}
+                            <tr class="table-light">
+                                <td colspan="18">
+                                    <small><strong>Notes:</strong> {{ motor.additional_notes }}</small>
+                                </td>
+                            </tr>
+                            {% endif %}
+
+                            {# Accumulate subtotals #}
+                            {% set location_qty.value = location_qty.value + motor.qty %}
+                            {% set location_total_amps.value = location_total_amps.value + motor.total_amps %}
+                            {% set location_input_current.value = location_input_current.value + motor.total_vfd_input_current %}
+                            {% set location_heat_loss.value = location_heat_loss.value + motor.vfd_heat_loss %}
+                            {% set location_width.value = location_width.value + motor.total_width %}
+                            {% endfor %}
+
+                            {# Location Subtotal Row #}
+                            <tr class="table-warning fw-bold">
+                                <td colspan="5" class="text-end"><strong>{{ location }} Subtotal:</strong></td>
+                                <td><strong>{{ location_qty.value }}</strong></td>
+                                <td></td>
+                                <td><strong>{{ "%.1f"|format(location_total_amps.value) }}A</strong></td>
+                                <td colspan="4"></td>
+                                <td><strong>{{ "%.1f"|format(location_input_current.value) }}A</strong></td>
+                                <td></td>
+                                <td><strong>{{ "%.0f"|format(location_heat_loss.value) }}W</strong></td>
+                                <td><strong>{{ "%.2f"|format(location_width.value) }}"</strong></td>
+                                <td colspan="2"></td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>

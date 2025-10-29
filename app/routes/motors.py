@@ -10,8 +10,16 @@ bp = Blueprint('motors', __name__, url_prefix='/motors')
 def list_motors(project_id):
     """List all motors and loads for a project"""
     project = Project.query.get_or_404(project_id)
-    motors = Motor.query.filter_by(project_id=project_id).order_by(Motor.sort_order, Motor.motor_name).all()
-    return render_template('motors/list.html', project=project, motors=motors)
+    motors = Motor.query.filter_by(project_id=project_id).order_by(Motor.location, Motor.sort_order, Motor.motor_name).all()
+
+    # Group motors by location
+    from itertools import groupby
+    motors_by_location = {}
+    for location, motors_group in groupby(motors, key=lambda m: m.location or 'Unspecified'):
+        motors_list = list(motors_group)
+        motors_by_location[location] = motors_list
+
+    return render_template('motors/list.html', project=project, motors=motors, motors_by_location=motors_by_location)
 
 @bp.route('/project/<int:project_id>/create')
 def create_motor_form(project_id):
@@ -64,12 +72,13 @@ def create_motor(project_id):
             motor.vfd_type_id = int(request.form['vfd_type_id']) if request.form.get('vfd_type_id') else None
             motor.vfd_override = bool(request.form.get('vfd_override'))
             motor.selected_vfd_part_id = int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None
+            motor.duty_type = request.form.get('duty_type', 'ND')
         else:
             # Load-specific fields
             motor.power_rating = float(request.form['power_rating']) if request.form.get('power_rating') else None
             motor.power_unit = request.form.get('power_unit', 'kVA')
             motor.phase_config = request.form.get('phase_config', 'three')
-        
+
         db.session.add(motor)
         db.session.commit()
         flash('Motor added successfully!', 'success')
@@ -215,7 +224,8 @@ def edit_motor(motor_id):
                 'overload_percentage': float(request.form.get('overload_percentage', 1.15)) if request.form.get('overload_percentage') else 1.15,
                 'vfd_type_id': int(request.form['vfd_type_id']) if request.form.get('vfd_type_id') else None,
                 'vfd_override': bool(request.form.get('vfd_override')),
-                'selected_vfd_part_id': int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None
+                'selected_vfd_part_id': int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None,
+                'duty_type': request.form.get('duty_type', 'ND')
             })
         else:
             new_data.update({
@@ -257,6 +267,7 @@ def edit_motor(motor_id):
             motor.vfd_type_id = int(request.form['vfd_type_id']) if request.form.get('vfd_type_id') else None
             motor.vfd_override = bool(request.form.get('vfd_override'))
             motor.selected_vfd_part_id = int(request.form['selected_vfd_part_id']) if request.form.get('selected_vfd_part_id') else None
+            motor.duty_type = request.form.get('duty_type', 'ND')
             # Clear load fields
             motor.power_rating = None
             motor.power_unit = 'kVA'

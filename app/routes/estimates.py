@@ -10,16 +10,24 @@ bp = Blueprint('estimates', __name__)
 @bp.route('/<int:estimate_id>')
 def detail_estimate(estimate_id):
     """Show estimate details with breakdown"""
+    from sqlalchemy.orm import joinedload
+
     estimate = Estimate.query.get_or_404(estimate_id)
     assemblies = Assembly.query.filter_by(estimate_id=estimate_id).order_by(Assembly.sort_order).all()
-    individual_components = EstimateComponent.query.filter_by(estimate_id=estimate_id).order_by(EstimateComponent.sort_order).all()
-    
+
+    # Eagerly load part and part_category relationships to avoid N+1 queries
+    individual_components = (EstimateComponent.query
+                           .filter_by(estimate_id=estimate_id)
+                           .options(joinedload(EstimateComponent.part).joinedload(Parts.part_category))
+                           .order_by(EstimateComponent.sort_order)
+                           .all())
+
     # Calculate totals
     for assembly in assemblies:
         assembly.components = Component.query.filter_by(assembly_id=assembly.assembly_id).order_by(Component.sort_order).all()
-    
-    return render_template('estimates/detail.html', 
-                         estimate=estimate, 
+
+    return render_template('estimates/detail.html',
+                         estimate=estimate,
                          assemblies=assemblies,
                          individual_components=individual_components)
 
@@ -84,13 +92,17 @@ def copy_estimate(estimate_id):
     if request.method == 'POST':
         try:
             target_project_id = request.form['target_project_id']
-            
+
+            # Get custom estimate name if provided, otherwise default to "Copy of..."
+            custom_estimate_name = request.form.get('estimate_name', '').strip()
+            new_estimate_name = custom_estimate_name if custom_estimate_name else f"Copy of {source_estimate.estimate_name}"
+
             # Create new estimate with same rates
             new_estimate_number = f"EST-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
             new_estimate = Estimate(
                 project_id=target_project_id,
                 estimate_number=new_estimate_number,
-                estimate_name=f"Copy of {source_estimate.estimate_name}",
+                estimate_name=new_estimate_name,
                 description=source_estimate.description,
                 engineering_rate=source_estimate.engineering_rate,
                 panel_shop_rate=source_estimate.panel_shop_rate,
@@ -132,6 +144,7 @@ def copy_estimate(estimate_id):
             for individual_component in source_estimate.individual_components:
                 new_individual_component = EstimateComponent(
                     estimate_id=new_estimate.estimate_id,
+                    part_id=individual_component.part_id,
                     component_name=individual_component.component_name,
                     part_number=individual_component.part_number,
                     manufacturer=individual_component.manufacturer,
@@ -139,6 +152,8 @@ def copy_estimate(estimate_id):
                     unit_price=individual_component.unit_price,
                     quantity=individual_component.quantity,
                     unit_of_measure=individual_component.unit_of_measure,
+                    category=individual_component.category,
+                    notes=individual_component.notes,
                     sort_order=individual_component.sort_order
                 )
                 db.session.add(new_individual_component)
@@ -620,25 +635,25 @@ def bulk_delete_components(estimate_id):
 def update_individual_component_quantity(component_id):
     """Update individual component quantity via AJAX"""
     component = EstimateComponent.query.get_or_404(component_id)
-    
+
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Invalid request format'}), 400
-    
+
     new_quantity = request.json.get('quantity')
     if new_quantity is None:
         return jsonify({'success': False, 'error': 'Quantity is required'}), 400
-    
+
     try:
         new_quantity = float(new_quantity)
-        if new_quantity <= 0:
-            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
-        
+        if new_quantity < 0:
+            return jsonify({'success': False, 'error': 'Quantity must be at least 0'}), 400
+
         old_quantity = float(component.quantity)
         component.quantity = new_quantity
         component.updated_at = datetime.utcnow()
-        
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': f'Individual component quantity updated from {old_quantity} to {new_quantity}',
@@ -646,7 +661,7 @@ def update_individual_component_quantity(component_id):
             'new_quantity': new_quantity,
             'new_total': float(new_quantity) * float(component.unit_price)
         })
-        
+
     except ValueError:
         return jsonify({'success': False, 'error': 'Invalid quantity format'}), 400
     except Exception as e:
@@ -721,6 +736,45 @@ def reorder_estimates():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@bp.route('/search', methods=['GET'])
+def search_estimates():
+    """Search for estimates by name with wildcard support"""
+    search_query = request.args.get('q', '').strip()
+    estimates = []
+    result_count = 0
+    search_performed = False
+
+    # Only search if query provided and at least 2 characters
+    if search_query and len(search_query) >= 2:
+        search_performed = True
+
+        # Convert wildcard characters: * to % for SQL LIKE
+        sql_pattern = search_query.replace('*', '%').replace('?', '_')
+
+        # If no wildcards provided, wrap with % for contains search
+        if '%' not in sql_pattern and '_' not in sql_pattern:
+            sql_pattern = f'%{sql_pattern}%'
+
+        # Use ILIKE for case-insensitive search (SQLite uses LIKE which is case-insensitive by default)
+        estimates = db.session.query(Estimate, Project).join(Project).filter(
+            Estimate.estimate_name.like(sql_pattern)
+        ).order_by(Project.project_name, Estimate.estimate_name).limit(500).all()
+
+        result_count = len(estimates)
+
+    # Load projects lazily only if needed for copy modal
+    # We'll load this via AJAX when the modal opens instead
+    projects = []
+    if search_performed and result_count > 0:
+        projects = Project.query.order_by(Project.client_name, Project.project_name).all()
+
+    return render_template('estimates/search.html',
+                          estimates=estimates,
+                          search_query=search_query,
+                          projects=projects,
+                          search_performed=search_performed,
+                          result_count=result_count)
+
 @bp.route('/api/list', methods=['GET'])
 def list_estimates_api():
     """API endpoint to get list of all estimates for copying assemblies"""
@@ -728,19 +782,36 @@ def list_estimates_api():
         estimates = db.session.query(
             Estimate.estimate_id,
             Estimate.estimate_name,
+            Estimate.project_id,
             Project.project_name
         ).join(Project).order_by(Project.project_name, Estimate.estimate_name).all()
-        
+
         estimate_list = []
+        projects_dict = {}
+
         for estimate in estimates:
             estimate_list.append({
                 'estimate_id': estimate.estimate_id,
                 'estimate_name': estimate.estimate_name,
+                'project_id': estimate.project_id,
                 'project_name': estimate.project_name
             })
-        
-        return jsonify({'success': True, 'estimates': estimate_list})
-        
+
+            # Build unique projects list
+            if estimate.project_id not in projects_dict:
+                projects_dict[estimate.project_id] = estimate.project_name
+
+        # Convert projects dict to list
+        projects_list = [{'project_id': pid, 'project_name': pname}
+                        for pid, pname in projects_dict.items()]
+        projects_list.sort(key=lambda x: x['project_name'])
+
+        return jsonify({
+            'success': True,
+            'estimates': estimate_list,
+            'projects': projects_list
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

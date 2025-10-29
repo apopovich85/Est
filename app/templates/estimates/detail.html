@@ -253,8 +253,8 @@
                                     <!-- Options will be loaded dynamically -->
                                 </select>
                                 <label class="form-label mb-0 me-2 text-muted small">Qty:</label>
-                                <input type="number" class="form-control form-control-sm assembly-quantity-input" 
-                                       style="width: 80px;" min="1" step="1"
+                                <input type="number" class="form-control form-control-sm assembly-quantity-input"
+                                       style="width: 80px;" min="0" step="1"
                                        value="{{ assembly.quantity or 1 }}"
                                        data-assembly-id="{{ assembly.assembly_id }}"
                                        data-original-quantity="{{ assembly.quantity or 1 }}">
@@ -482,8 +482,9 @@
                         <td>{{ component.part.part_number if component.part else (component.part_number or '-') }}</td>
                         <td>{{ component.part.manufacturer if component.part else (component.manufacturer or '-') }}</td>
                         <td>
-                            {% if component.category %}
-                                <span class="badge bg-secondary">{{ component.category }}</span>
+                            {% set display_category = component.part.category if component.part else component.category %}
+                            {% if display_category %}
+                                <span class="badge bg-secondary">{{ display_category }}</span>
                             {% else %}
                                 -
                             {% endif %}
@@ -739,11 +740,22 @@
             <form id="copyAssemblyForm">
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="targetProject" class="form-label">
+                            <strong>Target Project</strong>
+                        </label>
+                        <select class="form-select" id="targetProject" name="target_project_id" required>
+                            <option value="">Select project...</option>
+                            <!-- Options will be loaded dynamically -->
+                        </select>
+                        <div class="form-text">Select the project first to filter estimates</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="targetEstimate" class="form-label">
                             <strong>Target Estimate</strong>
                         </label>
-                        <select class="form-select" id="targetEstimate" name="target_estimate_id" required>
-                            <option value="">Select estimate...</option>
+                        <select class="form-select" id="targetEstimate" name="target_estimate_id" required disabled>
+                            <option value="">Select a project first...</option>
                             <!-- Options will be loaded dynamically -->
                         </select>
                         <div class="form-text">Choose the estimate to copy this assembly to</div>
@@ -935,11 +947,11 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', function() {
             updateIndividualComponentTotal(this);
         });
-        
+
         input.addEventListener('change', function() {
             updateIndividualComponentQuantity(this);
         });
-        
+
         input.addEventListener('blur', function() {
             updateIndividualComponentQuantity(this);
         });
@@ -1026,11 +1038,11 @@ function updateAssemblyQuantity(input) {
     const assemblyId = parseInt(input.dataset.assemblyId);
     const newQuantity = parseFloat(input.value);
     const originalQuantity = parseFloat(input.dataset.originalQuantity);
-    
+
     // Validate quantity
-    if (newQuantity < 1 || isNaN(newQuantity)) {
+    if (newQuantity < 0 || isNaN(newQuantity)) {
         input.value = originalQuantity;
-        showToast('error', 'Error', 'Quantity must be at least 1');
+        showToast('error', 'Error', 'Quantity must be at least 0');
         return;
     }
     
@@ -1660,8 +1672,8 @@ function updateComponentQuantity(input) {
         return;
     }
     
-    if (!newQuantity || newQuantity <= 0) {
-        showToast('error', 'Invalid Quantity', 'Quantity must be greater than 0');
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showToast('error', 'Invalid Quantity', 'Quantity must be at least 0');
         input.value = originalQuantity; // Reset to original
         updateComponentTotal(input);
         return;
@@ -1788,8 +1800,8 @@ function updateIndividualComponentQuantity(input) {
         return;
     }
     
-    if (!newQuantity || newQuantity <= 0) {
-        showToast('error', 'Invalid Quantity', 'Quantity must be greater than 0');
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        showToast('error', 'Invalid Quantity', 'Quantity must be at least 0');
         input.value = originalQuantity; // Reset to original
         updateIndividualComponentTotal(input);
         return;
@@ -1993,82 +2005,157 @@ function refreshAssemblyToActive(button) {
 }
 
 // Copy Assembly Functions
+let allEstimatesData = []; // Store all estimates for filtering
+let allProjectsData = []; // Store all projects
+
 function openCopyAssemblyModal(button) {
     const assemblyId = button.dataset.assemblyId;
     const assemblyName = button.dataset.assemblyName;
-    
+
     // Check if form exists
     const form = document.getElementById('copyAssemblyForm');
     const nameInput = document.getElementById('copyAssemblyName');
     const modal = document.getElementById('copyAssemblyModal');
-    
+
     if (!form || !nameInput || !modal) {
         console.error('Copy assembly modal elements not found');
         showToast('error', 'Error', 'Copy assembly modal not properly loaded');
         return;
     }
-    
+
     // Store assembly ID for form submission
     form.dataset.assemblyId = assemblyId;
-    
+
     // Set default assembly name
     nameInput.value = assemblyName + ' (Copy)';
-    
-    // Load available estimates
-    loadAvailableEstimates();
-    
+
+    // Load available projects and estimates
+    loadProjectsAndEstimates();
+
     // Show modal
     const modalInstance = new bootstrap.Modal(modal);
     modalInstance.show();
 }
 
-function loadAvailableEstimates() {
-    const select = document.getElementById('targetEstimate');
+function loadProjectsAndEstimates() {
+    const projectSelect = document.getElementById('targetProject');
+    const estimateSelect = document.getElementById('targetEstimate');
+    const currentProjectId = {{ estimate.project_id }};
     const currentEstimateId = {{ estimate.estimate_id }};
-    
-    // Clear existing options except the first one
-    while (select.children.length > 1) {
-        select.removeChild(select.lastChild);
-    }
-    
-    // Add loading option
+
+    // Clear existing options
+    projectSelect.innerHTML = '<option value="">Select project...</option>';
+    estimateSelect.innerHTML = '<option value="">Select a project first...</option>';
+    estimateSelect.disabled = true;
+
+    // Add loading option to project dropdown
     const loadingOption = document.createElement('option');
-    loadingOption.textContent = 'Loading estimates...';
+    loadingOption.textContent = 'Loading projects...';
     loadingOption.disabled = true;
-    select.appendChild(loadingOption);
-    
-    // Fetch available estimates
+    projectSelect.appendChild(loadingOption);
+
+    // Fetch available projects and estimates
     fetch('/estimates/api/list')
         .then(response => response.json())
         .then(data => {
-            // Remove loading option
-            select.removeChild(loadingOption);
-            
-            // Add current estimate first
-            const currentOption = document.createElement('option');
-            currentOption.value = currentEstimateId;
-            currentOption.textContent = '{{ estimate.estimate_name }} (Current)';
-            select.appendChild(currentOption);
-            
-            // Add other estimates
-            data.estimates.forEach(estimate => {
-                if (estimate.estimate_id !== currentEstimateId) {
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load data');
+            }
+
+            // Store data globally for filtering
+            allEstimatesData = data.estimates;
+            allProjectsData = data.projects;
+
+            // Clear loading option
+            projectSelect.innerHTML = '<option value="">Select project...</option>';
+
+            // Add current project first
+            const currentProject = allProjectsData.find(p => p.project_id === currentProjectId);
+            if (currentProject) {
+                const currentOption = document.createElement('option');
+                currentOption.value = currentProjectId;
+                currentOption.textContent = `${currentProject.project_name} (Current Project)`;
+                currentOption.selected = true;
+                projectSelect.appendChild(currentOption);
+            }
+
+            // Add other projects
+            allProjectsData.forEach(project => {
+                if (project.project_id !== currentProjectId) {
                     const option = document.createElement('option');
-                    option.value = estimate.estimate_id;
-                    option.textContent = `${estimate.estimate_name} - ${estimate.project_name}`;
-                    select.appendChild(option);
+                    option.value = project.project_id;
+                    option.textContent = project.project_name;
+                    projectSelect.appendChild(option);
                 }
             });
+
+            // Auto-load estimates for current project
+            if (currentProject) {
+                filterEstimatesByProject(currentProjectId, currentEstimateId);
+            }
         })
         .catch(error => {
-            console.error('Error loading estimates:', error);
-            select.removeChild(loadingOption);
-            const errorOption = document.createElement('option');
-            errorOption.textContent = 'Error loading estimates';
-            errorOption.disabled = true;
-            select.appendChild(errorOption);
+            console.error('Error loading projects and estimates:', error);
+            projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+            showToast('error', 'Error', 'Failed to load projects and estimates');
         });
 }
+
+function filterEstimatesByProject(projectId, currentEstimateId) {
+    const estimateSelect = document.getElementById('targetEstimate');
+
+    if (!projectId) {
+        estimateSelect.innerHTML = '<option value="">Select a project first...</option>';
+        estimateSelect.disabled = true;
+        return;
+    }
+
+    // Enable estimate dropdown
+    estimateSelect.disabled = false;
+    estimateSelect.innerHTML = '<option value="">Select estimate...</option>';
+
+    // Filter estimates by selected project
+    const filteredEstimates = allEstimatesData.filter(est => est.project_id == projectId);
+
+    if (filteredEstimates.length === 0) {
+        const noOption = document.createElement('option');
+        noOption.textContent = 'No estimates in this project';
+        noOption.disabled = true;
+        estimateSelect.appendChild(noOption);
+        return;
+    }
+
+    // Add current estimate first if in this project
+    const currentEstimate = filteredEstimates.find(est => est.estimate_id === currentEstimateId);
+    if (currentEstimate) {
+        const currentOption = document.createElement('option');
+        currentOption.value = currentEstimateId;
+        currentOption.textContent = `${currentEstimate.estimate_name} (Current)`;
+        estimateSelect.appendChild(currentOption);
+    }
+
+    // Add other estimates from this project
+    filteredEstimates.forEach(estimate => {
+        if (estimate.estimate_id !== currentEstimateId) {
+            const option = document.createElement('option');
+            option.value = estimate.estimate_id;
+            option.textContent = estimate.estimate_name;
+            estimateSelect.appendChild(option);
+        }
+    });
+}
+
+// Event listener for project dropdown change
+document.addEventListener('DOMContentLoaded', function() {
+    const projectSelect = document.getElementById('targetProject');
+    if (projectSelect) {
+        projectSelect.addEventListener('change', function() {
+            const selectedProjectId = this.value;
+            const currentEstimateId = {{ estimate.estimate_id }};
+            filterEstimatesByProject(selectedProjectId, currentEstimateId);
+        });
+    }
+});
 
 // Revision Management Functions
 function showRevisionModal() {

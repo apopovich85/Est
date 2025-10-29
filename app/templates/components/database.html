@@ -60,11 +60,15 @@
                         <button class="btn btn-primary" id="addPartBtn">
                             <i class="fas fa-plus"></i> Add Part
                         </button>
-                        <button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" 
+                        <button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
                                 data-bs-toggle="dropdown">
                             <span class="visually-hidden">Toggle Dropdown</span>
                         </button>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('components.export_database_csv') }}">
+                                <i class="fas fa-file-csv text-success"></i> Export to CSV
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#" id="bulkDeleteBtn">
                                 <i class="fas fa-trash text-danger"></i> Delete Selected
                             </a></li>

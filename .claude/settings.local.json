@@ -1,9 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"venv/Scripts/python.exe\" create_motor_revisions_table.py)",
-      "Bash(\"c:\\Projects\\Est_v0.5\\venv\\Scripts\\python.exe\" \"c:\\Projects\\Est_v0.5\\check_labor_history.py\")",
-      "Bash(\"venv\\Scripts\\python.exe\" migrate_motor_revisions.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" check_component_categories.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" check_parts_availability.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" link_components_to_parts.py)",
+      "Bash(findstr:*)",
+      "Bash(\"venv\\Scripts\\python.exe\" test_template_logic.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" -m py_compile approutesprojects.py)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile app/routes/projects.py)",
+      "Bash(test:*)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile app/models.py)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile app/__init__.py)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile app/routes/estimates.py)",
+      "Bash(\"venv/Scripts/python.exe\":*)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile add_estimate_name_index.py)",
+      "Bash(\"venv/Scripts/python.exe\" add_estimate_name_index.py)",
+      "Bash(\"venv/Scripts/python.exe\" -m py_compile app/routes/assemblies.py)",
       "Bash(git add:*)"
     ],
     "deny": [],
