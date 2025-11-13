@@ -1,0 +1,1061 @@
+{% extends "base.html" %}
+
+{% block title %}Excel Parts Database - New Version{% endblock %}
+
+{% block extra_head %}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="excel-version" content="v4-20250827-fresh">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excel-parts-table {
+        font-size: 0.85rem;
+        user-select: none;
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        table-layout: fixed;
+        background-color: white;
+        border: 1px solid #c0c0c0;
+    }
+    
+    .excel-parts-table th {
+        background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
+        border-right: 1px solid #a0a0a0;
+        border-bottom: 1px solid #a0a0a0;
+        padding: 6px 4px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 0.75rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        position: relative;
+        user-select: none;
+        min-width: 60px;
+        height: 20px;
+        line-height: 1;
+        color: #333;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+    }
+    
+    .excel-parts-table th:last-child {
+        border-right: 1px solid #c0c0c0;
+    }
+    
+    /* Column resizer handle */
+    .column-resizer {
+        position: absolute;
+        top: 0;
+        right: -2px;
+        width: 4px;
+        height: 100%;
+        cursor: col-resize;
+        background: transparent;
+        z-index: 20;
+    }
+    
+    .column-resizer:hover {
+        background-color: #4a90e2;
+        opacity: 0.8;
+        box-shadow: 0 0 2px rgba(74, 144, 226, 0.5);
+    }
+    
+    .column-resizing {
+        cursor: col-resize !important;
+        user-select: none;
+    }
+    .excel-parts-table td {
+        border-right: 1px solid #d0d0d0;
+        border-bottom: 1px solid #d0d0d0;
+        padding: 0 !important;
+        position: relative;
+        margin: 0;
+        vertical-align: top;
+        background-color: white;
+        height: 21px;
+        overflow: hidden;
+    }
+    
+    .excel-parts-table td:last-child {
+        border-right: 1px solid #c0c0c0;
+    }
+    
+    .excel-parts-table tr:last-child td {
+        border-bottom: 1px solid #c0c0c0;
+    }
+    
+    /* Excel-like cell styling */
+    .excel-cell {
+        cursor: cell;
+        background-color: transparent;
+        padding: 2px 4px;
+        height: 21px;
+        line-height: 17px;
+        position: relative;
+        border: 1px solid transparent;
+        margin: 0;
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .excel-cell:hover {
+        background-color: #e8f4fd;
+    }
+    
+    .excel-cell.selected {
+        background-color: #cce8ff !important;
+        border: 2px solid #4a90e2 !important;
+        z-index: 2;
+        box-shadow: inset 0 0 0 1px #4a90e2;
+    }
+    
+    .excel-cell.editing {
+        background-color: white !important;
+        border: 2px solid #4a90e2 !important;
+        z-index: 3;
+    }
+    
+    /* Fill handle styling */
+    .excel-fill-handle {
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+        width: 8px;
+        height: 8px;
+        background-color: #1976d2;
+        cursor: crosshair;
+        border: 2px solid #fff;
+        z-index: 15;
+        display: none;
+        box-sizing: border-box;
+        pointer-events: auto;
+    }
+    
+    .excel-cell.selected .excel-fill-handle {
+        display: block !important;
+    }
+    
+    .excel-fill-handle:hover {
+        background-color: #0d47a1;
+        transform: scale(1.2);
+    }
+    
+    .fill-preview {
+        background-color: #cce8ff !important;
+        border: 2px dashed #4a90e2 !important;
+        box-shadow: inset 0 0 4px rgba(74, 144, 226, 0.5) !important;
+        outline: 1px dashed #4a90e2 !important;
+        outline-offset: -1px !important;
+        z-index: 5 !important;
+    }
+    
+    /* Input styling */
+    .excel-input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        padding: 6px 8px;
+        font-size: 0.85rem;
+        background-color: transparent;
+        outline: none;
+        font-family: inherit;
+        margin: 0;
+    }
+    
+    .price-display {
+        text-align: right;
+        font-weight: bold;
+        color: #198754;
+    }
+    
+    .table-container {
+        max-height: 75vh;
+        overflow: auto;
+        border: 2px solid #a0a0a0;
+        position: relative;
+        background-color: #f8f8f8;
+        box-shadow: inset -1px -1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Excel-like scrollbars */
+    .table-container::-webkit-scrollbar {
+        width: 17px;
+        height: 17px;
+    }
+    
+    .table-container::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border: 1px solid #d0d0d0;
+    }
+    
+    .table-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(to bottom, #e0e0e0 0%, #c0c0c0 100%);
+        border: 1px solid #a0a0a0;
+    }
+    
+    .table-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(to bottom, #d0d0d0 0%, #b0b0b0 100%);
+    }
+    
+    .table-container::-webkit-scrollbar-corner {
+        background: #f0f0f0;
+        border: 1px solid #d0d0d0;
+    }
+    
+    .action-buttons {
+        padding: 1px 2px;
+        white-space: nowrap;
+        text-align: center;
+    }
+    
+    .btn-sm-custom {
+        font-size: 0.65rem;
+        padding: 1px 3px;
+        margin: 0 1px;
+        line-height: 1;
+        border-radius: 2px;
+    }
+    
+    /* Row alternating colors like Excel */
+    .excel-parts-table tbody tr:nth-child(even) {
+        background-color: #fafafa;
+    }
+    
+    .excel-parts-table tbody tr:nth-child(odd) {
+        background-color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4>Excel Parts Database</h4>
+                    <small class="badge bg-success">🟢 BRAND NEW EXCEL INTERFACE ACTIVE!</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('parts.import_parts') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-upload"></i> Import Parts
+                    </a>
+                    <a href="{{ url_for('parts.price_update') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-dollar-sign"></i> Update Prices
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search and Filter Form -->
+            <form method="GET" class="mb-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="search" 
+                               value="{{ search }}" placeholder="Search parts...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" name="category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat }}" {% if cat == category_filter %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" name="manufacturer">
+                            <option value="">All Manufacturers</option>
+                            {% for mfr in manufacturers %}
+                                <option value="{{ mfr }}" {% if mfr == manufacturer_filter %}selected{% endif %}>{{ mfr }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Results Info -->
+            <div class="mb-2">
+                <small class="text-muted">
+                    Showing {{ parts.items|length }} of {{ parts.total }} parts
+                    {% if search or category_filter or manufacturer_filter %}
+                        (filtered)
+                        <a href="{{ url_for('parts.excel_database_new') }}" class="text-decoration-none">
+                            <i class="fas fa-times"></i> Clear filters
+                        </a>
+                    {% endif %}
+                </small>
+            </div>
+
+            <!-- Excel-like Parts Table -->
+            <div class="table-container">
+                <table class="table table-sm excel-parts-table mb-0" id="excelPartsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Actions<div class="column-resizer"></div></th>
+                            <th style="width: 120px;">Category<div class="column-resizer"></div></th>
+                            <th style="width: 120px;">Manufacturer<div class="column-resizer"></div></th>
+                            <th style="width: 120px;">Part Number<div class="column-resizer"></div></th>
+                            <th style="width: 120px;">Master Item #<div class="column-resizer"></div></th>
+                            <th style="width: 200px;">Description<div class="column-resizer"></div></th>
+                            <th style="width: 100px;">Current Price<div class="column-resizer"></div></th>
+                            <th style="width: 80px;">Model<div class="column-resizer"></div></th>
+                            <th style="width: 80px;">Rating<div class="column-resizer"></div></th>
+                            <th style="width: 100px;">UPC<div class="column-resizer"></div></th>
+                            <th style="width: 100px;">Vendor<div class="column-resizer"></div></th>
+                            <th style="width: 100px;">Updated<div class="column-resizer"></div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for part in parts.items %}
+                        <tr data-part-id="{{ part.part_id }}" data-row-index="{{ loop.index0 }}">
+                            <td class="action-buttons">
+                                <button class="btn btn-sm-custom btn-outline-primary" onclick="editPart({{ part.part_id }})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm-custom btn-outline-info" onclick="viewPriceHistory({{ part.part_id }})" title="Price History">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                <button class="btn btn-sm-custom btn-outline-danger" onclick="deletePart({{ part.part_id }})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            <td><div class="excel-cell" data-field="category" data-row="{{ loop.index0 }}" data-col="1">{{ part.category or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="manufacturer" data-row="{{ loop.index0 }}" data-col="2">{{ part.manufacturer or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="part_number" data-row="{{ loop.index0 }}" data-col="3">{{ part.part_number or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="master_item_number" data-row="{{ loop.index0 }}" data-col="4">{{ part.master_item_number or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="description" data-row="{{ loop.index0 }}" data-col="5" style="max-width: 250px;" title="{{ part.description or '' }}">{{ part.description or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell price-display" data-field="price" data-row="{{ loop.index0 }}" data-col="6">${{ "%.2f"|format(part.current_price) }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="model" data-row="{{ loop.index0 }}" data-col="7">{{ part.model or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="rating" data-row="{{ loop.index0 }}" data-col="8">{{ part.rating or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="upc" data-row="{{ loop.index0 }}" data-col="9">{{ part.upc or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td><div class="excel-cell" data-field="vendor" data-row="{{ loop.index0 }}" data-col="10">{{ part.vendor or '' }}<div class="excel-fill-handle"></div></div></td>
+                            <td title="{{ part.updated_at.strftime('%Y-%m-%d %H:%M:%S') if part.updated_at }}">
+                                {% if part.updated_at %}
+                                    {{ part.updated_at.strftime('%m/%d/%Y') }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if parts.pages > 1 %}
+            <nav aria-label="Parts pagination" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center">
+                    {% if parts.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('parts.excel_database_new', page=parts.prev_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in parts.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != parts.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('parts.excel_database_new', page=page_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if parts.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('parts.excel_database_new', page=parts.next_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Price History Modal -->
+<div class="modal fade" id="priceHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Price History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="priceHistoryContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+console.log('🔥 SCRIPT TAG IS LOADING...');
+
+// Simple Excel-like functionality
+let selectedCell = null;
+let isDragging = false;
+
+// Test if JavaScript is working at all
+window.addEventListener('load', function() {
+    console.log('🔥 WINDOW LOADED - Excel interface ready!');
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 NEW EXCEL INTERFACE LOADING...');
+    
+    const table = document.getElementById('excelPartsTable');
+    const cells = document.querySelectorAll('.excel-cell');
+    
+    console.log('Table found:', table ? 'YES' : 'NO');
+    console.log('Excel cells found:', cells.length);
+    
+    // Initialize column resizing
+    initColumnResizing();
+    
+    // Initialize drag-fill with better event handling
+    initDragFill();
+    
+    if (cells.length > 0) {
+        console.log('✅ Excel interface ready!');
+        
+        // Add click handlers to all cells
+        cells.forEach((cell, index) => {
+            // Ensure empty cells have minimum content for selection
+            if (!cell.textContent.trim()) {
+                cell.innerHTML = '&nbsp;<div class="excel-fill-handle"></div>';
+            }
+            
+            // Make sure cell has proper styling
+            cell.style.minHeight = '28px';
+            cell.style.cursor = 'cell';
+            cell.style.display = 'block';
+            
+            cell.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectCell(this);
+                console.log('Cell selected:', this.textContent.trim() || '[empty]');
+            });
+            
+            cell.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                startEdit(this);
+                console.log('Editing cell:', this.textContent.trim() || '[empty]');
+            });
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (!selectedCell) return;
+            
+            const currentRow = parseInt(selectedCell.dataset.row);
+            const currentCol = parseInt(selectedCell.dataset.col);
+            let newRow = currentRow;
+            let newCol = currentCol;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    newRow = Math.max(0, currentRow - 1);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    newRow = currentRow + 1;
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    newCol = Math.max(1, currentCol - 1);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    newCol = currentCol + 1;
+                    break;
+                case 'Enter':
+                case 'F2':
+                    e.preventDefault();
+                    startEdit(selectedCell);
+                    break;
+            }
+            
+            const newCell = document.querySelector('[data-row="' + newRow + '"][data-col="' + newCol + '"]');
+            if (newCell) {
+                selectCell(newCell);
+            }
+        });
+        
+        // Drag-fill is now handled by initDragFill() function
+        
+        // Auto-select first cell after 1 second for testing
+        setTimeout(() => {
+            if (cells[0]) {
+                selectCell(cells[0]);
+                console.log('🟢 Test: First cell auto-selected!');
+            }
+        }, 1000);
+        
+    } else {
+        console.error('❌ No excel cells found!');
+    }
+});
+
+function selectCell(cell) {
+    // Clear previous selection
+    if (selectedCell) {
+        selectedCell.classList.remove('selected');
+        selectedCell.style.backgroundColor = '';
+        selectedCell.style.border = '';
+        selectedCell.style.boxShadow = '';
+    }
+    
+    // Select new cell
+    selectedCell = cell;
+    cell.classList.add('selected');
+    
+    // Add explicit inline styles to ensure visibility (Excel-like)
+    cell.style.backgroundColor = '#cce8ff';
+    cell.style.border = '2px solid #4a90e2';
+    cell.style.boxShadow = 'inset 0 0 0 1px #4a90e2';
+    cell.style.position = 'relative';
+    
+    // Ensure fill handle is visible and properly styled
+    const fillHandle = cell.querySelector('.excel-fill-handle');
+    if (fillHandle) {
+        fillHandle.style.display = 'block';
+        fillHandle.style.position = 'absolute';
+        fillHandle.style.bottom = '-4px';
+        fillHandle.style.right = '-4px';
+        fillHandle.style.width = '8px';
+        fillHandle.style.height = '8px';
+        fillHandle.style.backgroundColor = '#4a90e2';
+        fillHandle.style.cursor = 'crosshair';
+        fillHandle.style.border = '2px solid #fff';
+        fillHandle.style.zIndex = '15';
+        fillHandle.style.pointerEvents = 'auto';
+        fillHandle.style.boxSizing = 'border-box';
+        
+        console.log('🟢 Fill handle made visible for cell:', cell.textContent.trim());
+    }
+    
+    // Trigger custom event for drag-fill initialization
+    document.dispatchEvent(new CustomEvent('cellSelected', { detail: { cell: cell } }));
+    
+    cell.focus();
+    console.log('✅ Cell selected:', cell.textContent.trim());
+}
+
+function startEdit(cell) {
+    try {
+        console.log('🔧 Starting edit for cell:', cell.dataset.field);
+        
+        const originalValue = cell.textContent.trim().replace(/\s+/g, ' ');
+        let inputValue = originalValue;
+        
+        // Handle price formatting
+        if (cell.dataset.field === 'price') {
+            inputValue = inputValue.replace('$', '').trim();
+        }
+        
+        // Handle empty cells
+        if (originalValue === '' || originalValue === '\u00A0') {
+            inputValue = '';
+        }
+        
+        cell.classList.add('editing');
+        
+        // Simple approach - create a temporary input overlay
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = inputValue;
+        input.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #1976d2;
+            padding: 4px 6px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            background: white;
+            z-index: 10;
+            box-sizing: border-box;
+        `;
+        
+        // Position the input over the cell
+        cell.style.position = 'relative';
+        cell.appendChild(input);
+        
+        input.focus();
+        input.select();
+        
+        console.log('✅ Edit mode activated');
+        
+        // Save function
+        function saveEdit() {
+            try {
+                console.log('💾 Saving edit...');
+                const newValue = input.value.trim();
+                const field = cell.dataset.field;
+                const partId = cell.closest('tr').dataset.partId;
+                
+                // Remove input
+                if (input.parentNode) {
+                    input.parentNode.removeChild(input);
+                }
+                cell.classList.remove('editing');
+                
+                // Check if value changed
+                if (newValue === originalValue || (field === 'price' && newValue === originalValue.replace('$', ''))) {
+                    console.log('No change detected');
+                    selectCell(cell); // Re-select the cell
+                    return;
+                }
+                
+                console.log('Sending update to server:', newValue);
+                
+                // Show saving state
+                const originalHTML = cell.innerHTML;
+                cell.innerHTML = 'Saving...<div class="excel-fill-handle"></div>';
+                
+                // Send update
+                const updateData = {};
+                updateData[field] = newValue;
+                
+                fetch('/parts/api/part/' + partId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let displayValue = newValue;
+                        if (field === 'price' && newValue) {
+                            displayValue = '$' + parseFloat(newValue || 0).toFixed(2);
+                        }
+                        cell.innerHTML = displayValue + '<div class="excel-fill-handle"></div>';
+                        
+                        // Flash success
+                        cell.style.backgroundColor = '#d4edda';
+                        setTimeout(() => { 
+                            selectCell(cell); // Re-select with blue border
+                        }, 500);
+                        
+                        console.log('✅ Save successful');
+                    } else {
+                        throw new Error(data.error || 'Update failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Save failed:', error);
+                    cell.innerHTML = originalHTML;
+                    cell.style.backgroundColor = '#f8d7da';
+                    setTimeout(() => { selectCell(cell); }, 1000);
+                    alert('Error: ' + error.message);
+                });
+                
+            } catch (error) {
+                console.error('Error in saveEdit:', error);
+            }
+        }
+        
+        // Cancel function
+        function cancelEdit() {
+            console.log('❌ Edit cancelled');
+            if (input.parentNode) {
+                input.parentNode.removeChild(input);
+            }
+            cell.classList.remove('editing');
+            selectCell(cell); // Re-select the cell
+        }
+        
+        // Event listeners
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
+        });
+        
+        // Save on blur with delay to prevent conflicts
+        input.addEventListener('blur', function() {
+            setTimeout(() => {
+                if (document.activeElement !== input) {
+                    saveEdit();
+                }
+            }, 100);
+        });
+        
+    } catch (error) {
+        console.error('Error starting edit:', error);
+    }
+}
+
+function performFill(sourceCell, targetCell) {
+    try {
+        console.log('🔄 Performing fill operation');
+        
+        const sourceValue = sourceCell.textContent.trim().replace(/\s+/g, ' ');
+        const sourceField = sourceCell.dataset.field;
+        const sourceRow = parseInt(sourceCell.dataset.row);
+        const sourceCol = parseInt(sourceCell.dataset.col);
+        const targetRow = parseInt(targetCell.dataset.row);
+        const targetCol = parseInt(targetCell.dataset.col);
+        
+        // Only allow filling within the same column
+        if (sourceCol !== targetCol) {
+            console.log('❌ Fill only works within same column');
+            return;
+        }
+        
+        // Determine fill range
+        const startRow = Math.min(sourceRow, targetRow);
+        const endRow = Math.max(sourceRow, targetRow);
+        
+        console.log('Filling from row ' + startRow + ' to ' + endRow + ' with value: "' + sourceValue + '"');
+        
+        // Fill each cell in the range
+        for (let row = startRow; row <= endRow; row++) {
+            if (row === sourceRow) continue; // Skip source cell
+            
+            const cellToFill = document.querySelector('[data-row="' + row + '"][data-col="' + sourceCol + '"]');
+            if (cellToFill) {
+                const partId = cellToFill.closest('tr').dataset.partId;
+                
+                // Update cell visually first
+                let displayValue = sourceValue;
+                if (sourceField === 'price' && sourceValue.startsWith('$')) {
+                    displayValue = sourceValue;
+                }
+                cellToFill.innerHTML = displayValue + '<div class="excel-fill-handle"></div>';
+                
+                // Flash to show it's being updated
+                cellToFill.style.backgroundColor = '#fff3cd';
+                
+                // Send to server
+                const updateData = {};
+                updateData[sourceField] = sourceField === 'price' ? sourceValue.replace('$', '') : sourceValue;
+                
+                fetch('/parts/api/part/' + partId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        cellToFill.style.backgroundColor = '#d4edda';
+                        setTimeout(() => { cellToFill.style.backgroundColor = ''; }, 1000);
+                        console.log('✅ Filled row ' + row);
+                    } else {
+                        cellToFill.style.backgroundColor = '#f8d7da';
+                        setTimeout(() => { cellToFill.style.backgroundColor = ''; }, 1000);
+                        console.log('❌ Failed to fill row ' + row);
+                    }
+                })
+                .catch(error => {
+                    cellToFill.style.backgroundColor = '#f8d7da';
+                    setTimeout(() => { cellToFill.style.backgroundColor = ''; }, 1000);
+                    console.error('Fill error:', error);
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error in performFill:', error);
+    }
+}
+
+// Button functions
+function editPart(partId) {
+    const row = document.querySelector('tr[data-part-id="' + partId + '"]');
+    const firstCell = row.querySelector('.excel-cell');
+    if (firstCell) {
+        selectCell(firstCell);
+    }
+}
+
+function viewPriceHistory(partId) {
+    const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
+    const content = document.getElementById('priceHistoryContent');
+    
+    content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+    modal.show();
+    
+    fetch('/parts/api/part/' + partId + '/price-history')
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                content.innerHTML = '<p class="text-muted">No price history available.</p>';
+            } else {
+                let html = '<table class="table table-sm"><thead><tr><th>Date</th><th>Old Price</th><th>New Price</th><th>Source</th><th>Current</th></tr></thead><tbody>';
+                data.forEach(record => {
+                    html += `<tr>
+                        <td>${new Date(record.changed_at).toLocaleDateString()}</td>
+                        <td>${record.old_price ? '$' + record.old_price.toFixed(2) : '-'}</td>
+                        <td>${record.new_price ? '$' + record.new_price.toFixed(2) : '-'}</td>
+                        <td><span class="badge bg-secondary">${record.source}</span></td>
+                        <td>${record.is_current ? '<i class="fas fa-check text-success"></i>' : ''}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                content.innerHTML = html;
+            }
+        })
+        .catch(() => {
+            content.innerHTML = '<p class="text-danger">Error loading price history.</p>';
+        });
+}
+
+function deletePart(partId) {
+    if (!confirm('Delete this part?')) return;
+    
+    fetch('/parts/api/part/' + partId, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.querySelector('tr[data-part-id="' + partId + '"]').remove();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => alert('Error: ' + error.message));
+}
+
+// Column resizing functionality
+function initColumnResizing() {
+    console.log('🔧 Initializing column resizing...');
+    
+    const table = document.getElementById('excelPartsTable');
+    const headers = table.querySelectorAll('th');
+    let isResizing = false;
+    let currentColumn = null;
+    let startX = 0;
+    let startWidth = 0;
+    
+    console.log('Found', headers.length, 'headers for resizing');
+    
+    headers.forEach((header, index) => {
+        const resizer = header.querySelector('.column-resizer');
+        console.log('Header', index, '- resizer found:', !!resizer);
+        if (resizer) {
+            console.log('Adding mousedown listener to resizer', index);
+            resizer.addEventListener('mousedown', function(e) {
+                console.log('🎯 Resizer clicked for column:', index);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                isResizing = true;
+                currentColumn = header;
+                startX = e.clientX;
+                startWidth = header.offsetWidth;
+                
+                document.body.classList.add('column-resizing');
+                document.body.style.cursor = 'col-resize';
+                
+                console.log('🎯 Started resizing column:', index, 'width:', startWidth);
+            });
+            
+            // Also add hover effects for debugging
+            resizer.addEventListener('mouseenter', function() {
+                console.log('👆 Hovering over resizer', index);
+                resizer.style.backgroundColor = '#4a90e2';
+            });
+            
+            resizer.addEventListener('mouseleave', function() {
+                console.log('👋 Left resizer', index);
+                resizer.style.backgroundColor = 'transparent';
+            });
+        } else {
+            console.log('❌ No resizer found for header', index);
+        }
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isResizing && currentColumn) {
+            const diff = e.clientX - startX;
+            const newWidth = Math.max(50, startWidth + diff); // Minimum width of 50px
+            
+            currentColumn.style.width = newWidth + 'px';
+            
+            // Also update corresponding table cells in this column
+            const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
+            const rows = document.querySelectorAll('#excelPartsTable tbody tr');
+            rows.forEach(row => {
+                const cell = row.children[columnIndex];
+                if (cell) {
+                    cell.style.width = newWidth + 'px';
+                }
+            });
+        }
+    });
+    
+    document.addEventListener('mouseup', function(e) {
+        if (isResizing) {
+            isResizing = false;
+            currentColumn = null;
+            document.body.classList.remove('column-resizing');
+            document.body.style.cursor = '';
+            console.log('✅ Column resizing completed');
+        }
+    });
+}
+
+// Improved drag-fill functionality
+function initDragFill() {
+    console.log('🔧 Initializing drag-fill...');
+    
+    let isDragging = false;
+    let dragStartCell = null;
+    let fillPreviewCells = [];
+    
+    // Add specific event listeners to fill handles after they're created
+    function attachFillHandleListeners() {
+        const fillHandles = document.querySelectorAll('.excel-fill-handle');
+        fillHandles.forEach(handle => {
+            // Remove any existing listeners
+            handle.removeEventListener('mousedown', handleFillStart);
+            // Add new listener
+            handle.addEventListener('mousedown', handleFillStart);
+        });
+        console.log('📌 Attached listeners to', fillHandles.length, 'fill handles');
+    }
+    
+    function handleFillStart(e) {
+        console.log('🎯 Fill handle clicked!');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        isDragging = true;
+        dragStartCell = selectedCell;
+        document.body.style.cursor = 'crosshair';
+        document.body.style.userSelect = 'none';
+        
+        // Add temporary event listeners for drag
+        document.addEventListener('mousemove', handleFillDrag);
+        document.addEventListener('mouseup', handleFillEnd);
+        
+        console.log('🎯 Drag fill started from:', dragStartCell ? dragStartCell.textContent.trim() : 'unknown');
+    }
+    
+    function handleFillDrag(e) {
+        if (isDragging && dragStartCell) {
+            // Clear previous preview
+            clearFillPreview();
+            
+            // Find cell under cursor
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            const targetCell = elementUnder ? elementUnder.closest('.excel-cell') : null;
+            
+            if (targetCell && targetCell !== dragStartCell) {
+                const startRow = parseInt(dragStartCell.dataset.row);
+                const startCol = parseInt(dragStartCell.dataset.col);
+                const endRow = parseInt(targetCell.dataset.row);
+                const endCol = parseInt(targetCell.dataset.col);
+                
+                // Only allow fill within same column
+                if (startCol === endCol) {
+                    const minRow = Math.min(startRow, endRow);
+                    const maxRow = Math.max(startRow, endRow);
+                    
+                    console.log('📝 Preview fill range:', minRow, 'to', maxRow, 'in column', startCol);
+                    
+                    // Add preview styling to fill range
+                    for (let row = minRow; row <= maxRow; row++) {
+                        if (row !== startRow) {
+                            const cellToPreview = document.querySelector('[data-row="' + row + '"][data-col="' + startCol + '"]');
+                            if (cellToPreview) {
+                                cellToPreview.classList.add('fill-preview');
+                                // Force inline styling for visibility
+                                cellToPreview.style.backgroundColor = '#cce8ff';
+                                cellToPreview.style.border = '2px dashed #4a90e2';
+                                cellToPreview.style.outline = '1px dashed #4a90e2';
+                                fillPreviewCells.push(cellToPreview);
+                                console.log('📝 Added preview to row', row, 'cell:', cellToPreview.textContent.trim());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    function handleFillEnd(e) {
+        if (isDragging) {
+            console.log('🎯 Drag fill ending...');
+            
+            isDragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            // Remove temporary event listeners
+            document.removeEventListener('mousemove', handleFillDrag);
+            document.removeEventListener('mouseup', handleFillEnd);
+            
+            // Clear preview styling
+            clearFillPreview();
+            
+            // Find final target cell
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            const targetCell = elementUnder ? elementUnder.closest('.excel-cell') : null;
+            
+            if (targetCell && targetCell !== dragStartCell && dragStartCell) {
+                console.log('✅ Performing fill operation');
+                performFill(dragStartCell, targetCell);
+            } else {
+                console.log('❌ No valid target for fill');
+            }
+        }
+    }
+    
+    function clearFillPreview() {
+        fillPreviewCells.forEach(cell => {
+            cell.classList.remove('fill-preview');
+            // Clear inline styles
+            cell.style.backgroundColor = '';
+            cell.style.border = '';
+            cell.style.outline = '';
+        });
+        fillPreviewCells = [];
+    }
+    
+    // Attach listeners initially and whenever a cell is selected
+    attachFillHandleListeners();
+    
+    // Re-attach listeners when cells are selected (since fill handles are recreated)
+    document.addEventListener('cellSelected', attachFillHandleListeners);
+}
+</script>
+{% endblock %}

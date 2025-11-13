@@ -1,0 +1,885 @@
+{% extends "base.html" %}
+
+{% block title %}Parts Database{% endblock %}
+
+{% block extra_head %}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="cache-version" content="excel-v3-20250827">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .parts-table {
+        font-size: 0.85rem;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+    .parts-table th {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 4px 8px;
+        text-align: center;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .parts-table td {
+        border: 1px solid #dee2e6;
+        padding: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
+        position: relative;
+    }
+    .parts-table tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    /* Excel-like cell styling */
+    .editable-cell {
+        cursor: cell;
+        background-color: white;
+        padding: 4px 6px;
+        min-height: 24px;
+        position: relative;
+        border: 1px solid #dee2e6;
+        margin: 0;
+    }
+    
+    .editable-cell:hover {
+        background-color: #f8f9fa;
+        border-color: #0d6efd;
+    }
+    
+    .cell-selected {
+        background-color: #e3f2fd !important;
+        border: 2px solid #1976d2 !important;
+        z-index: 2;
+    }
+    
+    .cell-editing {
+        background-color: white !important;
+        border: 2px solid #1976d2 !important;
+        z-index: 3;
+    }
+    
+    /* Fill handle styling */
+    .fill-handle {
+        position: absolute;
+        bottom: -3px;
+        right: -3px;
+        width: 6px;
+        height: 6px;
+        background-color: #1976d2;
+        cursor: crosshair;
+        border: 1px solid #fff;
+        z-index: 5;
+        display: none;
+    }
+    
+    .cell-selected .fill-handle {
+        display: block;
+    }
+    
+    .fill-preview {
+        background-color: #e3f2fd !important;
+        border: 1px dashed #1976d2 !important;
+    }
+    
+    /* Input styling */
+    .cell-input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        padding: 4px 6px;
+        font-size: 0.85rem;
+        background-color: transparent;
+        outline: none;
+        font-family: inherit;
+    }
+    
+    .price-cell {
+        text-align: right;
+        font-weight: bold;
+        color: #198754;
+    }
+    
+    .table-container {
+        max-height: 70vh;
+        overflow: auto;
+        border: 1px solid #dee2e6;
+        position: relative;
+    }
+    
+    .btn-sm-custom {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+    }
+    
+    .action-buttons {
+        white-space: nowrap;
+        padding: 4px;
+    }
+    
+    /* Selection rectangle for drag selection */
+    .selection-rectangle {
+        position: absolute;
+        border: 2px dashed #1976d2;
+        background-color: rgba(25, 118, 210, 0.1);
+        pointer-events: none;
+        z-index: 4;
+        display: none;
+    }
+    
+    /* Keyboard navigation highlight */
+    .keyboard-focus {
+        box-shadow: 0 0 0 2px #ff9800;
+    }
+    
+    /* Column resizing */
+    .column-resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 4px;
+        height: 100%;
+        cursor: col-resize;
+        background-color: transparent;
+        z-index: 6;
+    }
+    
+    .column-resizer:hover {
+        background-color: #1976d2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h4>Parts Database</h4>
+                    <small class="badge bg-success">Excel-like Interface v3.0 Active</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('parts.import_parts') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-upload"></i> Import Parts
+                    </a>
+                    <a href="{{ url_for('parts.price_update') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-dollar-sign"></i> Update Prices
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search and Filter Form -->
+            <form method="GET" class="mb-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="search" 
+                               value="{{ search }}" placeholder="Search parts...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" name="category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat }}" {% if cat == category_filter %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" name="manufacturer">
+                            <option value="">All Manufacturers</option>
+                            {% for mfr in manufacturers %}
+                                <option value="{{ mfr }}" {% if mfr == manufacturer_filter %}selected{% endif %}>{{ mfr }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Results Info -->
+            <div class="mb-2">
+                <small class="text-muted">
+                    Showing {{ parts.items|length }} of {{ parts.total }} parts
+                    {% if search or category_filter or manufacturer_filter %}
+                        (filtered)
+                        <a href="{{ url_for('parts.database') }}" class="text-decoration-none">
+                            <i class="fas fa-times"></i> Clear filters
+                        </a>
+                    {% endif %}
+                </small>
+            </div>
+
+            <!-- Parts Table -->
+            <div class="table-container" id="tableContainer">
+                <div class="selection-rectangle" id="selectionRectangle"></div>
+                <table class="table table-sm parts-table mb-0" id="partsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Actions</th>
+                            <th style="width: 120px;">Category</th>
+                            <th style="width: 120px;">Manufacturer</th>
+                            <th style="width: 120px;">Part Number</th>
+                            <th style="width: 120px;">Master Item #</th>
+                            <th style="width: 200px;">Description</th>
+                            <th style="width: 100px;">Current Price</th>
+                            <th style="width: 80px;">Model</th>
+                            <th style="width: 80px;">Rating</th>
+                            <th style="width: 100px;">UPC</th>
+                            <th style="width: 100px;">Vendor</th>
+                            <th style="width: 100px;">Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for part in parts.items %}
+                        <tr data-part-id="{{ part.part_id }}" data-row-index="{{ loop.index0 }}">
+                            <td class="action-buttons">
+                                <button class="btn btn-sm-custom btn-outline-primary" onclick="editPart({{ part.part_id }})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm-custom btn-outline-info" onclick="viewPriceHistory({{ part.part_id }})" title="Price History">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                <button class="btn btn-sm-custom btn-outline-danger" onclick="deletePart({{ part.part_id }})" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            <td><div class="editable-cell" data-field="category" data-row="{{ loop.index0 }}" data-col="1" tabindex="0">{{ part.category or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="manufacturer" data-row="{{ loop.index0 }}" data-col="2" tabindex="0">{{ part.manufacturer or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="part_number" data-row="{{ loop.index0 }}" data-col="3" tabindex="0">{{ part.part_number or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="master_item_number" data-row="{{ loop.index0 }}" data-col="4" tabindex="0">{{ part.master_item_number or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="description" data-row="{{ loop.index0 }}" data-col="5" tabindex="0" style="max-width: 250px;" title="{{ part.description or '' }}">{{ part.description or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell price-cell" data-field="price" data-row="{{ loop.index0 }}" data-col="6" tabindex="0">${{ "%.2f"|format(part.current_price) }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="model" data-row="{{ loop.index0 }}" data-col="7" tabindex="0">{{ part.model or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="rating" data-row="{{ loop.index0 }}" data-col="8" tabindex="0">{{ part.rating or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="upc" data-row="{{ loop.index0 }}" data-col="9" tabindex="0">{{ part.upc or '' }}<div class="fill-handle"></div></div></td>
+                            <td><div class="editable-cell" data-field="vendor" data-row="{{ loop.index0 }}" data-col="10" tabindex="0">{{ part.vendor or '' }}<div class="fill-handle"></div></div></td>
+                            <td title="{{ part.updated_at.strftime('%Y-%m-%d %H:%M:%S') if part.updated_at }}">
+                                {% if part.updated_at %}
+                                    {{ part.updated_at.strftime('%m/%d/%Y') }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if parts.pages > 1 %}
+            <nav aria-label="Parts pagination" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center">
+                    {% if parts.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('parts.database', page=parts.prev_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in parts.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != parts.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('parts.database', page=page_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if parts.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('parts.database', page=parts.next_num, search=search, category=category_filter, manufacturer=manufacturer_filter) }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Price History Modal -->
+<div class="modal fade" id="priceHistoryModal" tabindex="-1" aria-labelledby="priceHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="priceHistoryModalLabel">Price History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="priceHistoryContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class ExcelTable {
+    constructor(tableId) {
+        this.table = document.getElementById(tableId);
+        this.container = document.getElementById('tableContainer');
+        this.selectedCell = null;
+        this.selectedRange = [];
+        this.isEditing = false;
+        this.isDragging = false;
+        this.isFilling = false;
+        this.fillStart = null;
+        this.fillPreview = [];
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupEventListeners();
+        this.makeTableFocusable();
+    }
+    
+    makeTableFocusable() {
+        this.table.setAttribute('tabindex', '0');
+    }
+    
+    setupEventListeners() {
+        // Cell click events
+        this.table.addEventListener('click', (e) => this.handleCellClick(e));
+        this.table.addEventListener('dblclick', (e) => this.handleCellDoubleClick(e));
+        
+        // Keyboard events
+        this.table.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        
+        // Fill handle events
+        this.table.addEventListener('mousedown', (e) => this.handleFillStart(e));
+        document.addEventListener('mousemove', (e) => this.handleFillMove(e));
+        document.addEventListener('mouseup', (e) => this.handleFillEnd(e));
+        
+        // Click outside to deselect
+        document.addEventListener('click', (e) => {
+            if (!this.table.contains(e.target) && !this.isEditing) {
+                this.clearSelection();
+            }
+        });
+        
+        // Prevent context menu on fill handle
+        this.table.addEventListener('contextmenu', (e) => {
+            if (e.target.classList.contains('fill-handle')) {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    handleCellClick(e) {
+        e.stopPropagation();
+        const cell = e.target.closest('.editable-cell');
+        if (!cell) return;
+        
+        if (this.isEditing) {
+            this.saveEdit();
+        }
+        
+        this.selectCell(cell);
+    }
+    
+    handleCellDoubleClick(e) {
+        const cell = e.target.closest('.editable-cell');
+        if (!cell) return;
+        
+        this.startEdit(cell);
+    }
+    
+    handleKeyDown(e) {
+        if (!this.selectedCell) return;
+        
+        if (this.isEditing) {
+            switch(e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    this.saveEdit();
+                    this.moveSelection(1, 0); // Move down
+                    break;
+                case 'Tab':
+                    e.preventDefault();
+                    this.saveEdit();
+                    this.moveSelection(0, e.shiftKey ? -1 : 1); // Move left/right
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    this.cancelEdit();
+                    break;
+            }
+        } else {
+            switch(e.key) {
+                case 'Enter':
+                case 'F2':
+                    e.preventDefault();
+                    this.startEdit(this.selectedCell);
+                    break;
+                case 'Delete':
+                case 'Backspace':
+                    e.preventDefault();
+                    this.clearSelectedCells();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    this.moveSelection(-1, 0);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.moveSelection(1, 0);
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.moveSelection(0, -1);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.moveSelection(0, 1);
+                    break;
+                case 'Tab':
+                    e.preventDefault();
+                    this.moveSelection(0, e.shiftKey ? -1 : 1);
+                    break;
+                default:
+                    // Start typing
+                    if (e.key.length === 1 && !e.ctrlKey && !e.altKey) {
+                        this.startEdit(this.selectedCell, e.key);
+                    }
+                    break;
+            }
+        }
+    }
+    
+    selectCell(cell) {
+        this.clearSelection();
+        this.selectedCell = cell;
+        cell.classList.add('cell-selected');
+        cell.focus();
+    }
+    
+    clearSelection() {
+        if (this.selectedCell) {
+            this.selectedCell.classList.remove('cell-selected');
+            this.selectedCell = null;
+        }
+        this.clearFillPreview();
+    }
+    
+    moveSelection(rowDelta, colDelta) {
+        if (!this.selectedCell) return;
+        
+        const currentRow = parseInt(this.selectedCell.dataset.row);
+        const currentCol = parseInt(this.selectedCell.dataset.col);
+        
+        const newRow = Math.max(0, currentRow + rowDelta);
+        const newCol = Math.max(1, currentCol + colDelta); // Skip actions column (0)
+        
+        const newCell = this.table.querySelector(`[data-row="${newRow}"][data-col="${newCol}"]`);
+        if (newCell) {
+            this.selectCell(newCell);
+        }
+    }
+    
+    startEdit(cell, initialValue = '') {
+        if (this.isEditing) return;
+        
+        this.isEditing = true;
+        const originalValue = cell.textContent.trim();
+        
+        // Special handling for price field
+        let inputValue = initialValue || originalValue;
+        if (cell.dataset.field === 'price') {
+            inputValue = inputValue.replace('$', '');
+        }
+        
+        cell.classList.add('cell-editing');
+        
+        // Create input element
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cell-input';
+        input.value = inputValue;
+        input.dataset.original = originalValue;
+        
+        // Clear cell and add input
+        const fillHandle = cell.querySelector('.fill-handle');
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        if (fillHandle) cell.appendChild(fillHandle);
+        
+        input.focus();
+        if (!initialValue) {
+            input.select();
+        }
+        
+        // Save on blur
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (this.isEditing && document.activeElement !== input) {
+                    this.saveEdit();
+                }
+            }, 100);
+        });
+    }
+    
+    saveEdit() {
+        if (!this.isEditing || !this.selectedCell) return;
+        
+        const input = this.selectedCell.querySelector('.cell-input');
+        if (!input) return;
+        
+        const newValue = input.value.trim();
+        const originalValue = input.dataset.original;
+        const field = this.selectedCell.dataset.field;
+        const partId = this.selectedCell.closest('tr').dataset.partId;
+        
+        this.isEditing = false;
+        this.selectedCell.classList.remove('cell-editing');
+        
+        if (newValue === originalValue || (field === 'price' && newValue === originalValue.replace('$', ''))) {
+            // No change
+            this.restoreCellValue(this.selectedCell, originalValue);
+            return;
+        }
+        
+        // Show loading state
+        this.selectedCell.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="fill-handle"></div>';
+        
+        // Send update to server
+        const updateData = {};
+        updateData[field] = newValue;
+        
+        fetch(`/parts/api/part/${partId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the cell with new value
+                let displayValue = newValue;
+                if (field === 'price') {
+                    displayValue = `$${parseFloat(newValue || 0).toFixed(2)}`;
+                }
+                
+                this.restoreCellValue(this.selectedCell, displayValue);
+                this.flashCell(this.selectedCell, '#d1edff');
+                
+            } else {
+                throw new Error(data.error || 'Update failed');
+            }
+        })
+        .catch(error => {
+            this.restoreCellValue(this.selectedCell, originalValue);
+            this.flashCell(this.selectedCell, '#f8d7da');
+            alert('Error updating part: ' + error.message);
+        });
+    }
+    
+    cancelEdit() {
+        if (!this.isEditing || !this.selectedCell) return;
+        
+        const input = this.selectedCell.querySelector('.cell-input');
+        const originalValue = input ? input.dataset.original : this.selectedCell.textContent;
+        
+        this.isEditing = false;
+        this.selectedCell.classList.remove('cell-editing');
+        this.restoreCellValue(this.selectedCell, originalValue);
+    }
+    
+    restoreCellValue(cell, value) {
+        cell.innerHTML = `${value}<div class="fill-handle"></div>`;
+    }
+    
+    flashCell(cell, color) {
+        cell.style.backgroundColor = color;
+        setTimeout(() => {
+            cell.style.backgroundColor = '';
+        }, 1000);
+    }
+    
+    clearSelectedCells() {
+        if (!this.selectedCell) return;
+        
+        const field = this.selectedCell.dataset.field;
+        const partId = this.selectedCell.closest('tr').dataset.partId;
+        
+        // Send empty value to server
+        const updateData = {};
+        updateData[field] = '';
+        
+        fetch(`/parts/api/part/${partId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.restoreCellValue(this.selectedCell, '');
+                this.flashCell(this.selectedCell, '#ffe6e6');
+            }
+        })
+        .catch(error => {
+            alert('Error clearing cell: ' + error.message);
+        });
+    }
+    
+    handleFillStart(e) {
+        if (!e.target.classList.contains('fill-handle')) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.isFilling = true;
+        this.fillStart = this.selectedCell;
+        document.body.style.cursor = 'crosshair';
+    }
+    
+    handleFillMove(e) {
+        if (!this.isFilling) return;
+        
+        const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.editable-cell');
+        if (!cell || cell === this.fillStart) {
+            this.clearFillPreview();
+            return;
+        }
+        
+        // Update fill preview
+        this.updateFillPreview(this.fillStart, cell);
+    }
+    
+    handleFillEnd(e) {
+        if (!this.isFilling) return;
+        
+        this.isFilling = false;
+        document.body.style.cursor = '';
+        
+        const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.editable-cell');
+        if (cell && cell !== this.fillStart) {
+            this.performFill(this.fillStart, cell);
+        }
+        
+        this.clearFillPreview();
+    }
+    
+    updateFillPreview(startCell, endCell) {
+        this.clearFillPreview();
+        
+        const startRow = parseInt(startCell.dataset.row);
+        const startCol = parseInt(startCell.dataset.col);
+        const endRow = parseInt(endCell.dataset.row);
+        const endCol = parseInt(endCell.dataset.col);
+        
+        // Only allow filling in same column for now
+        if (startCol !== endCol) return;
+        
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        
+        for (let row = minRow; row <= maxRow; row++) {
+            if (row === startRow) continue; // Skip source cell
+            
+            const cell = this.table.querySelector(`[data-row="${row}"][data-col="${startCol}"]`);
+            if (cell) {
+                cell.classList.add('fill-preview');
+                this.fillPreview.push(cell);
+            }
+        }
+    }
+    
+    clearFillPreview() {
+        this.fillPreview.forEach(cell => {
+            cell.classList.remove('fill-preview');
+        });
+        this.fillPreview = [];
+    }
+    
+    performFill(startCell, endCell) {
+        const startRow = parseInt(startCell.dataset.row);
+        const startCol = parseInt(startCell.dataset.col);
+        const endRow = parseInt(endCell.dataset.row);
+        const endCol = parseInt(endCell.dataset.col);
+        
+        // Only allow filling in same column
+        if (startCol !== endCol) return;
+        
+        const sourceValue = startCell.textContent.trim();
+        const field = startCell.dataset.field;
+        
+        const minRow = Math.min(startRow, endRow);
+        const maxRow = Math.max(startRow, endRow);
+        
+        // Fill each cell
+        for (let row = minRow; row <= maxRow; row++) {
+            if (row === startRow) continue; // Skip source cell
+            
+            const targetCell = this.table.querySelector(`[data-row="${row}"][data-col="${startCol}"]`);
+            if (!targetCell) continue;
+            
+            const partId = targetCell.closest('tr').dataset.partId;
+            
+            // Update cell visually first
+            let displayValue = sourceValue;
+            if (field === 'price' && sourceValue.startsWith('$')) {
+                displayValue = sourceValue;
+            }
+            this.restoreCellValue(targetCell, displayValue);
+            
+            // Send to server
+            const updateData = {};
+            updateData[field] = field === 'price' ? sourceValue.replace('$', '') : sourceValue;
+            
+            fetch(`/parts/api/part/${partId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.flashCell(targetCell, '#d1edff');
+                } else {
+                    this.flashCell(targetCell, '#f8d7da');
+                }
+            })
+            .catch(error => {
+                this.flashCell(targetCell, '#f8d7da');
+            });
+        }
+    }
+}
+
+// Initialize Excel-like functionality
+let excelTable;
+
+document.addEventListener('DOMContentLoaded', function() {
+    excelTable = new ExcelTable('partsTable');
+});
+
+// Legacy functions for buttons
+function editPart(partId) {
+    const row = document.querySelector(`tr[data-part-id="${partId}"]`);
+    const firstEditableCell = row.querySelector('.editable-cell');
+    if (firstEditableCell) {
+        excelTable.selectCell(firstEditableCell);
+    }
+}
+
+function viewPriceHistory(partId) {
+    const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
+    const content = document.getElementById('priceHistoryContent');
+    
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    fetch(`/parts/api/part/${partId}/price-history`)
+        .then(response => response.json())
+        .then(data => {
+            let historyHtml = '';
+            
+            if (data.length === 0) {
+                historyHtml = '<p class="text-muted">No price history available.</p>';
+            } else {
+                historyHtml = `
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Old Price</th>
+                                <th>New Price</th>
+                                <th>Source</th>
+                                <th>Reason</th>
+                                <th>Current</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(record => {
+                    historyHtml += `
+                        <tr>
+                            <td>${new Date(record.changed_at).toLocaleDateString()}</td>
+                            <td>${record.old_price ? '$' + record.old_price.toFixed(2) : '-'}</td>
+                            <td>${record.new_price ? '$' + record.new_price.toFixed(2) : '-'}</td>
+                            <td><span class="badge bg-secondary">${record.source}</span></td>
+                            <td>${record.changed_reason || '-'}</td>
+                            <td>${record.is_current ? '<i class="fas fa-check text-success"></i>' : ''}</td>
+                        </tr>
+                    `;
+                });
+                
+                historyHtml += '</tbody></table>';
+            }
+            
+            content.innerHTML = historyHtml;
+        })
+        .catch(error => {
+            content.innerHTML = '<p class="text-danger">Error loading price history.</p>';
+        });
+}
+
+function deletePart(partId) {
+    if (!confirm('Are you sure you want to delete this part? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/parts/api/part/${partId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const row = document.querySelector(`tr[data-part-id="${partId}"]`);
+            if (row) {
+                row.remove();
+            }
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting part: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

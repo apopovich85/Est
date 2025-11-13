@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Table Test</title>
+    <style>
+        .editable-cell {
+            cursor: cell;
+            background-color: white;
+            padding: 4px 6px;
+            min-height: 24px;
+            position: relative;
+            border: 1px solid #dee2e6;
+            margin: 0;
+        }
+        
+        .editable-cell:hover {
+            background-color: #f8f9fa;
+            border-color: #0d6efd;
+        }
+        
+        .cell-selected {
+            background-color: #e3f2fd !important;
+            border: 2px solid #1976d2 !important;
+            z-index: 2;
+        }
+        
+        .fill-handle {
+            position: absolute;
+            bottom: -3px;
+            right: -3px;
+            width: 6px;
+            height: 6px;
+            background-color: #1976d2;
+            cursor: crosshair;
+            border: 1px solid #fff;
+            z-index: 5;
+            display: none;
+        }
+        
+        .cell-selected .fill-handle {
+            display: block;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        td {
+            border: 1px solid #dee2e6;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Table Test</h1>
+    <p>This should show Excel-like functionality:</p>
+    <ul>
+        <li>Click a cell to select it (blue border)</li>
+        <li>You should see a small blue square (fill handle) in the bottom-right</li>
+        <li>Double-click to edit</li>
+        <li>Use arrow keys to navigate</li>
+    </ul>
+    
+    <table>
+        <tr>
+            <td><div class="editable-cell" data-field="category" data-row="0" data-col="1" tabindex="0">VFD Parts<div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="manufacturer" data-row="0" data-col="2" tabindex="0">Allen-Bradley<div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="part_number" data-row="0" data-col="3" tabindex="0">20-750-ENC-1<div class="fill-handle"></div></div></td>
+        </tr>
+        <tr>
+            <td><div class="editable-cell" data-field="category" data-row="1" data-col="1" tabindex="0">VFD Parts<div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="manufacturer" data-row="1" data-col="2" tabindex="0">Allen-Bradley<div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="part_number" data-row="1" data-col="3" tabindex="0">20-750-S3<div class="fill-handle"></div></div></td>
+        </tr>
+        <tr>
+            <td><div class="editable-cell" data-field="category" data-row="2" data-col="1" tabindex="0"><div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="manufacturer" data-row="2" data-col="2" tabindex="0"><div class="fill-handle"></div></div></td>
+            <td><div class="editable-cell" data-field="part_number" data-row="2" data-col="3" tabindex="0"><div class="fill-handle"></div></div></td>
+        </tr>
+    </table>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cells = document.querySelectorAll('.editable-cell');
+            let selectedCell = null;
+            
+            cells.forEach(cell => {
+                cell.addEventListener('click', function() {
+                    // Clear previous selection
+                    if (selectedCell) {
+                        selectedCell.classList.remove('cell-selected');
+                    }
+                    
+                    // Select new cell
+                    selectedCell = this;
+                    this.classList.add('cell-selected');
+                    console.log('Cell selected:', this.textContent);
+                });
+                
+                cell.addEventListener('dblclick', function() {
+                    console.log('Double-clicked cell:', this.textContent);
+                    alert('Double-clicked: ' + this.textContent);
+                });
+            });
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (!selectedCell) return;
+                
+                const currentRow = parseInt(selectedCell.dataset.row);
+                const currentCol = parseInt(selectedCell.dataset.col);
+                let newRow = currentRow;
+                let newCol = currentCol;
+                
+                switch(e.key) {
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        newRow = Math.max(0, currentRow - 1);
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        newRow = currentRow + 1;
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        newCol = Math.max(1, currentCol - 1);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        newCol = currentCol + 1;
+                        break;
+                }
+                
+                const newCell = document.querySelector(`[data-row="${newRow}"][data-col="${newCol}"]`);
+                if (newCell) {
+                    newCell.click();
+                }
+            });
+            
+            console.log('Excel test page loaded successfully!');
+        });
+    </script>
+</body>
+</html>

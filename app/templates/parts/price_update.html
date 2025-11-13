@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Update Parts Pricing{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-dollar-sign me-2"></i>Update Parts Pricing</h1>
+        <p class="text-muted mb-0">Upload CSV or Excel file to update part prices with automatic history tracking</p>
+    </div>
+    <div>
+        <a href="{{ url_for('parts.import_parts') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-database"></i> Import Parts
+        </a>
+        <a href="{{ url_for('components.master_parts_database') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Parts Database
+        </a>
+    </div>
+</div>
+
+<!-- Current Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ "{:,}".format(total_parts) }}</h4>
+                        <p class="card-text">Total Parts in Database</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-cogs fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ recent_updates|length }}</h4>
+                        <p class="card-text">Recent File Updates</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-upload fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Auto</h4>
+                        <p class="card-text">History Tracking</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-history fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-upload"></i> Upload Price Update File
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="file" class="form-label">CSV or Excel File *</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx,.xls" required>
+                        <div class="form-text">
+                            Select a CSV or Excel file containing part identifiers and new prices
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Update Reason</label>
+                        <input type="text" class="form-control" id="reason" name="reason" 
+                               placeholder="e.g., Q1 2024 price update, Vendor price change">
+                        <div class="form-text">
+                            Optional description for this price update batch
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle"></i> File Format Requirements
+                        </h6>
+                        <ul class="mb-0">
+                            <li><strong>Supported Files:</strong> CSV (.csv), Excel (.xlsx, .xls)</li>
+                            <li><strong>Identifier Column:</strong> SKU, Part Number, Customer Part Number, Master Item Number, or UPC</li>
+                            <li><strong>Price Column:</strong> Unit Price, Price, Cost, or similar</li>
+                            <li><strong>Headers:</strong> First row must contain column headers</li>
+                            <li><strong>Price Format:</strong> Numbers only ($ and commas will be removed automatically)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Update Prices
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-question-circle"></i> How It Works
+                </h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-3">
+                    <li>Upload CSV or Excel file with part identifiers and new prices</li>
+                    <li>System automatically matches parts by:
+                        <ul class="mt-2">
+                            <li>SKU / Part Number</li>
+                            <li>Customer Part Number</li>
+                            <li>Master Item Number</li>
+                            <li>UPC Code</li>
+                        </ul>
+                    </li>
+                    <li>Old prices are archived to history</li>
+                    <li>New prices become current</li>
+                    <li>Full audit trail is maintained</li>
+                </ol>
+                
+                <div class="alert alert-warning alert-sm">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Note:</strong> Price changes are immediate and affect all future calculations.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Updates -->
+{% if recent_updates %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-history"></i> Recent Price Updates
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Part</th>
+                        <th>Old Price</th>
+                        <th>New Price</th>
+                        <th>Change</th>
+                        <th>Date</th>
+                        <th>Source</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for update in recent_updates %}
+                    <tr>
+                        <td>
+                            <strong>{{ update.part.part_number }}</strong><br>
+                            <small class="text-muted">{{ update.part.description[:50] }}{% if update.part.description|length > 50 %}...{% endif %}</small>
+                        </td>
+                        <td class="text-end">
+                            {% if update.old_price %}
+                                ${{ "{:,.2f}".format(update.old_price) }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-success">${{ "{:,.2f}".format(update.new_price) }}</strong>
+                        </td>
+                        <td class="text-end">
+                            {% if update.old_price %}
+                                {% set change = update.new_price - update.old_price %}
+                                {% set change_pct = ((update.new_price - update.old_price) / update.old_price * 100) if update.old_price > 0 else 0 %}
+                                <span class="badge bg-{{ 'success' if change >= 0 else 'danger' }}">
+                                    {{ "+" if change >= 0 else "" }}${{ "{:,.2f}".format(change) }}
+                                    ({{ "+" if change >= 0 else "" }}{{ "{:.1f}".format(change_pct) }}%)
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary">New</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ update.changed_at.strftime('%m/%d/%Y %H:%M') if update.changed_at else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            <small class="badge bg-secondary">
+                                {% if 'csv_import_' in update.source %}
+                                    CSV Import
+                                {% elif 'file_import_' in update.source %}
+                                    File Import
+                                {% else %}
+                                    {{ update.source or 'Manual' }}
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ update.changed_reason or 'No reason provided' }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Sample CSV Format -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-file-alt"></i> Sample File Formats
+        </h6>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">Your CSV file should have headers and data like this:</p>
+        <pre class="bg-light p-3 rounded"><code>part_number,price
+20G21ND8P0JA0NNNNN,2500.00
+20G21ND011JA0NNNNN,2800.50
+854K-BPM10C,85.25</code></pre>
+        
+        <p class="mb-2 mt-3">Alternative CSV formats are also supported:</p>
+        <pre class="bg-light p-3 rounded"><code>master_item_number,unit_price
+AB123456,150.00
+CD789012,275.50
+
+upc,cost
+123456789012,45.99
+987654321098,22.75</code></pre>
+        
+        <div class="alert alert-success mt-3">
+            <h6 class="alert-heading">
+                <i class="fas fa-file-excel"></i> Excel Files (VFD Format Compatible)
+            </h6>
+            <p class="mb-0">Excel files with columns like <strong>SKU</strong>, <strong>Customer Part Number</strong>, and <strong>Unit Price</strong> are automatically detected and processed (similar to VFD parts format).</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file');
+    const form = document.querySelector('form');
+    
+    // File validation
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileSize = file.size / 1024 / 1024; // Convert to MB
+            if (fileSize > 10) {
+                alert('File size must be less than 10MB');
+                this.value = '';
+                return;
+            }
+            
+            if (!file.name.toLowerCase().endsWith('.csv') && 
+                !file.name.toLowerCase().endsWith('.xlsx') && 
+                !file.name.toLowerCase().endsWith('.xls')) {
+                alert('Please select a CSV or Excel file');
+                this.value = '';
+                return;
+            }
+        }
+    });
+    
+    // Form submission with loading state
+    form.addEventListener('submit', function() {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        
+        // Re-enable after 30 seconds as fallback
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }, 30000);
+    });
+});
+</script>
+{% endblock %}

@@ -16,7 +16,7 @@ eggs/
 .eggs/
 lib/
 lib64/
-parts/
+/parts/
 sdist/
 var/
 wheels/
@@ -154,3 +154,7 @@ static/webfonts/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Windows reserved device names
+nul
+NUL

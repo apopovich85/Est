@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Price History - {{ part.part_number or part.description }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1>{{ part.part_number or part.description }}</h1>
+        <p class="text-muted mb-0">Price History Analysis</p>
+    </div>
+    <div>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Part Details -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Part Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Part Number:</dt>
+                    <dd class="col-sm-9">{{ part.part_number or 'N/A' }}</dd>
+
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">{{ part.description or 'N/A' }}</dd>
+
+                    <dt class="col-sm-3">Manufacturer:</dt>
+                    <dd class="col-sm-9">{{ part.manufacturer or 'N/A' }}</dd>
+
+                    <dt class="col-sm-3">Current Price:</dt>
+                    <dd class="col-sm-9">{{ part.current_price|currency if part.current_price else 'N/A' }}</dd>
+
+                    <dt class="col-sm-3">Category:</dt>
+                    <dd class="col-sm-9">{{ part.category or 'N/A' }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price History Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Price Trend</h5>
+    </div>
+    <div class="card-body">
+        <div style="position: relative; height:400px;">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Price History Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Price History</h5>
+    </div>
+    <div class="card-body">
+        {% if history %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Old Price</th>
+                            <th>New Price</th>
+                            <th>Change</th>
+                            <th>Change %</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in history %}
+                        <tr>
+                            <td>{{ record.changed_at.strftime('%Y-%m-%d %H:%M') if record.changed_at else 'N/A' }}</td>
+                            <td>
+                                {% if record.old_price %}
+                                    {{ record.old_price|currency }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ record.new_price|currency if record.new_price else 'N/A' }}</td>
+                            <td>
+                                {% if record.old_price and record.new_price %}
+                                    {% set change = record.new_price - record.old_price %}
+                                    {% if change > 0 %}
+                                        <span class="text-success">+{{ change|currency }}</span>
+                                    {% elif change < 0 %}
+                                        <span class="text-danger">{{ change|currency }}</span>
+                                    {% else %}
+                                        <span class="text-muted">$0.00</span>
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.old_price and record.new_price and record.old_price > 0 %}
+                                    {% set change_pct = ((record.new_price - record.old_price) / record.old_price) * 100 %}
+                                    {% if change_pct > 0 %}
+                                        <span class="text-success">+{{ "%.1f"|format(change_pct) }}%</span>
+                                    {% elif change_pct < 0 %}
+                                        <span class="text-danger">{{ "%.1f"|format(change_pct) }}%</span>
+                                    {% else %}
+                                        <span class="text-muted">0.0%</span>
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ record.changed_reason or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Price History</h5>
+                <p class="text-muted">This part has no recorded price changes.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+// Price chart functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+
+    // Build chart data from history - include initial price point
+    const labels = [];
+    const dataPoints = [];
+
+    {% if history and history|length > 0 %}
+        // Add initial price point (from first record's old_price)
+        {% if history[0].old_price %}
+            labels.push('{{ history[0].changed_at.strftime("%m/%d %H:%M") if history[0].changed_at else "N/A" }}');
+            dataPoints.push({{ history[0].old_price|float }});
+        {% endif %}
+
+        // Add all price change points
+        {% for record in history %}
+            labels.push('{{ record.changed_at.strftime("%m/%d %H:%M") if record.changed_at else "N/A" }}');
+            dataPoints.push({{ record.new_price|float if record.new_price else 0 }});
+        {% endfor %}
+    {% else %}
+        // No history, just show current price
+        labels.push('Current');
+        dataPoints.push({{ part.current_price|float or 0 }});
+    {% endif %}
+
+    const chartData = {
+        labels: labels,
+        datasets: [{
+            label: 'Price ($)',
+            data: dataPoints,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    };
+
+    new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Price History Over Time'
+                },
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
