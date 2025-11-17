@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app.models import Project, Estimate, Assembly, Component, PriceHistory, EstimateComponent, Parts, StandardAssembly, StandardAssemblyComponent, AssemblyPart, EstimateRevision
+from app.models import Project, Estimate, Assembly, Component, PriceHistory, EstimateComponent, Parts, StandardAssembly, StandardAssemblyComponent, AssemblyPart, EstimateRevision, EngineeringTask
 from app import db, csrf
 from datetime import datetime, date
 import uuid
@@ -22,6 +22,11 @@ def detail_estimate(estimate_id):
                            .order_by(EstimateComponent.sort_order)
                            .all())
 
+    # Load engineering tasks if this is an Engineering Hours estimate
+    engineering_tasks = []
+    if estimate.is_engineering_hours:
+        engineering_tasks = EngineeringTask.query.filter_by(estimate_id=estimate_id).order_by(EngineeringTask.sort_order).all()
+
     # Calculate totals
     for assembly in assemblies:
         assembly.components = Component.query.filter_by(assembly_id=assembly.assembly_id).order_by(Component.sort_order).all()
@@ -29,7 +34,8 @@ def detail_estimate(estimate_id):
     return render_template('estimates/detail.html',
                          estimate=estimate,
                          assemblies=assemblies,
-                         individual_components=individual_components)
+                         individual_components=individual_components,
+                         engineering_tasks=engineering_tasks)
 
 @bp.route('/create/<int:project_id>', methods=['GET', 'POST'])
 def create_estimate(project_id):
@@ -861,23 +867,122 @@ def export_revision_report_pdf(estimate_id):
     """Export revision history report as PDF"""
     from flask import make_response
     from app.pdf_reports import generate_revision_report_pdf
-    
+
     try:
         estimate = Estimate.query.get_or_404(estimate_id)
         revisions = estimate.get_revision_history()
-        
+
         # Generate PDF
         pdf_buffer = generate_revision_report_pdf(estimate, revisions)
-        
+
         # Create response
         response = make_response(pdf_buffer.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename="revision_history_{estimate.estimate_number}.pdf"'
-        
+
         return response
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
             'error': f'PDF generation failed: {str(e)}'
         }), 500
+
+# Engineering Task Management Routes
+
+@bp.route('/<int:estimate_id>/engineering-tasks/add', methods=['POST'])
+@csrf.exempt
+def add_engineering_task(estimate_id):
+    """Add a new engineering task to an Engineering Hours estimate"""
+    estimate = Estimate.query.get_or_404(estimate_id)
+
+    if not estimate.is_engineering_hours:
+        return jsonify({'success': False, 'error': 'Not an Engineering Hours estimate'}), 400
+
+    try:
+        task_name = request.form.get('task_name', '').strip()
+        description = request.form.get('description', '').strip()
+        hours = request.form.get('hours', 0.0)
+
+        if not task_name:
+            return jsonify({'success': False, 'error': 'Task name is required'}), 400
+
+        # Get max sort_order
+        max_sort = db.session.query(db.func.max(EngineeringTask.sort_order)).filter_by(
+            estimate_id=estimate_id
+        ).scalar() or 0
+
+        task = EngineeringTask(
+            estimate_id=estimate_id,
+            task_name=task_name,
+            description=description,
+            hours=float(hours or 0),
+            sort_order=max_sort + 1
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        flash(f'Engineering task "{task_name}" added successfully!', 'success')
+        return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/engineering-tasks/<int:task_id>/update', methods=['POST'])
+@csrf.exempt
+def update_engineering_task(task_id):
+    """Update an engineering task"""
+    task = EngineeringTask.query.get_or_404(task_id)
+
+    try:
+        data = request.get_json() if request.is_json else request.form
+
+        if 'task_name' in data:
+            task.task_name = data['task_name'].strip()
+        if 'description' in data:
+            task.description = data['description'].strip()
+        if 'hours' in data:
+            task.hours = float(data['hours'] or 0)
+        if 'is_completed' in data:
+            task.is_completed = bool(data['is_completed'])
+
+        task.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Task updated successfully',
+            'task': {
+                'task_id': task.task_id,
+                'task_name': task.task_name,
+                'hours': float(task.hours),
+                'cost': task.cost,
+                'is_completed': task.is_completed
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/engineering-tasks/<int:task_id>/delete', methods=['POST'])
+@csrf.exempt
+def delete_engineering_task(task_id):
+    """Delete an engineering task"""
+    task = EngineeringTask.query.get_or_404(task_id)
+    estimate_id = task.estimate_id
+
+    try:
+        task_name = task.task_name
+        db.session.delete(task)
+        db.session.commit()
+
+        flash(f'Engineering task "{task_name}" deleted successfully!', 'success')
+        return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting task: {str(e)}', 'error')
+        return redirect(url_for('estimates.detail_estimate', estimate_id=estimate_id))

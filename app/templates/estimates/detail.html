@@ -78,6 +78,74 @@
                 
                 <!-- Labor Hours Section -->
                 <hr>
+                {% if estimate.is_engineering_hours %}
+                <!-- Engineering Tasks View -->
+                <div class="mb-3">
+                    <h6 class="mb-3">
+                        <i class="fas fa-tasks text-primary"></i> Engineering Tasks
+                        <button type="button" class="btn btn-sm btn-success float-end" onclick="showAddTaskModal()">
+                            <i class="fas fa-plus"></i> Add Task
+                        </button>
+                    </h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 30%">Task Name</th>
+                                    <th style="width: 35%">Description</th>
+                                    <th style="width: 15%" class="text-end">Hours</th>
+                                    <th style="width: 15%" class="text-end">Cost</th>
+                                    <th style="width: 5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in engineering_tasks %}
+                                <tr class="{{ 'table-success' if task.is_completed else '' }}">
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm border-0"
+                                               value="{{ task.task_name }}"
+                                               onchange="updateTask({{ task.task_id }}, 'task_name', this.value)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm border-0"
+                                               value="{{ task.description or '' }}"
+                                               onchange="updateTask({{ task.task_id }}, 'description', this.value)">
+                                    </td>
+                                    <td class="text-end">
+                                        <input type="number" step="0.25" min="0"
+                                               class="form-control form-control-sm text-end border-0"
+                                               value="{{ task.hours }}"
+                                               onchange="updateTask({{ task.task_id }}, 'hours', this.value)">
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-muted">${{ task.cost|round(2) }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{{ url_for('estimates.delete_engineering_task', task_id=task.task_id) }}"
+                                              style="display:inline;" onsubmit="return confirm('Delete this task?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end"><strong>{{ estimate.total_engineering_hours|round(2) }} hrs</strong></td>
+                                    <td class="text-end"><strong>${{ estimate.total_engineering_cost|round(2) }}</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Standard Labor Hours Form -->
                 <form method="POST" action="{{ url_for('estimates.update_labor_hours', estimate_id=estimate.estimate_id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <h6 class="mb-3">
@@ -86,34 +154,34 @@
                             <i class="fas fa-save"></i> Save
                         </button>
                     </h6>
-                    
+
                     <div class="row">
                         <div class="col-md-4">
                             <label for="engineering_hours" class="form-label">Engineering</label>
-                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
-                                   id="engineering_hours" name="engineering_hours" 
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm"
+                                   id="engineering_hours" name="engineering_hours"
                                    value="{{ estimate.engineering_hours or 0 }}"
                                    onchange="updateLaborCosts()">
                             <small class="text-primary">${{ estimate.engineering_rate|round(0)|int }}/hr = ${{ estimate.total_engineering_cost|round(0)|int }}</small>
                         </div>
                         <div class="col-md-4">
                             <label for="panel_shop_hours" class="form-label">Panel Shop</label>
-                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
-                                   id="panel_shop_hours" name="panel_shop_hours" 
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm"
+                                   id="panel_shop_hours" name="panel_shop_hours"
                                    value="{{ estimate.panel_shop_hours or 0 }}"
                                    onchange="updateLaborCosts()">
                             <small class="text-warning">${{ estimate.panel_shop_rate|round(0)|int }}/hr = ${{ estimate.total_panel_shop_cost|round(0)|int }}</small>
                         </div>
                         <div class="col-md-4">
                             <label for="machine_assembly_hours" class="form-label">Assembly</label>
-                            <input type="number" step="0.25" min="0" class="form-control form-control-sm" 
-                                   id="machine_assembly_hours" name="machine_assembly_hours" 
+                            <input type="number" step="0.25" min="0" class="form-control form-control-sm"
+                                   id="machine_assembly_hours" name="machine_assembly_hours"
                                    value="{{ estimate.machine_assembly_hours or 0 }}"
                                    onchange="updateLaborCosts()">
                             <small class="text-success">${{ estimate.machine_assembly_rate|round(0)|int }}/hr = ${{ estimate.total_machine_assembly_cost|round(0)|int }}</small>
                         </div>
                     </div>
-                    
+
                     <div class="row mt-2">
                         <div class="col-12">
                             <div class="text-center">
@@ -122,6 +190,7 @@
                         </div>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -723,6 +792,45 @@
                     <i class="fas fa-file-pdf"></i> Export PDF
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Engineering Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="addTaskModalLabel">
+                    <i class="fas fa-plus"></i> Add Engineering Task
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('estimates.add_engineering_task', estimate_id=estimate.estimate_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="task_name" class="form-label"><strong>Task Name *</strong></label>
+                        <input type="text" class="form-control" id="task_name" name="task_name" required maxlength="255">
+                    </div>
+                    <div class="mb-3">
+                        <label for="task_description" class="form-label"><strong>Description</strong></label>
+                        <textarea class="form-control" id="task_description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="task_hours" class="form-label"><strong>Hours</strong></label>
+                        <input type="number" class="form-control" id="task_hours" name="hours"
+                               step="0.25" min="0" value="0">
+                        <small class="text-muted">Engineering Rate: ${{ estimate.engineering_rate }}/hr</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -2277,6 +2385,41 @@ function getSortValue(row, column) {
         default:
             return '';
     }
+}
+
+// Engineering Tasks Functions
+function showAddTaskModal() {
+    const modal = document.getElementById('addTaskModal');
+    if (modal) {
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+    }
+}
+
+function updateTask(taskId, field, value) {
+    fetch(`/estimates/engineering-tasks/${taskId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            [field]: value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to refresh totals
+            location.reload();
+        } else {
+            alert('Error updating task: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating task');
+    });
 }
 
 </script>

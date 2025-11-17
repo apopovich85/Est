@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
-from app.models import Project, Estimate, Assembly, AssemblyPart, Parts, PartCategory, EstimateComponent, Motor
+from app.models import Project, Estimate, Assembly, AssemblyPart, Parts, PartCategory, EstimateComponent, Motor, EngineeringTask
 from app import db
 from datetime import datetime
 from sqlalchemy.orm import joinedload
@@ -83,17 +83,60 @@ def create_project():
                 revision=request.form.get('revision', ''),
                 remarks=request.form.get('remarks', '')
             )
-            
+
             db.session.add(project)
+            db.session.flush()  # Get project_id without committing
+
+            # Auto-create Engineering Hours estimate with default tasks
+            eng_estimate_number = f"EST-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            eng_estimate = Estimate(
+                project_id=project.project_id,
+                estimate_number=eng_estimate_number,
+                estimate_name='Engineering Hours',
+                description='Engineering labor hours tracking',
+                is_engineering_hours=True,
+                is_optional=False,
+                sort_order=0,  # Make it first in the list
+                engineering_rate=145.00,
+                panel_shop_rate=125.00,
+                machine_assembly_rate=125.00
+            )
+            db.session.add(eng_estimate)
+            db.session.flush()  # Get estimate_id
+
+            # Define default engineering tasks
+            default_tasks = [
+                ('General Engineering', 'General engineering tasks and project setup', 0.0, 1),
+                ('Meetings', 'Client meetings, internal coordination, and project discussions', 0.0, 2),
+                ('SOO (Sequence of Operations)', 'Sequence of operations documentation', 0.0, 3),
+                ('O&M Manual', 'Operations and Maintenance manual preparation', 0.0, 4),
+                ('PLC Programming', 'PLC programming and logic development', 0.0, 5),
+                ('HMI Development', 'HMI screen design and development', 0.0, 6),
+                ('Shop Testing', 'Shop testing and troubleshooting', 0.0, 7),
+                ('Equipment List', 'Equipment list preparation and documentation', 0.0, 8),
+                ('FAT (Factory Acceptance Test)', 'Factory acceptance testing coordination and execution', 0.0, 9)
+            ]
+
+            # Create default engineering tasks
+            for task_name, description, hours, sort_order in default_tasks:
+                task = EngineeringTask(
+                    estimate_id=eng_estimate.estimate_id,
+                    task_name=task_name,
+                    description=description,
+                    hours=hours,
+                    sort_order=sort_order
+                )
+                db.session.add(task)
+
             db.session.commit()
-            
-            flash(f'Project "{project.project_name}" created successfully!', 'success')
+
+            flash(f'Project "{project.project_name}" created successfully with Engineering Hours estimate!', 'success')
             return redirect(url_for('projects.detail_project', project_id=project.project_id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating project: {str(e)}', 'error')
-    
+
     return render_template('projects/create.html')
 
 @bp.route('/<int:project_id>')

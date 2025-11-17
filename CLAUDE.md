@@ -243,3 +243,50 @@ Database schema changes are handled via standalone Python scripts in project roo
 - Check if change already exists before applying
 - Always commit changes and provide success/error feedback
 - Example: `add_estimate_name_index.py`
+
+## Chart.js Integration
+
+Price history and other charts use Chart.js v4.4.0 (`static/js/chart.min.js`):
+
+**Critical Pattern for Responsive Charts:**
+```html
+<!-- Container with fixed height for responsive behavior -->
+<div style="position: relative; height:400px;">
+    <canvas id="chartId"></canvas>
+</div>
+```
+
+**Chart Options:**
+```javascript
+{
+    responsive: true,
+    maintainAspectRatio: false,  // Required when using fixed container height
+    // ... other options
+}
+```
+
+**Data Type Conversion:**
+- SQLAlchemy Decimal values must be explicitly converted to floats in Jinja2 templates
+- Use `{{ value|float }}` filter when passing prices to JavaScript
+- Without conversion, Decimal objects may not render properly in charts
+
+## Excel Export Patterns
+
+When exporting projects to Excel using `openpyxl`:
+
+**Sheet Name Restrictions:**
+- Excel sheet names cannot exceed 31 characters
+- Invalid characters: `[ ] : * ? / \`
+- Always sanitize project names before using as sheet titles:
+  ```python
+  safe_name = project_name.replace('/', '-').replace('\\', '-').replace('[', '(').replace(']', ')').replace(':', '-').replace('*', '-').replace('?', '')
+  sheet_title = f"{safe_name} Overview"[:31]
+  ws.title = sheet_title
+  ```
+
+## File System Considerations
+
+**Windows Reserved Names:**
+- Never create files named: `CON`, `PRN`, `AUX`, `NUL`, `COM1-COM9`, `LPT1-LPT9`
+- These are reserved device names in Windows and will cause Git and file system errors
+- The `.gitignore` includes `nul` and `NUL` to prevent accidental tracking

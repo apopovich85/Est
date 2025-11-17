@@ -111,24 +111,26 @@ class Estimate(db.Model):
     sort_order = db.Column(db.Integer, default=0)
     revision_number = db.Column(db.Integer, default=0)
     is_optional = db.Column(db.Boolean, default=False)
+    is_engineering_hours = db.Column(db.Boolean, default=False)  # Flag for dedicated engineering hours estimate
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Labor rate snapshot (preserves rates used when estimate was created)
     engineering_rate = db.Column(db.Numeric(8, 2), default=145.00)
     panel_shop_rate = db.Column(db.Numeric(8, 2), default=125.00)
     machine_assembly_rate = db.Column(db.Numeric(8, 2), default=125.00)
     rate_snapshot_date = db.Column(db.Date)
-    
+
     # Simple labor hours tracking at estimate level
     engineering_hours = db.Column(db.Numeric(8, 2), default=0.0)
     panel_shop_hours = db.Column(db.Numeric(8, 2), default=0.0)
     machine_assembly_hours = db.Column(db.Numeric(8, 2), default=0.0)
-    
+
     # Relationships
     assemblies = db.relationship('Assembly', backref='estimate', cascade='all, delete-orphan')
     individual_components = db.relationship('EstimateComponent', backref='estimate', cascade='all, delete-orphan')
     revisions = db.relationship('EstimateRevision', backref='estimate', cascade='all, delete-orphan')
+    engineering_tasks = db.relationship('EngineeringTask', backref='estimate', cascade='all, delete-orphan')
     
     @property
     def calculated_total(self):
@@ -139,7 +141,10 @@ class Estimate(db.Model):
     
     @property
     def total_engineering_hours(self):
-        """Get engineering hours from the estimate level field"""
+        """Get engineering hours from estimate level field or sum from engineering tasks"""
+        if self.is_engineering_hours and hasattr(self, 'engineering_tasks'):
+            # Sum hours from individual engineering tasks
+            return sum(float(task.hours or 0) for task in self.engineering_tasks)
         return float(self.engineering_hours or 0)
     
     @property
@@ -160,17 +165,17 @@ class Estimate(db.Model):
     @property
     def total_engineering_cost(self):
         """Calculate total engineering cost from estimate hours and rate"""
-        return float(self.engineering_hours or 0) * float(self.engineering_rate or 145.0)
-    
+        return self.total_engineering_hours * float(self.engineering_rate or 145.0)
+
     @property
     def total_panel_shop_cost(self):
         """Calculate total panel shop cost from estimate hours and rate"""
-        return float(self.panel_shop_hours or 0) * float(self.panel_shop_rate or 125.0)
-    
+        return self.total_panel_shop_hours * float(self.panel_shop_rate or 125.0)
+
     @property
     def total_machine_assembly_cost(self):
         """Calculate total machine assembly cost from estimate hours and rate"""
-        return float(self.machine_assembly_hours or 0) * float(self.machine_assembly_rate or 125.0)
+        return self.total_machine_assembly_hours * float(self.machine_assembly_rate or 125.0)
     
     @property
     def total_labor_cost(self):
@@ -1180,7 +1185,7 @@ class MotorRevision(db.Model):
 class EstimateRevision(db.Model):
     """Track revision history for estimates"""
     __tablename__ = 'estimate_revisions'
-    
+
     revision_id = db.Column(db.Integer, primary_key=True)
     estimate_id = db.Column(db.Integer, db.ForeignKey('estimates.estimate_id'), nullable=False)
     revision_number = db.Column(db.Integer, nullable=False)
@@ -1188,8 +1193,32 @@ class EstimateRevision(db.Model):
     detailed_changes = db.Column(db.Text)
     created_by = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (db.UniqueConstraint('estimate_id', 'revision_number'),)
-    
+
     def __repr__(self):
         return f'<EstimateRevision {self.estimate_id} Rev.{self.revision_number}>'
+
+class EngineeringTask(db.Model):
+    """Individual engineering tasks for Engineering Hours estimates"""
+    __tablename__ = 'engineering_tasks'
+
+    task_id = db.Column(db.Integer, primary_key=True)
+    estimate_id = db.Column(db.Integer, db.ForeignKey('estimates.estimate_id'), nullable=False)
+    task_name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    hours = db.Column(db.Numeric(8, 2), nullable=False, default=0.0)
+    sort_order = db.Column(db.Integer, default=0)
+    is_completed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def cost(self):
+        """Calculate cost for this task based on estimate's engineering rate"""
+        if self.estimate:
+            return float(self.hours or 0) * float(self.estimate.engineering_rate or 145.0)
+        return 0.0
+
+    def __repr__(self):
+        return f'<EngineeringTask {self.task_name}: {self.hours}hrs>'

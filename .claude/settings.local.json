@@ -24,7 +24,13 @@
       "Bash(\"venv\\Scripts\\python.exe\" test_project_delete.py)",
       "Bash(powershell -Command \"Get-Content ''c:\\Projects\\Est_v0.5\\app\\templates\\projects\\list.html'' | Select-Object -Last 20\")",
       "Bash(\"venv\\Scripts\\python.exe\" -m py_compile app/routes/main.py)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(\"venv\\Scripts\\python.exe\" add_engineering_hours_estimate.py)",
+      "Bash(powershell -Command \"Get-Content ''c:\\Projects\\Est_v0.5\\app\\routes\\estimates.py'' | Select-Object -Last 5\")",
+      "Bash(powershell -Command \"(Get-Content ''c:\\Projects\\Est_v0.5\\app\\routes\\estimates.py'' | Measure-Object -Line).Lines\")",
+      "Bash(powershell -Command \"(Get-Content ''c:\\Projects\\Est_v0.5\\app\\templates\\estimates\\detail.html'' | Measure-Object -Line).Lines\")",
+      "Bash(\"venv\\Scripts\\python.exe\" -m py_compile app/models.py)",
+      "Bash(\"venv\\Scripts\\python.exe\" -m py_compile app/routes/estimates.py)"
     ],
     "deny": [],
     "ask": [],
